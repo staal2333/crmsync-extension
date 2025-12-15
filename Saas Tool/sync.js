@@ -1,7 +1,7 @@
 // Data synchronization module for CRMSYNC Extension
 // Handles syncing contacts, messages, and settings between local storage and backend
 
-const API_URL = 'http://localhost:3000/api'; // Change to production URL when deployed
+const API_URL = 'https://crmsync-extension.onrender.com/api'; // Production backend URL
 
 class SyncManager {
   constructor() {

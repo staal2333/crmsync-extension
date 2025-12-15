@@ -1,7 +1,7 @@
 // Authentication module for CRMSYNC Extension
 // Handles email/password and Google OAuth authentication
 
-const API_URL = 'http://localhost:3000/api'; // Change to production URL when deployed
+const API_URL = 'https://crmsync-extension.onrender.com/api'; // Production backend URL
 
 /**
  * Sign in with email and password

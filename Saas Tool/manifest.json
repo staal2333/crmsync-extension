@@ -20,7 +20,7 @@
   "host_permissions": [
     "https://mail.google.com/*",
     "https://outlook.office.com/*",
-    "http://localhost:3000/*"
+    "https://crmsync-extension.onrender.com/*"
   ],
   "oauth2": {
     "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",

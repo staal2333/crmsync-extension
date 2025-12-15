@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRMSYNC</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <button class="popup-contacts-btn" onclick="document.querySelector('[data-tab=\\'all-contacts\\']')?.click()" title="All Contacts">
+        👥
+      </button>
+      <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png.png'" />
+      <button class="popup-widget-btn" id="showWidgetBtn" title="Show Widget on Gmail">
+        <img src="icons/widget-logo.png.png" alt="Widget" style="width: 20px; height: 20px; margin-right: 4px;" onerror="this.textContent='📌'"/>
+        <span>Show Widget</span>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+      <button class="tab-btn active" data-tab="all-contacts">
+        <span>📋</span>
+        <span>Contacts</span>
+      </button>
+      <button class="tab-btn" data-tab="overview">
+        <span>📊</span>
+        <span>Overview</span>
+      </button>
+      <button class="tab-btn" data-tab="daily-review">
+        <span>📅</span>
+        <span>Today</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <span>⚙️</span>
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <!-- All Contacts Tab -->
+    <div class="tab-content active" id="all-contacts-tab">
+      <!-- Stats Row -->
+      <div class="quick-stats">
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="allContactsCount">0</span>
+          <span class="stat-mini-label">Total</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="pendingCount">0</span>
+          <span class="stat-mini-label">Pending</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="newTodayMini">0</span>
+          <span class="stat-mini-label">Today</span>
+        </div>
+      </div>
+
+      <!-- Search and Filters -->
+      <div class="search-section">
+        <input type="text" id="contactSearchInput" placeholder="🔍 Search contacts..." class="search-input">
+        <div class="filter-row">
+          <select id="statusFilter" class="select-input">
+            <option value="">All Status</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="archived">Archived</option>
+          </select>
+          <select id="sortBy" class="select-input">
+            <option value="lastContact">Last Contact</option>
+            <option value="name">Name</option>
+            <option value="company">Company</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Contacts Table -->
+      <div class="contacts-table-wrapper">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Company</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="allContactsTableBody">
+            <tr>
+              <td colspan="6" class="empty-row">Loading contacts...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button class="btn-icon" id="prevPage" disabled>←</button>
+        <span class="page-info" id="pageInfo">Page 1</span>
+        <button class="btn-icon" id="nextPage" disabled>→</button>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions-row">
+        <button class="btn-secondary" id="exportAllContactsCSV">
+          <span>📥</span>
+          <span>Export CSV</span>
+        </button>
+        <button class="btn-secondary" id="refreshAllContacts">
+          <span>🔄</span>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content" id="overview-tab">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalContacts">0</div>
+          <div class="stat-label">Total Contacts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="newToday">0</div>
+          <div class="stat-label">New Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="pendingApprovals">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+
+      <!-- Pending Approvals -->
+      <div class="section">
+        <h3 class="section-title">Pending Approvals</h3>
+        <div id="pendingList" class="contacts-list">
+          <div class="empty-state">No pending approvals</div>
+        </div>
+      </div>
+
+      <!-- Recent Contacts -->
+      <div class="section">
+        <div class="section-header">
+          <h3 class="section-title">Recent Contacts</h3>
+          <button class="btn-text" id="clearContacts">Clear All</button>
+        </div>
+        <div id="recentContactsList" class="contacts-list">
+          <div class="empty-state">No recent contacts</div>
+        </div>
+      </div>
+
+      <!-- Rejected Contacts -->
+      <div class="section">
+        <div class="section-header">
+          <h3 class="section-title">🚫 Rejected Contacts</h3>
+          <button class="btn-text" id="clearRejected">Clear All</button>
+        </div>
+        <div id="rejectedContactsList" class="contacts-list">
+          <div class="empty-state">No rejected contacts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Review Tab -->
+    <div class="tab-content" id="daily-review-tab">
+      <!-- Today's Stats -->
+      <div class="stats-grid-compact">
+        <div class="stat-card-mini">
+          <span class="stat-value-mini" id="reviewNewToday">0</span>
+          <span class="stat-label-mini">New Today</span>
+        </div>
+        <div class="stat-card-mini">
+          <span class="stat-value-mini" id="reviewTotalToday">0</span>
+          <span class="stat-label-mini">Total Today</span>
+        </div>
+      </div>
+
+      <!-- Today's Contacts -->
+      <div class="section">
+        <h3 class="section-title">📅 Today's Contacts</h3>
+        <div id="dailyReviewList" class="contacts-list">
+          <div class="empty-state">No contacts added today</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button class="btn-primary" id="exportAndMarkReviewed">
+        <span>📥</span>
+        <span>Export Today's Contacts</span>
+      </button>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="settings-tab">
+      <div class="settings-section">
+        <!-- General Settings -->
+        <div class="setting-group">
+          <h3 class="group-title">General</h3>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Dark Mode</label>
+              <span class="setting-description">Switch to night theme</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkMode">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Sound Effects</label>
+              <span class="setting-description">Play sounds on interactions</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="soundEffects">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Enable Sidebar</label>
+              <span class="setting-description">Show sidebar in Gmail</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="sidebarEnabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Contact Management -->
+        <div class="setting-group">
+          <h3 class="group-title">Contact Management</h3>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Auto-Approve Contacts</label>
+              <span class="setting-description">Skip manual approval</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoApprove">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Advanced -->
+        <div class="setting-group">
+          <h3 class="group-title">Advanced</h3>
+          
+          <div class="setting-item-full">
+            <label class="setting-label">Track Gmail Labels</label>
+            <input type="text" id="gmailLabelsInput" placeholder="e.g., Outreach, Prospects" class="text-input">
+            <span class="setting-description">Comma-separated. Leave empty to track all emails</span>
+          </div>
+        </div>
+
+        <!-- Exclusions -->
+        <div class="setting-group">
+          <h3 class="group-title">🚫 Exclusions</h3>
+          <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+            Block specific contacts from being tracked. Use commas to separate multiple entries.
+          </p>
+          
+          <div class="setting-item-full">
+            <label class="setting-label">📧 Exclude Email Domains</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludeDomainsTags"></div>
+              <input type="text" id="excludeDomainsInput" placeholder="Type domain and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              ❌ Blocks: anyone@<strong>yourcompany.com</strong><br>
+              💡 Type domain and press <strong>Enter</strong> to add
+            </span>
+          </div>
+
+          <div class="setting-item-full">
+            <label class="setting-label">👤 Exclude Names</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludeNamesTags"></div>
+              <input type="text" id="excludeNamesInput" placeholder="Type name and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              <strong>Full Name:</strong> "John Smith" → Blocks ONLY John Smith<br>
+              💡 Type name and press <strong>Enter</strong> to add
+            </span>
+          </div>
+
+          <div class="setting-item-full">
+            <label class="setting-label">📞 Exclude Phone Numbers</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludePhonesTags"></div>
+              <input type="text" id="excludePhonesInput" placeholder="Type phone and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              ❌ Blocks these phone numbers<br>
+              💡 Type number and press <strong>Enter</strong> to add
+            </span>
+          </div>
+        </div>
+
+        <!-- Data Management -->
+        <div class="setting-group">
+          <h3 class="group-title">Data</h3>
+          <button class="btn-danger" id="clearAllData">
+            <span>🗑️</span>
+            <span>Clear All Data</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="sync.js"></script>
+  <script src="guest-mode-banner.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

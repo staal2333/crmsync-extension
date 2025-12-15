@@ -1,0 +1,39 @@
+﻿# Dependencies
+node_modules/
+crmsync-backend/node_modules/
+
+# Environment variables (IMPORTANT - keeps secrets safe!)
+.env
+crmsync-backend/.env
+
+# Database files
+crmsync-backend/data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build outputs
+dist/
+build/
+*.zip
+
+# Temporary files
+tmp/
+temp/
+*.tmp

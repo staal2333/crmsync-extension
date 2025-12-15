@@ -4,7 +4,7 @@
   "description": "CRMSYNC Backend API with Authentication and Cross-Platform Sync",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node src/migrations/run.js && node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/migrations/run.js",
     "setup": "node setup-sqlite.js",

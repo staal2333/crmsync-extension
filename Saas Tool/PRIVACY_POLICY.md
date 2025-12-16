@@ -1,86 +1,113 @@
-# CRMSYNC Privacy Policy
+# Privacy Policy for CRMSYNC
 
-**Last Updated: December 2024**
+**Last Updated:** December 15, 2025
 
-## Data Collection and Storage
+## Overview
 
-CRMSYNC processes and stores all contact and email data **locally on your device** using Chrome's local extension storage (`chrome.storage.local`). 
+CRMSYNC is a Chrome extension designed to help you manage email contacts efficiently. We respect your privacy and are committed to protecting your personal information.
 
-### What We Store Locally:
-- Contact information (name, email, company, title, phone, LinkedIn URLs)
-- Email metadata (subject, timestamps, direction - sent/received)
-- Email message history per contact
-- User preferences (dark mode, auto-approve settings, reminder days, tracked labels)
-- Tags and campaign information you assign to contacts
+## Information We Collect
 
-### What We Sync (Optional):
-- User preferences only (dark mode, auto-approve, reminder days, tracked labels) are stored in `chrome.storage.sync` so your settings follow you across Chrome profiles
-- **No contact data is ever stored in sync storage**
-- **No email content is ever stored in sync storage**
+### Information You Provide
+- **Account Information**: Email address, name (if you create an account)
+- **Contact Data**: Names, email addresses, phone numbers, companies, and job titles extracted from your Gmail emails
+- **Settings**: Your preferences and exclusion patterns
 
-## Data Transmission
+### Automatically Collected Information
+- **Email Content** (Processed Locally): We analyze email content within your browser to extract contact information. This processing happens locally and is NOT sent to our servers unless you enable cloud sync.
+- **Usage Data**: Error logs and sync timestamps (only if logged in)
 
-**CRMSYNC does not transmit any data to external servers.** All processing happens locally in your browser. The extension:
-- Does not call any external APIs
-- Does not send data to third-party services
-- Does not use analytics or tracking
-- Does not collect usage statistics
-- Does not share data with advertisers or other parties
+## How We Use Your Information
 
-## Permissions Explained
+### Local Storage (Guest Mode)
+When you use CRMSYNC in **Guest Mode**:
+- All contact data is stored **locally on your device** using Chrome's storage API
+- **No data is sent to our servers**
+- **No account is created**
+- Data remains on your device only
 
-- **storage**: To save contact data and settings locally on your device
-- **activeTab**: To access Gmail/Outlook tabs when you click the extension icon
-- **scripting**: To inject content scripts for email detection and contact extraction
-- **downloads**: To export CSV files containing your contact data to your computer
-- **host_permissions** (Gmail/Outlook): To read email content for contact extraction (names, emails, signatures, etc.)
+### Cloud Sync (Logged-In Mode)
+When you create an account and enable cloud sync:
+- Contact data is encrypted and sent to our secure servers
+- Data is synchronized across your devices
+- We use this data solely to provide the synchronization service
+- We **never sell, share, or use your data for advertising**
 
-## How We Use Your Data
+## Data Storage & Security
 
-- **Contact Extraction**: We parse email content to extract contact information (names, emails, companies, titles, phone numbers) from emails you send and receive
-- **Data Enrichment**: We automatically update contact records when new information is found in email signatures or replies
-- **Follow-up Management**: We track email activity to help you manage follow-ups and identify contacts who haven't replied
-- **Export**: You can export your contact data as CSV files at any time
+### Local Storage
+- Contact data is stored using Chrome's `chrome.storage.local` API
+- Settings are stored using Chrome's `chrome.storage.sync` API
+- Data remains on your device and is not accessible to us
 
-## Your Rights
-
-You have complete control over your data:
-
-- **Delete All Data**: Uninstall the extension to delete all stored data
-- **Export Your Data**: Export all contacts as CSV at any time via the extension popup
-- **Review Stored Data**: Access stored data via Chrome DevTools (chrome://extensions → CRMSYNC → Details → Inspect views → Application → Storage)
-- **Disable Features**: Turn off auto-approve, sidebar, or other features in settings
-
-## Data Retention
-
-- Data is stored locally on your device until you uninstall the extension
-- There is no automatic data deletion
-- You can manually delete individual contacts or export and clear data at any time
+### Cloud Storage (If Enabled)
+- Data is stored on secure servers (Render.com infrastructure)
+- Communications are encrypted using TLS 1.3
+- Passwords are hashed using bcrypt
+- Access tokens expire after 24 hours
 
 ## Third-Party Services
 
-CRMSYNC does not integrate with any third-party services. All data processing happens locally in your browser.
+### Google OAuth (Optional)
+- If you choose to sign in with Google, we receive your email address and name
+- We do not access your Gmail inbox or send emails on your behalf
+- Google's Privacy Policy: https://policies.google.com/privacy
+
+### Gmail Integration
+- CRMSYNC requires permission to read email content **locally in your browser** to extract contact information
+- We do NOT have backend access to your Gmail account
+- Email content is processed locally and is not stored or transmitted (unless you enable cloud sync for extracted contacts)
+
+## Your Rights
+
+You have the right to:
+- **Access** your data at any time through the extension
+- **Export** your data as CSV
+- **Delete** your account and all associated data
+- **Opt-out** of cloud sync (use Guest Mode)
+
+### Data Deletion
+To delete your data:
+- **Guest Mode**: Clear browser data or uninstall the extension
+- **Cloud Sync**: Sign out and click "Delete Account" in settings, or contact us at support@crmsync.com
+
+## Data Retention
+
+- **Guest Mode**: Data is retained until you clear browser storage or uninstall
+- **Cloud Sync**: Data is retained until you delete your account
+- Deleted accounts are permanently removed within 30 days
 
 ## Children's Privacy
 
-CRMSYNC is not intended for users under the age of 13. We do not knowingly collect data from children.
+CRMSYNC is not intended for users under 13 years of age. We do not knowingly collect information from children under 13.
 
 ## Changes to This Policy
 
-We will notify users of any material changes to this privacy policy by updating the "Last Updated" date. Continued use of the extension after changes constitutes acceptance of the updated policy.
+We may update this Privacy Policy from time to time. We will notify you of significant changes by updating the "Last Updated" date.
 
-## Contact
+## Contact Us
 
-For privacy questions or concerns, please contact us at: [your-email@example.com]
+If you have questions about this Privacy Policy or your data:
+- **Email**: support@crmsync.com
+- **GitHub**: https://github.com/yourusername/crmsync-extension
 
 ## Compliance
 
 This extension complies with:
 - Chrome Web Store Developer Program Policies
-- General Data Protection Regulation (GDPR) principles (data stored locally, user control)
-- California Consumer Privacy Act (CCPA) principles (no data sharing, user control)
+- General Data Protection Regulation (GDPR)
+- California Consumer Privacy Act (CCPA)
+
+## Data Processing Summary
+
+| Data Type | Local (Guest) | Cloud (Logged In) |
+|-----------|---------------|-------------------|
+| Contact Information | ✅ Stored locally | ✅ Synced to cloud |
+| Email Content | ✅ Processed locally | ❌ Never sent |
+| Settings | ✅ Stored locally | ✅ Synced to cloud |
+| Usage Analytics | ❌ Not collected | ⚠️ Minimal (errors only) |
+| Sold to Third Parties | ❌ Never | ❌ Never |
 
 ---
 
-**Summary**: CRMSYNC stores all data locally on your device. We don't send any data to external servers. You have full control over your data and can delete it at any time by uninstalling the extension.
-
+**Your Privacy, Your Choice**: You have complete control over your data. Choose Guest Mode for local-only storage or enable Cloud Sync for cross-device access.

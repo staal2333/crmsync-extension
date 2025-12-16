@@ -13,6 +13,122 @@
   --shadow: rgba(0, 0, 0, 0.1);
 }
 
+/* Loading States */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.btn-loading {
+  opacity: 0.7;
+  pointer-events: none;
+  position: relative;
+  padding-right: 40px !important;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Empty States */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  animation: pulse 2s infinite;
+}
+
+.empty-state-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.empty-state-description {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Search Input */
+.search-container {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 16px 12px 40px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+  transition: all 0.2s;
+  background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>');
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  background-size: 18px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: var(--bg);
+}
+
+.search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Data Merge Dialog Overlay */
+.data-merge-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* Only allow clicks on children */
+}
+
+.data-merge-overlay[style*="display: flex"] {
+  pointer-events: auto; /* Enable clicks when visible */
+}
+
+.data-merge-overlay > div {
+  pointer-events: auto; /* Always allow clicks on dialog */
+}
+
 [data-theme="dark"] {
   --primary: #60a5fa;
   --primary-hover: #3b82f6;
@@ -39,7 +155,11 @@ body {
   color: var(--text);
   width: 450px;
   min-height: 500px;
+  max-height: 600px;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overflow-y: auto;
+  position: relative;
 }
 
 .popup-container {
@@ -67,8 +187,9 @@ body {
 }
 
 .popup-contacts-btn {
-  width: 40px;
+  min-width: 40px;
   height: 40px;
+  padding: 0 12px;
   border: none;
   background: var(--bg);
   color: var(--text);
@@ -78,13 +199,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   font-size: 20px;
   position: absolute;
   left: 24px;
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 
-.popup-contacts-btn:hover {
+.popup-contacts-btn.sign-in-mode {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-color: transparent;
+  min-width: 100px;
+  font-size: 13px;
+}
+
+.popup-contacts-btn.sign-in-mode:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.popup-contacts-btn:not(.sign-in-mode):hover {
   background: var(--primary);
   color: white;
   transform: scale(1.05);
@@ -864,4 +1000,52 @@ input:checked + .toggle-slider:before {
 .btn-restore:hover {
   background: #059669;
   transform: scale(1.05);
+}
+
+/* ============================================
+ * Subscription Tier Badges
+ * ============================================ */
+.tier-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.tier-free {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.tier-pro {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.tier-business {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+}
+
+.tier-enterprise {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: white;
+}
+
+/* Upgrade Banner */
+.upgrade-banner {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

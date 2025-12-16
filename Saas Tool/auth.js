@@ -1,7 +1,9 @@
 // Authentication module for CRMSYNC Extension
 // Handles email/password and Google OAuth authentication
 
-const API_URL = 'https://crmsync-extension.onrender.com/api'; // Production backend URL
+// Use window scope to share API_URL across modules
+window.API_URL = window.API_URL || 'https://crmsync-extension.onrender.com/api';
+const API_URL = window.API_URL;
 
 /**
  * Sign in with email and password
@@ -24,13 +26,14 @@ async function signInWithEmail(email, password) {
     
     const data = await response.json();
     
-    // Store auth data in chrome.storage
+    // Store auth data in chrome.storage (clear guest mode)
     await chrome.storage.local.set({
       authToken: data.accessToken,
       refreshToken: data.refreshToken,
       user: data.user,
       isAuthenticated: true,
-      authMethod: 'email'
+      authMethod: 'email',
+      isGuest: false  // Clear guest mode when logging in
     });
     
     console.log('✅ User logged in:', data.user.email);
@@ -63,13 +66,14 @@ async function registerWithEmail(email, password, displayName) {
     
     const data = await response.json();
     
-    // Store auth data
+    // Store auth data (clear guest mode)
     await chrome.storage.local.set({
       authToken: data.accessToken,
       refreshToken: data.refreshToken,
       user: data.user,
       isAuthenticated: true,
-      authMethod: 'email'
+      authMethod: 'email',
+      isGuest: false  // Clear guest mode when registering
     });
     
     console.log('✅ User registered:', data.user.email);
@@ -108,14 +112,15 @@ async function signInWithGoogle() {
         
         const data = await response.json();
         
-        // Store auth data
+        // Store auth data (clear guest mode)
         await chrome.storage.local.set({
           authToken: data.accessToken,
           refreshToken: data.refreshToken,
           user: data.user,
           isAuthenticated: true,
           authMethod: 'google',
-          googleToken: googleToken
+          googleToken: googleToken,
+          isGuest: false  // Clear guest mode when logging in with Google
         });
         
         console.log('✅ User logged in with Google:', data.user.email);

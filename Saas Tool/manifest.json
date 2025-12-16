@@ -4,7 +4,6 @@
   "version": "2.0.0",
   "description": "Sleek automated email contact extractor with smart data enrichment, CRM integration, and cloud sync",
   "author": "CRMSYNC",
-  "homepage_url": "https://github.com/yourusername/crmsync",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

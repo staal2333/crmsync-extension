@@ -10,10 +10,14 @@
   <div class="popup-container">
     <!-- Header -->
     <div class="popup-header">
-      <button class="popup-contacts-btn" onclick="document.querySelector('[data-tab=\\'all-contacts\\']')?.click()" title="All Contacts">
-        👥
+      <button class="popup-contacts-btn" id="leftHeaderBtn" title="All Contacts">
+        <span id="leftHeaderBtnIcon">👥</span>
+        <span id="leftHeaderBtnText" style="display: none; font-size: 13px; font-weight: 600; margin-left: 4px;"></span>
       </button>
-      <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png.png'" />
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png.png'" />
+        <span id="subscriptionTierBadge" class="tier-badge tier-free">FREE</span>
+      </div>
       <button class="popup-widget-btn" id="showWidgetBtn" title="Show Widget on Gmail">
         <img src="icons/widget-logo.png.png" alt="Widget" style="width: 20px; height: 20px; margin-right: 4px;" onerror="this.textContent='📌'"/>
         <span>Show Widget</span>
@@ -45,8 +49,8 @@
       <!-- Stats Row -->
       <div class="quick-stats">
         <div class="stat-mini">
-          <span class="stat-mini-value" id="allContactsCount">0</span>
-          <span class="stat-mini-label">Total</span>
+          <span class="stat-mini-value" id="contactLimitInfo">0</span>
+          <span class="stat-mini-label">Contacts</span>
         </div>
         <div class="stat-mini">
           <span class="stat-mini-value" id="pendingCount">0</span>
@@ -90,9 +94,7 @@
             </tr>
           </thead>
           <tbody id="allContactsTableBody">
-            <tr>
-              <td colspan="6" class="empty-row">Loading contacts...</td>
-            </tr>
+            <!-- Contacts will be loaded here dynamically -->
           </tbody>
         </table>
       </div>
@@ -261,6 +263,25 @@
             <input type="text" id="gmailLabelsInput" placeholder="e.g., Outreach, Prospects" class="text-input">
             <span class="setting-description">Comma-separated. Leave empty to track all emails</span>
           </div>
+
+          <!-- Account Settings -->
+          <div class="setting-item-full" id="accountSettingsContainer" style="margin-top: 24px; display: none;">
+            <label class="setting-label">👤 Account Settings</label>
+            <div style="background: var(--surface); padding: 16px; border-radius: 12px; margin-top: 8px; border: 1px solid var(--border);">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 16px;" id="accountAvatar">U</div>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; font-size: 14px; color: var(--text);" id="accountName">Loading...</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);" id="accountEmail">Loading...</div>
+                  </div>
+                </div>
+                <button class="btn-secondary" id="settingsSignOutBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: #ef4444; color: white; border: none;">
+                  🚪 Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Exclusions -->
@@ -319,9 +340,57 @@
     </div>
   </div>
 
+  <!-- Data Merge Dialog -->
+  <div id="dataMergeDialog" class="data-merge-overlay">
+    <div style="background: white; padding: 32px; border-radius: 16px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🔄</div>
+        <h2 style="margin: 0 0 8px 0; font-size: 22px; color: #1e293b;">Welcome Back!</h2>
+        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
+          You have <strong id="localContactCount">0</strong> contacts saved locally. Would you like to keep them or use your synced data?
+        </p>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button id="keepLocalDataBtn" class="data-merge-btn-primary" style="padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+          📦 Keep My Local Data
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.9; margin-top: 4px;">
+            Merge local contacts with cloud data
+          </div>
+        </button>
+        
+        <button id="useSyncedDataBtn" class="data-merge-btn-secondary" style="padding: 16px; background: white; color: #475569; border: 2px solid #e2e8f0; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+          ☁️ Use Synced Data
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.8; margin-top: 4px;">
+            Replace local data with cloud data
+          </div>
+        </button>
+        
+        <button id="cancelMergeBtn" class="data-merge-btn-cancel" style="padding: 12px; background: transparent; color: #94a3b8; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s;">
+          Decide Later
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    .data-merge-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+    .data-merge-btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    .data-merge-btn-cancel:hover {
+      color: #64748b;
+    }
+  </style>
+
   <script src="auth.js"></script>
   <script src="sync.js"></script>
   <script src="guest-mode-banner.js"></script>
+  <script src="popup-subscription.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

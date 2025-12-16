@@ -1,0 +1,24 @@
+# Commands to Push to GitHub
+
+# Step 1: Create repo on GitHub first at https://github.com/new
+# Repository name: crmsync-backend
+
+# Step 2: Run these commands (replace YOUR_USERNAME with your GitHub username)
+
+cd "C:\Users\sebas\Downloads\Saas Tool-20251202T124049Z-3-001\crmsync-backend"
+
+# Add remote (replace YOUR_USERNAME!)
+git remote add origin https://github.com/YOUR_USERNAME/crmsync-backend.git
+
+# Rename branch to main
+git branch -M main
+
+# Push to GitHub
+git push -u origin main
+
+# You'll be prompted for GitHub credentials
+# Use a Personal Access Token if 2FA is enabled
+
+# Done! Your code is now on GitHub at:
+# https://github.com/YOUR_USERNAME/crmsync-backend
+

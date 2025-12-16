@@ -1,10 +1,15 @@
 // Data synchronization module for CRMSYNC Extension
 // Handles syncing contacts, messages, and settings between local storage and backend
 
-const API_URL = 'https://crmsync-extension.onrender.com/api'; // Production backend URL
+// Note: API_URL is shared with auth.js via window scope
+// Don't redeclare - just use window.API_URL or reference the one from auth.js
+if (!window.API_URL) {
+  window.API_URL = 'https://crmsync-extension.onrender.com/api';
+}
 
 class SyncManager {
   constructor() {
+    this.API_URL = window.API_URL || 'https://crmsync-extension.onrender.com/api';
     this.syncing = false;
     this.syncInterval = 5 * 60 * 1000; // 5 minutes
     this.lastSyncAt = null;
@@ -88,7 +93,7 @@ class SyncManager {
       const localData = await this.getLocalData();
       
       // Call full sync endpoint
-      const response = await fetch(`${API_URL}/sync/full`, {
+      const response = await fetch(`${this.API_URL}/sync/full`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -158,7 +163,7 @@ class SyncManager {
       }
       
       // Call incremental sync endpoint
-      const response = await fetch(`${API_URL}/sync/incremental`, {
+      const response = await fetch(`${this.API_URL}/sync/incremental`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

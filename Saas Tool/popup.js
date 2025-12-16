@@ -10,15 +10,295 @@ function getFullName(firstName, lastName) {
   return parts.join(' ');
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Check authentication status first
-  await checkAuthStatus();
-  
-  await loadSettings();
-  setupTabs();
-  await loadAllContacts(); // Load CRM as default
-  setupEventListeners();
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('💥 Global error:', event.error);
+  if (event.error?.message) {
+    showToast(`Error: ${event.error.message}`, true);
+  }
 });
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('💥 Unhandled promise rejection:', event.reason);
+  const message = event.reason?.message || event.reason || 'Something went wrong';
+  showToast(`Error: ${message}`, true);
+});
+
+// Network status monitoring
+window.addEventListener('online', () => {
+  console.log('🌐 Back online');
+  showToast('✅ Back online! Syncing...', false);
+  if (typeof CRMSyncManager !== 'undefined') {
+    CRMSyncManager.performFullSync().catch(err => {
+      console.error('Sync after reconnect failed:', err);
+    });
+  }
+});
+
+window.addEventListener('offline', () => {
+  console.log('📡 Offline');
+  showToast('⚠️ You are offline. Changes will sync when reconnected.', false);
+});
+
+// Session timeout configuration
+const SESSION_TIMEOUT = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
+
+/**
+ * Check if session has expired and update last activity
+ */
+async function checkSession() {
+  try {
+    const { lastActivity, isAuthenticated } = await chrome.storage.local.get([
+      'lastActivity',
+      'isAuthenticated'
+    ]);
+    
+    if (!isAuthenticated) {
+      return; // Not logged in, no need to check
+    }
+    
+    const now = Date.now();
+    
+    // Check if session expired
+    if (lastActivity && (now - lastActivity > SESSION_TIMEOUT)) {
+      console.log('⏰ Session expired (30 days of inactivity), logging out...');
+      
+      // Sign out
+      if (typeof signOut === 'function') {
+        await signOut();
+      } else {
+        await chrome.storage.local.remove([
+          'accessToken',
+          'refreshToken',
+          'user',
+          'isAuthenticated',
+          'authToken'
+        ]);
+      }
+      
+      showToast('Your session expired after 30 days of inactivity. Please sign in again.');
+      
+      // Reload popup to show login state
+      setTimeout(() => {
+        location.reload();
+      }, 2000);
+      
+      return false;
+    }
+    
+    // Update last activity timestamp
+    await chrome.storage.local.set({ lastActivity: now });
+    
+    return true;
+  } catch (error) {
+    console.error('Session check error:', error);
+    return true; // Don't block on error
+  }
+}
+
+// Global error handler for production error tracking
+window.addEventListener('error', (e) => {
+  console.error('Extension error:', e.message, e.filename, e.lineno);
+});
+
+// Failsafe: If initialization takes too long, ensure basic functionality
+setTimeout(() => {
+  const tbody = document.getElementById('allContactsTableBody');
+  if (tbody && tbody.textContent.includes('Loading')) {
+    console.warn('⚠️ Initialization timeout - forcing empty state');
+    allContactsData = [];
+    applyFiltersAndRender();
+  }
+  
+  // Ensure tabs are clickable
+  if (typeof setupTabs === 'function') {
+    try {
+      setupTabs();
+    } catch (e) {
+      console.error('Tabs setup failed in fallback:', e);
+    }
+  }
+}, 3000); // 3 second failsafe
+
+// Update button immediately when script loads (before DOM ready)
+(async () => {
+  // Quick check and update button ASAP
+  const { isAuthenticated, isGuest } = await chrome.storage.local.get(['isAuthenticated', 'isGuest']);
+  console.log('🚀 Script loaded - Quick auth check:', { isAuthenticated, isGuest });
+  
+  // Check session timeout
+  if (isAuthenticated) {
+    await checkSession();
+  }
+})();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('📄 DOM Content Loaded - Full initialization starting...');
+  
+  // CRITICAL: Set up core UI immediately (non-blocking)
+  console.log('🚀 Setting up core UI immediately...');
+  setupTabs();
+  setupEventListeners();
+  setupAuthListener();
+  console.log('✅ Core UI ready - buttons are now clickable!');
+  
+  // Then do async initialization in background
+  (async () => {
+    try {
+      // Check session timeout first
+      console.log('1️⃣ Checking session...');
+      const sessionValid = await checkSession().catch(err => {
+        console.warn('⚠️ Session check failed:', err);
+        return true; // Continue anyway
+      });
+      console.log('✓ Session check complete:', sessionValid);
+      
+      if (!sessionValid) {
+        return; // Session expired, will reload
+      }
+      
+      // Check authentication status (with timeout)
+      console.log('2️⃣ Checking auth status...');
+      Promise.race([
+        checkAuthStatus(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 500))
+      ]).then(() => {
+        console.log('✓ Auth check complete');
+      }).catch(err => {
+        console.error('⚠️ Auth check failed or timed out:', err.message);
+      });
+      
+      // Update left header button based on auth status (force fresh check)
+      console.log('3️⃣ Updating left header button...');
+      await updateLeftHeaderButton().catch(err => {
+        console.error('⚠️ Button update failed:', err);
+      });
+      console.log('✓ Button updated');
+      
+      console.log('4️⃣ Loading settings...');
+      await loadSettings().catch(err => {
+        console.error('⚠️ Settings load failed:', err);
+        // Continue with defaults
+      });
+      console.log('✓ Settings loaded');
+      
+      // Load contacts with better error handling
+      console.log('5️⃣ Loading contacts...');
+      try {
+        await Promise.race([
+          loadAllContacts(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Contact load timeout')), 3000))
+        ]);
+        console.log('✓ Contacts loaded');
+      } catch (err) {
+        console.error('⚠️ Initial contact load failed:', err);
+        // Empty state will be shown
+      }
+      
+      // Check if user just logged in and has local data
+      console.log('6️⃣ Checking for data merge...');
+      await checkForDataMerge().catch(err => {
+        console.error('⚠️ Data merge check failed:', err);
+        // Not critical, continue
+      });
+      console.log('✓ Data merge check complete');
+      
+      // Load and display subscription status
+      console.log('7️⃣ Loading subscription status...');
+      await displaySubscriptionStatus().catch(err => {
+        console.error('⚠️ Subscription status load failed:', err);
+        // Not critical, continue
+      });
+      console.log('✓ Subscription status loaded');
+      
+      // Set up periodic session checks (every 5 minutes)
+      setInterval(() => {
+        checkSession().catch(err => console.warn('Periodic session check failed:', err));
+      }, 5 * 60 * 1000);
+      
+      console.log('✅ Popup fully initialized - All ' + document.querySelectorAll('button').length + ' buttons ready');
+      
+      // Debug: Test button clickability
+      const testBtn = document.querySelector('.tab-btn');
+      if (testBtn) {
+        console.log('🧪 Button test:', {
+          exists: !!testBtn,
+          disabled: testBtn.disabled,
+          pointerEvents: window.getComputedStyle(testBtn).pointerEvents,
+          zIndex: window.getComputedStyle(testBtn).zIndex
+        });
+      }
+    } catch (error) {
+      console.error('❌ Initialization error:', error);
+      console.error('Error stack:', error.stack);
+    }
+  })();
+});
+
+/**
+ * Setup listener for auth status changes
+ */
+function setupAuthListener() {
+  // Listen for direct messages from login page
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log('Popup received message:', message);
+    
+    if (message.action === 'authStatusChanged') {
+      console.log('🔐 Auth status changed via message! Updating UI...');
+      
+      // Force immediate update
+      setTimeout(async () => {
+        await updateLeftHeaderButton();
+        await updateAccountSettingsDisplay();
+        await checkAuthStatus();
+        await loadAllContacts();
+      }, 100);
+      
+      sendResponse({ received: true });
+    }
+    
+    return true; // Keep message channel open
+  });
+  
+  // Listen for storage changes
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local') {
+      // Check if auth-related keys changed
+      if (changes.isAuthenticated || changes.isGuest || changes.user) {
+        console.log('Auth status changed via storage, updating UI...', changes);
+        
+        // Update left header button
+        updateLeftHeaderButton();
+        
+        // Update account settings
+        updateAccountSettingsDisplay();
+        
+        // Re-check auth status
+        checkAuthStatus();
+        
+        // Reload contacts if needed
+        if (changes.isAuthenticated?.newValue === true) {
+          loadAllContacts();
+        }
+      }
+    }
+  });
+  
+  // Also update when popup becomes visible or gains focus
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden) {
+      console.log('Popup became visible, refreshing auth status...');
+      await updateLeftHeaderButton();
+      await updateAccountSettingsDisplay();
+    }
+  });
+  
+  window.addEventListener('focus', async () => {
+    console.log('Popup gained focus, refreshing auth status...');
+    await updateLeftHeaderButton();
+    await updateAccountSettingsDisplay();
+  });
+}
 
 /**
  * Check authentication status and show appropriate UI
@@ -40,16 +320,29 @@ async function checkAuthStatus() {
     
     if (isGuest) {
       // Guest mode - check if should show banner
-      if (typeof window.GuestModeBanner !== 'undefined') {
-        const shouldShow = await window.GuestModeBanner.shouldShow();
-        if (shouldShow) {
-          const container = document.querySelector('.popup-container') || document.body;
-          window.GuestModeBanner.show(container);
+      try {
+        if (typeof window.GuestModeBanner !== 'undefined' && window.GuestModeBanner.shouldShow) {
+          const shouldShow = await Promise.race([
+            window.GuestModeBanner.shouldShow(),
+            new Promise((resolve) => setTimeout(() => resolve(false), 1000)) // 1s timeout
+          ]);
+          if (shouldShow) {
+            const container = document.querySelector('.popup-container') || document.body;
+            window.GuestModeBanner.show(container);
+          }
         }
+      } catch (err) {
+        console.warn('GuestModeBanner error:', err);
       }
+      // Hide account settings for guest users
+      hideAccountSettings();
     } else if (isAuthenticated && user) {
-      // Logged in - show auth banner
+      // Logged in - show auth banner and account settings
       showAuthBanner(user);
+      showAccountSettings(user);
+    } else {
+      // Not logged in - hide account settings
+      hideAccountSettings();
     }
   } catch (error) {
     console.error('Auth status check error:', error);
@@ -123,25 +416,44 @@ function showFirstTimeUserPrompt() {
   container.prepend(banner);
   
   // Event listeners
-  document.getElementById('closeWelcome')?.addEventListener('click', async () => {
-    await chrome.storage.local.set({ hasSeenWelcome: true });
-    banner.remove();
-  });
-  
-  document.getElementById('bannerSignIn')?.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
-    banner.remove();
-  });
-  
-  document.getElementById('bannerGuest')?.addEventListener('click', async () => {
-    await chrome.storage.local.set({
-      isGuest: true,
-      hasSeenWelcome: true,
-      guestModeChosenAt: new Date().toISOString()
+  const closeBtn = document.getElementById('closeWelcome');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', async () => {
+      await chrome.storage.local.set({ hasSeenWelcome: true });
+      banner.remove();
     });
-    banner.remove();
-    location.reload();
-  });
+  }
+  
+  const signInBtn = document.getElementById('bannerSignIn');
+  if (signInBtn) {
+    signInBtn.addEventListener('click', async () => {
+      try {
+        const loginUrl = chrome.runtime.getURL('login.html');
+        const tab = await chrome.tabs.create({ url: loginUrl });
+        banner.remove();
+      } catch (error) {
+        console.error('Error opening login page:', error);
+        alert('Error: ' + error.message);
+      }
+    });
+  }
+  
+  const guestBtn = document.getElementById('bannerGuest');
+  if (guestBtn) {
+    guestBtn.addEventListener('click', async () => {
+      try {
+        await chrome.storage.local.set({
+          isGuest: true,
+          hasSeenWelcome: true,
+          guestModeChosenAt: new Date().toISOString()
+        });
+        banner.remove();
+        location.reload();
+      } catch (error) {
+        console.error('Error activating guest mode:', error);
+      }
+    });
+  }
 }
 
 /**
@@ -185,10 +497,22 @@ function showAuthBanner(user) {
   
   // Event listeners
   document.getElementById('syncNowBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('syncNowBtn');
+    if (!btn || btn.classList.contains('btn-loading')) return;
+    
     if (typeof CRMSyncManager !== 'undefined') {
-      document.getElementById('syncStatus').textContent = 'Syncing...';
-      await CRMSyncManager.manualSync();
-      updateSyncStatus();
+      try {
+        btn.classList.add('btn-loading');
+        document.getElementById('syncStatus').textContent = 'Syncing...';
+        await CRMSyncManager.manualSync();
+        showToast('✅ Sync completed successfully');
+        updateSyncStatus();
+      } catch (error) {
+        console.error('Sync error:', error);
+        showToast('❌ Sync failed: ' + (error.message || 'Unknown error'), true);
+      } finally {
+        btn.classList.remove('btn-loading');
+      }
     }
   });
   
@@ -239,11 +563,300 @@ async function updateSyncStatus() {
   }
 }
 
+/**
+ * Update left header button based on auth status
+ */
+async function updateLeftHeaderButton() {
+  try {
+    const { isAuthenticated, isGuest, user } = await chrome.storage.local.get(['isAuthenticated', 'isGuest', 'user']);
+    
+    const btn = document.getElementById('leftHeaderBtn');
+    const icon = document.getElementById('leftHeaderBtnIcon');
+    const text = document.getElementById('leftHeaderBtnText');
+    
+    if (!btn) {
+      console.warn('Left header button not found');
+      return;
+    }
+    
+    console.log('🔄 Updating left header button - Auth:', isAuthenticated, 'Guest:', isGuest, 'HasUser:', !!user);
+    
+    // Priority: isAuthenticated takes precedence over isGuest
+    if (isAuthenticated === true && user) {
+      // Logged in - show All Contacts button
+      console.log('✅ Showing All Contacts button (authenticated)');
+      btn.classList.remove('sign-in-mode');
+      icon.style.display = 'inline';
+      icon.textContent = '👥';
+      icon.style.fontSize = '20px';
+      text.style.display = 'none';
+      btn.title = 'All Contacts';
+      
+      // Remove old onclick and add new one
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      
+      document.getElementById('leftHeaderBtn').addEventListener('click', () => {
+        console.log('All Contacts button clicked');
+        document.querySelector('[data-tab="all-contacts"]')?.click();
+      });
+    } else {
+      // Not authenticated (guest mode or not logged in) - show Sign In button
+      console.log('🔐 Showing Sign In button (not authenticated)');
+      btn.classList.add('sign-in-mode');
+      icon.style.display = 'inline';
+      icon.textContent = '🔐';
+      icon.style.fontSize = '16px';
+      text.style.display = 'inline';
+      text.textContent = 'Sign In';
+      btn.title = 'Sign In to sync your data';
+      
+      // Remove old onclick and add new one
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      
+      document.getElementById('leftHeaderBtn').addEventListener('click', () => {
+        console.log('Sign In button clicked');
+        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+      });
+    }
+  } catch (error) {
+    console.error('Error updating left header button:', error);
+  }
+}
+
+/**
+ * Check if user just logged in and has local guest data
+ */
+async function checkForDataMerge() {
+  try {
+    const { isAuthenticated, justLoggedIn, dataMergeHandled } = await chrome.storage.local.get([
+      'isAuthenticated',
+      'justLoggedIn',
+      'dataMergeHandled'
+    ]);
+    
+    // Only show dialog if user just logged in and hasn't handled merge yet
+    if (!isAuthenticated || !justLoggedIn || dataMergeHandled) {
+      return;
+    }
+    
+    // Check if there's local data
+    const { contacts } = await chrome.storage.local.get(['contacts']);
+    const localContacts = Array.isArray(contacts) ? contacts : [];
+    
+    if (localContacts.length > 0) {
+      // Show data merge dialog
+      showDataMergeDialog(localContacts.length);
+    } else {
+      // No local data, just mark as handled
+      await chrome.storage.local.set({ dataMergeHandled: true, justLoggedIn: false });
+    }
+  } catch (error) {
+    console.error('Error checking for data merge:', error);
+  }
+}
+
+/**
+ * Show data merge dialog
+ */
+function showDataMergeDialog(localContactCount) {
+  const dialog = document.getElementById('dataMergeDialog');
+  const countEl = document.getElementById('localContactCount');
+  
+  if (!dialog || !countEl) return;
+  
+  countEl.textContent = localContactCount;
+  dialog.style.display = 'flex';
+  
+  // Setup button handlers
+  document.getElementById('keepLocalDataBtn')?.addEventListener('click', async () => {
+    await handleDataMerge('keep');
+    dialog.style.display = 'none';
+  });
+  
+  document.getElementById('useSyncedDataBtn')?.addEventListener('click', async () => {
+    await handleDataMerge('replace');
+    dialog.style.display = 'none';
+  });
+  
+  document.getElementById('cancelMergeBtn')?.addEventListener('click', async () => {
+    // Mark as handled but don't change data
+    await chrome.storage.local.set({ justLoggedIn: false });
+    dialog.style.display = 'none';
+  });
+}
+
+/**
+ * Handle data merge decision
+ */
+async function handleDataMerge(action) {
+  try {
+    console.log(`User chose to ${action} local data`);
+    
+    if (action === 'keep') {
+      // Keep local data and sync it to cloud
+      console.log('Merging local data with cloud...');
+      
+      // Get local contacts
+      const { contacts } = await chrome.storage.local.get(['contacts']);
+      const localContacts = Array.isArray(contacts) ? contacts : [];
+      
+      // Upload local contacts to backend
+      if (typeof CRMSyncManager !== 'undefined' && localContacts.length > 0) {
+        await CRMSyncManager.uploadLocalData(localContacts);
+        console.log(`✅ ${localContacts.length} local contacts uploaded to cloud`);
+      }
+      
+      // Then perform a full sync to merge
+      if (typeof CRMSyncManager !== 'undefined') {
+        await CRMSyncManager.performFullSync();
+      }
+      
+      showToast(`✅ ${localContacts.length} local contacts merged with cloud data`);
+    } else if (action === 'replace') {
+      // Replace local data with cloud data
+      console.log('Replacing local data with cloud data...');
+      
+      // Clear local contacts
+      await chrome.storage.local.set({ contacts: [] });
+      
+      // Perform full sync to get cloud data
+      if (typeof CRMSyncManager !== 'undefined') {
+        await CRMSyncManager.performFullSync();
+      }
+      
+      showToast('✅ Local data replaced with cloud data');
+      
+      // Reload contacts display
+      await loadAllContacts();
+    }
+    
+    // Mark merge as handled
+    await chrome.storage.local.set({ 
+      dataMergeHandled: true,
+      justLoggedIn: false
+    });
+    
+  } catch (error) {
+    console.error('Error handling data merge:', error);
+    showToast('Error merging data. Please try again.', true);
+  }
+}
+
+/**
+ * Update account settings display based on auth status
+ */
+async function updateAccountSettingsDisplay() {
+  try {
+    const { isAuthenticated, user, isGuest } = await chrome.storage.local.get([
+      'isAuthenticated',
+      'user',
+      'isGuest'
+    ]);
+    
+    console.log('Account settings - Auth status:', { isAuthenticated, isGuest, user });
+    
+    if (isAuthenticated && user && !isGuest) {
+      showAccountSettings(user);
+    } else {
+      hideAccountSettings();
+    }
+  } catch (error) {
+    console.error('Error updating account settings:', error);
+    hideAccountSettings();
+  }
+}
+
+/**
+ * Show account settings in Settings tab
+ */
+function showAccountSettings(user) {
+  const container = document.getElementById('accountSettingsContainer');
+  if (!container) {
+    console.error('Account settings container not found');
+    return;
+  }
+  
+  console.log('Showing account settings for user:', user);
+  container.style.display = 'block';
+  
+  // Get user initials for avatar
+  const initials = user.displayName 
+    ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+    : user.email.charAt(0).toUpperCase();
+  
+  // Update avatar
+  const avatar = document.getElementById('accountAvatar');
+  if (avatar) {
+    avatar.textContent = initials;
+  }
+  
+  // Update name
+  const nameEl = document.getElementById('accountName');
+  if (nameEl) {
+    nameEl.textContent = user.displayName || user.email.split('@')[0] || 'User';
+  }
+  
+  // Update email
+  const emailEl = document.getElementById('accountEmail');
+  if (emailEl) {
+    emailEl.textContent = user.email;
+  }
+  
+  // Setup sign out button (only once)
+  setupSignOutButton();
+}
+
+/**
+ * Setup sign out button event listener
+ */
+function setupSignOutButton() {
+  const signOutBtn = document.getElementById('settingsSignOutBtn');
+  if (!signOutBtn) return;
+  
+  // Remove existing listener by cloning
+  const newSignOutBtn = signOutBtn.cloneNode(true);
+  signOutBtn.parentNode.replaceChild(newSignOutBtn, signOutBtn);
+  
+  newSignOutBtn.addEventListener('click', async () => {
+    if (confirm('Sign out? Your local data will remain on this device.')) {
+      try {
+        console.log('Signing out...');
+        // Use auth.js signOut if available
+        if (typeof signOut === 'function') {
+          await signOut();
+        } else {
+          // Fallback: clear auth data manually
+          await chrome.storage.local.remove(['accessToken', 'refreshToken', 'user', 'isAuthenticated']);
+        }
+        location.reload();
+      } catch (error) {
+        console.error('Sign out error:', error);
+        alert('Error signing out. Please try again.');
+      }
+    }
+  });
+}
+
+/**
+ * Hide account settings in Settings tab
+ */
+function hideAccountSettings() {
+  const container = document.getElementById('accountSettingsContainer');
+  if (container) {
+    container.style.display = 'none';
+  }
+}
+
 function setupTabs() {
+  console.log('📑 Setting up tabs...');
   const tabButtons = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
+  
+  console.log(`Found ${tabButtons.length} tab buttons and ${tabContents.length} tab contents`);
 
-  tabButtons.forEach(btn => {
+  tabButtons.forEach((btn, index) => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
       
@@ -314,6 +927,9 @@ async function loadSettings() {
   
   // Apply theme
   document.documentElement.setAttribute('data-theme', settings.darkMode ? 'dark' : 'light');
+  
+  // Update account settings display
+  await updateAccountSettingsDisplay();
 }
 
 // Tag Management Functions
@@ -415,10 +1031,29 @@ async function loadDailyReview() {
     renderDuplicates(reviewData.duplicates || []);
     renderDailyReviewList(reviewData.contacts || []);
     
-    // Reset export button
-    updateExportButton();
+    // Reset export button (if function exists)
+    if (typeof updateExportButton === 'function') {
+      updateExportButton();
+    }
   } catch (error) {
     console.error('Error loading daily review:', error);
+  }
+}
+
+/**
+ * Update export button state based on available data
+ */
+function updateExportButton() {
+  const exportBtn = document.getElementById('exportAndMarkReviewed');
+  if (!exportBtn) return;
+  
+  const hasData = allContactsData && allContactsData.length > 0;
+  exportBtn.disabled = !hasData;
+  
+  if (!hasData) {
+    exportBtn.title = 'No contacts to export';
+  } else {
+    exportBtn.title = `Export ${allContactsData.length} contacts to CSV`;
   }
 }
 
@@ -603,11 +1238,49 @@ function renderDailyReviewList(contacts) {
     `;
   }).join('');
 
-  // Update selection highlight
-  updateSelectionHighlight();
+  // Update selection highlight (if function exists)
+  if (typeof updateSelectionHighlight === 'function') {
+    updateSelectionHighlight();
+  }
 
   // Attach tag input handlers
   attachTagHandlers();
+}
+
+/**
+ * Update visual indication of selected contacts
+ */
+function updateSelectionHighlight() {
+  const checkboxes = document.querySelectorAll('.contact-checkbox:checked');
+  const selectedCount = checkboxes.length;
+  
+  // Update any selection counter if it exists
+  const selectionCounter = document.getElementById('selectionCounter');
+  if (selectionCounter) {
+    if (selectedCount > 0) {
+      selectionCounter.textContent = `${selectedCount} selected`;
+      selectionCounter.style.display = 'block';
+    } else {
+      selectionCounter.style.display = 'none';
+    }
+  }
+  
+  // Update row highlighting
+  checkboxes.forEach(checkbox => {
+    const row = checkbox.closest('tr');
+    if (row) {
+      row.classList.add('selected');
+    }
+  });
+  
+  // Remove highlighting from unchecked rows
+  const uncheckedBoxes = document.querySelectorAll('.contact-checkbox:not(:checked)');
+  uncheckedBoxes.forEach(checkbox => {
+    const row = checkbox.closest('tr');
+    if (row) {
+      row.classList.remove('selected');
+    }
+  });
 }
 
 function groupByCompany(contacts) {
@@ -852,9 +1525,26 @@ const contactsPerPage = 20;
 let currentSort = { field: 'lastContact', direction: 'desc' };
 
 async function loadAllContacts() {
+  console.log('📋 Loading all contacts...');
+  
+  // Clear any loading state immediately
+  const tbody = document.getElementById('allContactsTableBody');
+  if (tbody && tbody.textContent.includes('Loading')) {
+    tbody.innerHTML = ''; // Clear loading state
+  }
+  
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'getContacts' });
+    // Add timeout to prevent infinite loading (reduced to 5 seconds)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Loading contacts timed out')), 5000)
+    );
+    
+    const messagePromise = chrome.runtime.sendMessage({ action: 'getContacts' });
+    
+    const response = await Promise.race([messagePromise, timeoutPromise]);
     allContactsData = (response && response.contacts) || [];
+    
+    console.log(`✅ Loaded ${allContactsData.length} contacts`);
     
     // Sort by lastContact descending by default
     allContactsData.sort((a, b) => {
@@ -886,18 +1576,77 @@ async function loadAllContacts() {
       newTodayEl.textContent = newToday;
     }
     
+    // Always render, even with 0 contacts
     applyFiltersAndRender();
+    
+    // Refresh subscription display to update contact count
+    if (typeof refreshSubscriptionDisplay === 'function') {
+      await refreshSubscriptionDisplay();
+    }
   } catch (error) {
-    console.error('Error loading all contacts:', error);
+    console.error('❌ Error loading all contacts:', error);
+    
+    // Set empty array to show empty state
+    allContactsData = [];
+    
+    // Update counts immediately
+    document.getElementById('allContactsCount').textContent = '0';
+    document.getElementById('pendingCount').textContent = '0';
+    document.getElementById('newTodayMini').textContent = '0';
+    
     const tbody = document.getElementById('allContactsTableBody');
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="padding: 40px; text-align: center; color: var(--error);">
-            Error loading contacts. Please try again.
+          <td colspan="8" style="padding: 0; border: none;">
+            <div class="empty-state">
+              <div class="empty-state-icon">⚠️</div>
+              <h3 class="empty-state-title">Failed to Load Contacts</h3>
+              <p class="empty-state-description">
+                ${error.message || 'Something went wrong'}<br>
+                This might be a temporary issue.
+              </p>
+              <button class="btn-primary reload-contacts-btn" style="margin-top: 8px;">
+                Try Again
+              </button>
+            </div>
           </td>
         </tr>
       `;
+      
+      // Add reload button listener
+      setTimeout(() => {
+        const reloadBtn = tbody.querySelector('.reload-contacts-btn');
+        if (reloadBtn) {
+          reloadBtn.addEventListener('click', () => {
+            loadAllContacts();
+          });
+        }
+      }, 0);
+    }
+    
+    // Update counts to 0
+    const allCountEl = document.getElementById('allContactsCount');
+    if (allCountEl) allCountEl.textContent = '0';
+    
+    // Refresh subscription display even on error
+    if (typeof refreshSubscriptionDisplay === 'function') {
+      await refreshSubscriptionDisplay().catch(err => console.error('Subscription display error:', err));
+    }
+    
+    const pendingCountEl = document.getElementById('pendingCount');
+    if (pendingCountEl) pendingCountEl.textContent = '0';
+    
+    const newTodayEl = document.getElementById('newTodayMini');
+    if (newTodayEl) newTodayEl.textContent = '0';
+  } finally {
+    // Ensure we always render something, even on error
+    if (!allContactsData || allContactsData.length === 0) {
+      const tbody = document.getElementById('allContactsTableBody');
+      if (tbody && (!tbody.innerHTML || tbody.innerHTML.includes('Loading'))) {
+        // Force render empty state
+        applyFiltersAndRender();
+      }
     }
   }
 }
@@ -977,13 +1726,59 @@ function renderContactsTable() {
   if (!tbody) return;
   
   if (filteredContacts.length === 0) {
+    // Show better empty state
+    const isFiltered = allContactsData.length > 0;
+    const emptyStateHTML = isFiltered ? `
+      <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3 class="empty-state-title">No Matches Found</h3>
+        <p class="empty-state-description">
+          Try adjusting your search or filters to find what you're looking for.
+        </p>
+        <button class="btn-primary clear-search-btn" style="margin-top: 8px;">
+          Clear Search
+        </button>
+      </div>
+    ` : `
+      <div class="empty-state">
+        <div class="empty-state-icon">📭</div>
+        <h3 class="empty-state-title">No Contacts Yet</h3>
+        <p class="empty-state-description">
+          Open Gmail and start sending emails.<br>
+          We'll automatically track your contacts!
+        </p>
+        <button class="btn-primary open-gmail-btn" style="margin-top: 8px;">
+          Open Gmail
+        </button>
+      </div>
+    `;
+    
     tbody.innerHTML = `
       <tr>
-        <td colspan="8" style="padding: 40px; text-align: center; color: var(--text-secondary);">
-          No contacts found. ${allContactsData.length === 0 ? 'Start adding contacts to see them here.' : 'Try adjusting your filters.'}
+        <td colspan="8" style="padding: 0; border: none;">
+          ${emptyStateHTML}
         </td>
       </tr>
     `;
+    
+    // Add event listeners to empty state buttons (can't use onclick due to CSP)
+    setTimeout(() => {
+      const clearSearchBtn = tbody.querySelector('.clear-search-btn');
+      if (clearSearchBtn) {
+        clearSearchBtn.addEventListener('click', () => {
+          document.getElementById('contactSearchInput').value = '';
+          applyFiltersAndRender();
+        });
+      }
+      
+      const openGmailBtn = tbody.querySelector('.open-gmail-btn');
+      if (openGmailBtn) {
+        openGmailBtn.addEventListener('click', () => {
+          chrome.tabs.create({ url: 'https://mail.google.com' });
+        });
+      }
+    }, 0);
+    
     return;
   }
   
@@ -1178,18 +1973,31 @@ function renderRecentContacts(contacts) {
 }
 
 function setupEventListeners() {
+  console.log('🎧 Setting up event listeners...');
+  
   // Show Widget button
   const showWidgetBtn = document.getElementById('showWidgetBtn');
   if (showWidgetBtn) {
+    console.log('✓ Show Widget button found');
+    
+    // Add mousedown for debugging
+    showWidgetBtn.addEventListener('mousedown', () => {
+      console.log('🖱️ Show Widget button mousedown detected');
+    });
+    
     showWidgetBtn.addEventListener('click', async () => {
+      console.log('📌 Show Widget button clicked!');
       try {
         // Get the active Gmail tab
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        console.log('Current tabs:', tabs);
         if (tabs[0] && tabs[0].url?.includes('mail.google.com')) {
           // Send message to content script to show widget
+          console.log('Sending showWidget message to tab', tabs[0].id);
           chrome.tabs.sendMessage(tabs[0].id, { action: 'showWidget' });
           showToast('Widget shown on Gmail page');
         } else {
+          console.log('Not on Gmail, current URL:', tabs[0]?.url);
           showToast('Please open Gmail first', true);
         }
       } catch (error) {
@@ -1197,6 +2005,8 @@ function setupEventListeners() {
         showToast('Failed to show widget', true);
       }
     });
+  } else {
+    console.error('❌ Show Widget button not found!');
   }
 
   // Settings changes
@@ -1534,9 +2344,6 @@ function setupEventListeners() {
       loadDailyReview();
     });
   });
-
-  // Setup keyboard shortcuts
-  setupKeyboardShortcuts();
 
   // Export & Mark Reviewed button
   const exportAndMarkReviewedBtn = document.getElementById('exportAndMarkReviewed');

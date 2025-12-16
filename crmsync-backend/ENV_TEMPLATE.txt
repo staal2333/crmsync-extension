@@ -1,0 +1,43 @@
+# ============================================
+# CRMSYNC Backend Environment Configuration
+# ============================================
+# Copy this file to .env and fill in your values
+
+# Server Configuration
+NODE_ENV=development
+PORT=3000
+
+# Database Configuration
+DATABASE_URL=postgresql://user:password@localhost:5432/crmsync
+
+# JWT Secrets (Generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
+JWT_SECRET=your_jwt_secret_here_64_chars_minimum
+REFRESH_TOKEN_SECRET=your_refresh_token_secret_here_64_chars_minimum
+
+# ============================================
+# Stripe Payment Configuration
+# ============================================
+
+# Stripe API Keys (from: https://dashboard.stripe.com/apikeys)
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxx
+STRIPE_PUBLISHABLE_KEY=pk_test_xxxxxxxxxxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
+
+# Stripe Price IDs (from: https://dashboard.stripe.com/products)
+STRIPE_PRICE_PRO_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_PRO_YEARLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_BUSINESS_MONTHLY=price_xxxxxxxxxxxxx
+STRIPE_PRICE_BUSINESS_YEARLY=price_xxxxxxxxxxxxx
+
+# Frontend URL (your landing page/website)
+FRONTEND_URL=http://localhost:3001
+
+# CORS Configuration
+ALLOWED_ORIGINS=https://mail.google.com,https://outlook.office.com,http://localhost:3001
+
+# Error Tracking (optional)
+# SENTRY_DSN=https://xxxxxxxxxxxxx@xxx.ingest.sentry.io/xxxxxxxxxxxxx
+
+# Log Level (error, warn, info, debug)
+LOG_LEVEL=info
+

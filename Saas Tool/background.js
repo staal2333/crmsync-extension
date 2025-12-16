@@ -1,5 +1,8 @@
 // Background service worker for Chrome extension
 
+// Import subscription service
+importScripts('subscriptionService.js');
+
 /**
  * @typedef {'outbound' | 'inbound'} EmailDirection
  */
@@ -201,7 +204,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         noReplyAfterDays: Array.isArray(settings.noReplyAfterDays) ? settings.noReplyAfterDays : [3, 7, 14],
         soundEffects: !!settings.soundEffects,
         hotkeysEnabled: settings.hotkeysEnabled === true
-      }
+      },
+      // Store exclusions at top level for easy access
+      excludeNames: Array.isArray(settings.excludeNames) ? settings.excludeNames : [],
+      excludeDomains: Array.isArray(settings.excludeDomains) ? settings.excludeDomains : [],
+      excludePhones: Array.isArray(settings.excludePhones) ? settings.excludePhones : []
     });
     sendResponse({ success: true });
   } else if (request.action === 'updateContactMetadata') {
@@ -413,6 +420,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // ============================================
+  // Subscription Management Messages
+  // ============================================
+  
+  if (request.type === 'GET_SUBSCRIPTION') {
+    subscriptionService.getSubscriptionStatus(request.forceRefresh || false)
+      .then(subscription => {
+        sendResponse(subscription);
+      })
+      .catch(error => {
+        console.error('Error fetching subscription:', error);
+        sendResponse(subscriptionService.getFreeTierStatus());
+      });
+    return true;
+  }
+
+  if (request.type === 'CHECK_FEATURE_ACCESS') {
+    subscriptionService.canPerformAction(request.feature)
+      .then(result => {
+        sendResponse(result);
+      })
+      .catch(error => {
+        console.error('Error checking feature access:', error);
+        sendResponse({ allowed: false, reason: 'Error checking subscription', upgradeRequired: true });
+      });
+    return true;
+  }
+
+  if (request.type === 'OPEN_PRICING') {
+    subscriptionService.openPricingPage();
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (request.type === 'TRACK_EXPORT') {
+    subscriptionService.trackExport()
+      .then(() => {
+        sendResponse({ success: true });
+      })
+      .catch(error => {
+        console.error('Error tracking export:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (request.type === 'INVALIDATE_SUBSCRIPTION_CACHE') {
+    subscriptionService.invalidateCache();
+    sendResponse({ success: true });
+    return true;
+  }
+
   return true;
 });
 
@@ -449,6 +508,24 @@ async function saveContact(contact) {
       lastUpdated: now
     };
   } else {
+    // Check subscription limit before adding new contact
+    const canAdd = await subscriptionService.canPerformAction('add_contact');
+    if (!canAdd.allowed) {
+      console.warn('Contact limit reached:', canAdd.reason);
+      // Show upgrade notification
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'Upgrade Required',
+        message: canAdd.reason || 'Upgrade to Pro to add unlimited contacts',
+        buttons: [
+          { title: 'View Plans' },
+          { title: 'Dismiss' }
+        ]
+      });
+      throw new Error(canAdd.reason);
+    }
+    
     // Add new contact
     contacts.push({
       ...contact,
@@ -1589,16 +1666,28 @@ async function getSettings() {
     trackedLabels: [],
     noReplyAfterDays: [3, 7, 14],
     soundEffects: false,
-    hotkeysEnabled: false
+    hotkeysEnabled: false,
+    excludeNames: [],
+    excludeDomains: [],
+    excludePhones: []
   };
 
   const localResult = await chrome.storage.local.get(['settings']);
-  const syncResult = await chrome.storage.sync.get(['settings']);
+  const syncResult = await chrome.storage.sync.get([
+    'settings',
+    'excludeNames',
+    'excludeDomains',
+    'excludePhones'
+  ]);
 
   return {
     ...defaultSettings,
     ...(localResult.settings || {}),
     ...(syncResult.settings || {}),
+    // Load exclusion arrays from top-level sync storage (set by onboarding)
+    excludeNames: syncResult.excludeNames || defaultSettings.excludeNames,
+    excludeDomains: syncResult.excludeDomains || defaultSettings.excludeDomains,
+    excludePhones: syncResult.excludePhones || defaultSettings.excludePhones,
     noReplyAfterDays: Array.isArray((syncResult.settings && syncResult.settings.noReplyAfterDays) || (localResult.settings && localResult.settings.noReplyAfterDays))
       ? ((syncResult.settings && syncResult.settings.noReplyAfterDays) || (localResult.settings && localResult.settings.noReplyAfterDays) || [3, 7, 14])
       : [3, 7, 14]
@@ -1703,9 +1792,26 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 // Also initialize when extension is installed/updated  
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'update' || details.reason === 'install') {
-    console.log(`📦 Extension ${details.reason === 'install' ? 'installed' : 'updated'}`);
+chrome.runtime.onInstalled.addListener(async (details) => {
+  if (details.reason === 'install') {
+    // First time installation - show onboarding
+    console.log('📦 Extension installed - showing onboarding');
+    
+    // Check if onboarding was already completed (shouldn't be, but check anyway)
+    const { onboardingCompleted } = await chrome.storage.local.get(['onboardingCompleted']);
+    
+    if (!onboardingCompleted) {
+      // Open onboarding page
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('onboarding.html')
+      });
+    }
+    
+    setTimeout(() => {
+      initializeAuthAndSync();
+    }, 500);
+  } else if (details.reason === 'update') {
+    console.log('📦 Extension updated');
     setTimeout(() => {
       initializeAuthAndSync();
     }, 500);

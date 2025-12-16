@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to CRMSYNC</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .onboarding-container {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 800px;
+      width: 100%;
+      overflow: hidden;
+    }
+    
+    .progress-bar {
+      height: 6px;
+      background: #f1f5f9;
+      position: relative;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      transition: width 0.4s ease;
+      border-radius: 0 3px 3px 0;
+    }
+    
+    .step {
+      display: none;
+      padding: 60px 80px;
+      min-height: 500px;
+    }
+    
+    .step.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .step-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    }
+    
+    .step-title {
+      font-size: 32px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .step-subtitle {
+      font-size: 16px;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    
+    .feature-list {
+      list-style: none;
+      margin-bottom: 40px;
+    }
+    
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px;
+      background: #f8fafc;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+    }
+    
+    .feature-item:hover {
+      background: #f1f5f9;
+      transform: translateX(4px);
+    }
+    
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+    
+    .feature-content h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    
+    .feature-content p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .setting-option {
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .setting-option:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+    
+    .setting-option.selected {
+      border-color: #667eea;
+      background: #f8fafc;
+    }
+    
+    .setting-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    
+    .setting-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    
+    .toggle-switch {
+      width: 48px;
+      height: 28px;
+      background: #cbd5e1;
+      border-radius: 14px;
+      position: relative;
+      transition: background 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .toggle-switch.active {
+      background: #667eea;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+    
+    .setting-description {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 16px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: none;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+      transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+    
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+    
+    .skip-btn {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .skip-btn a {
+      color: #64748b;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    .skip-btn a:hover {
+      color: #667eea;
+      text-decoration: underline;
+    }
+    
+    .auth-options {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .auth-card {
+      flex: 1;
+      padding: 32px 24px;
+      background: white;
+      border: 2px solid #e5e7eb;
+      border-radius: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .auth-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.15);
+      transform: translateY(-4px);
+    }
+    
+    .auth-card-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .auth-card h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .auth-card p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="onboarding-container">
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    
+    <!-- Step 1: Welcome -->
+    <div class="step active" data-step="1">
+      <div class="step-icon">👋</div>
+      <h1 class="step-title">Welcome to CRMSYNC!</h1>
+      <p class="step-subtitle">
+        Let's get you set up in just a few steps. This will only take a minute.
+      </p>
+      
+      <ul class="feature-list">
+        <li class="feature-item">
+          <div class="feature-icon">📧</div>
+          <div class="feature-content">
+            <h3>Smart Contact Extraction</h3>
+            <p>Automatically extract and organize contacts from your emails</p>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">☁️</div>
+          <div class="feature-content">
+            <h3>Cloud Sync</h3>
+            <p>Access your contacts across all your devices seamlessly</p>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">🔒</div>
+          <div class="feature-content">
+            <h3>Privacy First</h3>
+            <p>Your data stays local by default, sync only when you want</p>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-content">
+            <h3>Lightning Fast</h3>
+            <p>Works seamlessly with Gmail and Outlook</p>
+          </div>
+        </li>
+      </ul>
+      
+      <div class="buttons">
+        <button class="btn btn-primary" id="getStartedBtn">Get Started</button>
+      </div>
+      <div class="skip-btn">
+        <a href="#" id="skipBtn">Skip setup, I'll configure later</a>
+      </div>
+    </div>
+    
+    <!-- Step 2: Configure Settings -->
+    <div class="step" data-step="2">
+      <div class="step-icon">⚙️</div>
+      <h1 class="step-title">Configure Your Preferences</h1>
+      <p class="step-subtitle">
+        Customize how CRMSYNC works for you
+      </p>
+      
+      <div class="setting-option">
+        <div class="setting-header">
+          <h3>Auto-Approve Contacts</h3>
+          <div class="toggle-switch" id="autoApproveToggle" data-setting="autoApprove"></div>
+        </div>
+        <p class="setting-description">
+          Automatically approve new contacts without manual review. You can always archive contacts later.
+        </p>
+      </div>
+      
+      <div class="setting-option">
+        <div class="setting-header">
+          <h3>Follow-up Reminders</h3>
+          <div class="toggle-switch active" id="remindersToggle" data-setting="reminders"></div>
+        </div>
+        <p class="setting-description">
+          Get reminders to follow up with contacts you haven't contacted recently (default: 30 days).
+        </p>
+      </div>
+      
+      <div class="setting-option">
+        <div class="setting-header">
+          <h3>Email Notifications</h3>
+          <div class="toggle-switch" id="notificationsToggle" data-setting="notifications"></div>
+        </div>
+        <p class="setting-description">
+          Receive email notifications about new contacts and important updates.
+        </p>
+      </div>
+      
+      <div class="buttons">
+        <button class="btn btn-secondary" id="settingsBackBtn">Back</button>
+        <button class="btn btn-primary" id="settingsContinueBtn">Continue</button>
+      </div>
+    </div>
+    
+    <!-- Step 3: Choose Auth Method -->
+    <div class="step" data-step="3">
+      <div class="step-icon">🔐</div>
+      <h1 class="step-title">Sign In or Continue Offline</h1>
+      <p class="step-subtitle">
+        Choose how you want to use CRMSYNC
+      </p>
+      
+      <div class="auth-options">
+        <div class="auth-card" id="signInCard">
+          <div class="auth-card-icon">☁️</div>
+          <h3>Sign In</h3>
+          <p>Sync contacts across devices and access from anywhere</p>
+        </div>
+        
+        <div class="auth-card" id="guestCard">
+          <div class="auth-card-icon">📱</div>
+          <h3>Continue Offline</h3>
+          <p>Keep everything local on this device (you can sign in later)</p>
+        </div>
+      </div>
+      
+      <div class="buttons">
+        <button class="btn btn-secondary" id="authBackBtn">Back</button>
+      </div>
+    </div>
+    
+    <!-- Step 4: Your Information (Optional) -->
+    <div class="step" data-step="4">
+      <div class="step-icon">👤</div>
+      <h1 class="step-title">Tell Us About You</h1>
+      <p class="step-subtitle">
+        Enter your information to prevent tracking yourself as a contact (optional but recommended)
+      </p>
+      
+      <div class="login-form" style="max-width: 100%; text-align: left;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label for="userFirstName">First Name</label>
+            <input 
+              type="text" 
+              id="userFirstName" 
+              placeholder="e.g., John"
+              style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: #f9fafb;"
+            >
+          </div>
+          
+          <div class="form-group">
+            <label for="userLastName">Last Name</label>
+            <input 
+              type="text" 
+              id="userLastName" 
+              placeholder="e.g., Smith"
+              style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: #f9fafb;"
+            >
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="userCompany">Company Name</label>
+          <input 
+            type="text" 
+            id="userCompany" 
+            placeholder="e.g., Acme Corp"
+            style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: #f9fafb;"
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="userEmail">Your Email Address</label>
+          <input 
+            type="email" 
+            id="userEmail" 
+            placeholder="e.g., john.smith@company.com"
+            style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: #f9fafb;"
+          >
+          <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Your primary email - we'll exclude this and its domain
+          </p>
+        </div>
+        
+        <div class="form-group">
+          <label for="userPhone">Phone Number</label>
+          <input 
+            type="tel" 
+            id="userPhone" 
+            placeholder="e.g., +1 234 567 8900"
+            style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: #f9fafb;"
+          >
+          <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Prevents your own number from appearing in contacts
+          </p>
+        </div>
+      </div>
+      
+      <div class="buttons" style="margin-top: 32px;">
+        <button class="btn btn-secondary" id="excludeBackBtn">Back</button>
+        <button class="btn btn-primary" id="excludeContinueBtn">Continue</button>
+      </div>
+      <div class="skip-btn">
+        <a href="#" id="skipExcludeBtn">Skip, I'll configure later</a>
+      </div>
+    </div>
+    
+    <!-- Step 5: All Set -->
+    <div class="step" data-step="5">
+      <div class="step-icon">🎉</div>
+      <h1 class="step-title">You're All Set!</h1>
+      <p class="step-subtitle">
+        CRMSYNC is ready to help you manage your contacts
+      </p>
+      
+      <ul class="feature-list">
+        <li class="feature-item">
+          <div class="feature-icon">📬</div>
+          <div class="feature-content">
+            <h3>Visit Gmail or Outlook</h3>
+            <p>Open any email to see the CRMSYNC widget and start extracting contacts</p>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">👥</div>
+          <div class="feature-content">
+            <h3>View Your Contacts</h3>
+            <p>Click the extension icon anytime to view and manage all your contacts</p>
+          </div>
+        </li>
+        <li class="feature-item">
+          <div class="feature-icon">⚙️</div>
+          <div class="feature-content">
+            <h3>Customize Settings</h3>
+            <p>Access settings from the extension popup to adjust preferences</p>
+          </div>
+        </li>
+      </ul>
+      
+      <div class="buttons">
+        <button class="btn btn-primary" id="finishBtn" style="width: 100%;">Start Using CRMSYNC</button>
+      </div>
+    </div>
+  </div>
+  
+  <script src="onboarding.js"></script>
+</body>
+</html>
+

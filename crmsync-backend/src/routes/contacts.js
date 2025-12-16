@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { authenticateToken } = require('../middleware/auth');
+const { checkContactLimit } = require('../middleware/subscriptionCheck');
 const pool = require('../config/database');
 
 const router = express.Router();
@@ -88,6 +89,7 @@ router.get('/:id', authenticateToken, async (req, res, next) => {
 router.post(
   '/',
   authenticateToken,
+  checkContactLimit,
   [
     body('email').isEmail().normalizeEmail(),
     body('firstName').optional().trim(),

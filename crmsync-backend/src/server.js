@@ -164,6 +164,14 @@ if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
 // Error handler (must be last)
 app.use(errorHandler);
 
+// Run database migrations on startup (PostgreSQL only)
+const { runMigrations } = require('./utils/runMigrations');
+if (config.dbType === 'postgres') {
+  runMigrations().catch(err => {
+    logger.error('Migration failed but continuing:', err.message);
+  });
+}
+
 // Start server
 const PORT = config.port;
 const server = app.listen(PORT, () => {

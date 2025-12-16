@@ -15,7 +15,7 @@ const CONFIG = {
     PRODUCTION: 'https://crmsync-api.onrender.com',
     
     // Current environment (change to 'production' before deployment)
-    ENVIRONMENT: 'local', // 'local' or 'production'
+    ENVIRONMENT: 'production', // 'local' or 'production'
     
     // Get the current API URL based on environment
     get BASE_URL() {
@@ -28,7 +28,7 @@ const CONFIG = {
     // Pricing page URL
     PRICING: {
       LOCAL: 'http://localhost:3001/pricing',
-      PRODUCTION: 'https://crmsync.com/pricing',
+      PRODUCTION: 'https://crm-sync.vercel.app/#/pricing',
       
       get URL() {
         return CONFIG.API.ENVIRONMENT === 'production' 
@@ -40,7 +40,7 @@ const CONFIG = {
     // Success page URL (after payment)
     SUCCESS: {
       LOCAL: 'http://localhost:3001/success',
-      PRODUCTION: 'https://crmsync.com/success',
+      PRODUCTION: 'https://crm-sync.vercel.app/#/success',
       
       get URL() {
         return CONFIG.API.ENVIRONMENT === 'production' 

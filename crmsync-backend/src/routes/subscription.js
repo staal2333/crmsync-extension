@@ -88,6 +88,16 @@ router.post('/create-checkout',
       // Create or retrieve Stripe customer
       let customerId = user.stripe_customer_id;
       
+      // Verify customer exists in Stripe (in case of account changes)
+      if (customerId) {
+        try {
+          await stripe.customers.retrieve(customerId);
+        } catch (err) {
+          console.log('⚠️ Customer not found in Stripe, creating new one:', err.message);
+          customerId = null; // Clear invalid customer ID
+        }
+      }
+      
       if (!customerId) {
         const customer = await stripe.customers.create({
           email: user.email,
@@ -102,6 +112,7 @@ router.post('/create-checkout',
           'UPDATE users SET stripe_customer_id = $1 WHERE id = $2',
           [customerId, userId]
         );
+        console.log('✅ Created new Stripe customer:', customerId);
       }
       
       // Create checkout session

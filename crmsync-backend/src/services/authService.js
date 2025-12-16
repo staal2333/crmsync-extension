@@ -38,6 +38,7 @@ class AuthService {
         subscriptionTier: user.subscription_tier,
         createdAt: user.created_at,
       },
+      token: accessToken, // Frontend expects 'token'
       accessToken,
       refreshToken,
     };
@@ -79,6 +80,7 @@ class AuthService {
         avatarUrl: user.avatar_url,
         subscriptionTier: user.subscription_tier,
       },
+      token: accessToken, // Frontend expects 'token'
       accessToken,
       refreshToken,
     };

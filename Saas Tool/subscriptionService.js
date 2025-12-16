@@ -185,7 +185,7 @@ class SubscriptionService {
    */
   openPricingPage() {
     const PRICING_URL = API_CONFIG.ENVIRONMENT === 'production'
-      ? 'https://crmsync.com/pricing' // Update with your actual domain
+      ? 'https://crm-sync.vercel.app/#/pricing'
       : 'http://localhost:3001/pricing';
       
     chrome.tabs.create({

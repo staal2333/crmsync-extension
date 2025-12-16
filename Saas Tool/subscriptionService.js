@@ -7,7 +7,7 @@
 const API_CONFIG = {
   LOCAL: 'http://localhost:3000',
   PRODUCTION: 'https://crmsync-api.onrender.com', // Update with your actual URL
-  ENVIRONMENT: 'local' // Change to 'production' before deployment
+  ENVIRONMENT: 'production' // Change to 'production' before deployment
 };
 
 const API_BASE_URL = API_CONFIG.ENVIRONMENT === 'production' 

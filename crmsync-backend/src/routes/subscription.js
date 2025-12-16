@@ -11,7 +11,7 @@ const { body, validationResult } = require('express-validator');
 // ============================================
 router.get('/status', authenticateToken, async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const result = await db.query(
       `SELECT 
@@ -60,8 +60,9 @@ router.get('/status', authenticateToken, async (req, res, next) => {
 router.post('/create-checkout', 
   authenticateToken,
   [
-    body('tier').isIn(['pro', 'business']).withMessage('Invalid tier'),
-    body('billingPeriod').isIn(['monthly', 'yearly']).withMessage('Invalid billing period')
+    body('priceId').notEmpty().withMessage('Price ID is required'),
+    body('successUrl').optional().isURL().withMessage('Invalid success URL'),
+    body('cancelUrl').optional().isURL().withMessage('Invalid cancel URL')
   ],
   async (req, res, next) => {
     const errors = validationResult(req);
@@ -70,8 +71,8 @@ router.post('/create-checkout',
     }
 
     try {
-      const userId = req.user.id;
-      const { tier, billingPeriod } = req.body;
+      const userId = req.user.userId; // Changed from req.user.id to match JWT payload
+      const { priceId, successUrl, cancelUrl } = req.body;
       
       // Get user email
       const userResult = await db.query(
@@ -80,18 +81,8 @@ router.post('/create-checkout',
       );
       const user = userResult.rows[0];
       
-      // Price mapping
-      const priceIds = {
-        'pro-monthly': process.env.STRIPE_PRICE_PRO_MONTHLY,
-        'pro-yearly': process.env.STRIPE_PRICE_PRO_YEARLY,
-        'business-monthly': process.env.STRIPE_PRICE_BUSINESS_MONTHLY,
-        'business-yearly': process.env.STRIPE_PRICE_BUSINESS_YEARLY,
-      };
-      
-      const priceId = priceIds[`${tier}-${billingPeriod}`];
-      
-      if (!priceId) {
-        return res.status(400).json({ error: 'Invalid pricing configuration' });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
       }
       
       // Create or retrieve Stripe customer
@@ -123,19 +114,17 @@ router.post('/create-checkout',
           price: priceId,
           quantity: 1,
         }],
-        success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/pricing?cancelled=true`,
+        success_url: successUrl || `${process.env.FRONTEND_URL}/#/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: cancelUrl || `${process.env.FRONTEND_URL}/#/pricing?cancelled=true`,
         allow_promotion_codes: true,
         billing_address_collection: 'auto',
         metadata: {
           userId: userId,
-          tier: tier,
-          billingPeriod: billingPeriod
+          priceId: priceId
         },
         subscription_data: {
           metadata: {
-            userId: userId,
-            tier: tier
+            userId: userId
           },
           trial_period_days: 14  // Optional: 14-day free trial
         }
@@ -159,7 +148,7 @@ router.post('/create-checkout',
 // ============================================
 router.post('/create-portal', authenticateToken, async (req, res, next) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const userResult = await db.query(
       'SELECT stripe_customer_id FROM users WHERE id = $1',

@@ -2,7 +2,7 @@
 // Handles email/password and Google OAuth authentication
 
 // Use window scope to share API_URL across modules
-window.API_URL = window.API_URL || 'https://crmsync-extension.onrender.com/api';
+window.API_URL = window.API_URL || window.CONFIG?.API_URL || 'https://crmsync-api.onrender.com/api';
 const API_URL = window.API_URL;
 
 /**
@@ -26,6 +26,11 @@ async function signInWithEmail(email, password) {
     
     const data = await response.json();
     
+    // Ensure tier field exists for popup compatibility
+    if (data.user && !data.user.tier && data.user.subscriptionTier) {
+      data.user.tier = data.user.subscriptionTier;
+    }
+    
     // Store auth data in chrome.storage (clear guest mode)
     await chrome.storage.local.set({
       authToken: data.accessToken,
@@ -36,7 +41,7 @@ async function signInWithEmail(email, password) {
       isGuest: false  // Clear guest mode when logging in
     });
     
-    console.log('✅ User logged in:', data.user.email);
+    console.log('✅ User logged in:', data.user.email, 'tier:', data.user.tier);
     return data;
   } catch (error) {
     console.error('Login error:', error);
@@ -66,6 +71,11 @@ async function registerWithEmail(email, password, displayName) {
     
     const data = await response.json();
     
+    // Ensure tier field exists for popup compatibility
+    if (data.user && !data.user.tier && data.user.subscriptionTier) {
+      data.user.tier = data.user.subscriptionTier;
+    }
+    
     // Store auth data (clear guest mode)
     await chrome.storage.local.set({
       authToken: data.accessToken,
@@ -76,7 +86,7 @@ async function registerWithEmail(email, password, displayName) {
       isGuest: false  // Clear guest mode when registering
     });
     
-    console.log('✅ User registered:', data.user.email);
+    console.log('✅ User registered:', data.user.email, 'tier:', data.user.tier);
     return data;
   } catch (error) {
     console.error('Registration error:', error);
@@ -112,6 +122,11 @@ async function signInWithGoogle() {
         
         const data = await response.json();
         
+        // Ensure tier field exists for popup compatibility
+        if (data.user && !data.user.tier && data.user.subscriptionTier) {
+          data.user.tier = data.user.subscriptionTier;
+        }
+        
         // Store auth data (clear guest mode)
         await chrome.storage.local.set({
           authToken: data.accessToken,
@@ -123,7 +138,7 @@ async function signInWithGoogle() {
           isGuest: false  // Clear guest mode when logging in with Google
         });
         
-        console.log('✅ User logged in with Google:', data.user.email);
+        console.log('✅ User logged in with Google:', data.user.email, 'tier:', data.user.tier);
         resolve(data);
       } catch (error) {
         reject(error);
@@ -277,9 +292,15 @@ async function getCurrentUser() {
     
     const data = await response.json();
     
+    // Ensure tier field exists for popup compatibility
+    if (data.user && !data.user.tier && data.user.subscriptionTier) {
+      data.user.tier = data.user.subscriptionTier;
+    }
+    
     // Update stored user info
     await chrome.storage.local.set({ user: data.user });
     
+    console.log('✅ User profile refreshed, tier:', data.user.tier);
     return data.user;
   } catch (error) {
     console.error('Get user error:', error);

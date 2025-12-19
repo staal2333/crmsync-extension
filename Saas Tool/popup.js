@@ -263,9 +263,16 @@ function setupAuthListener() {
   // Listen for storage changes
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local') {
+      console.log('📦 Storage changed:', Object.keys(changes));
+      
       // Check if auth-related keys changed
-      if (changes.isAuthenticated || changes.isGuest || changes.user) {
-        console.log('Auth status changed via storage, updating UI...', changes);
+      if (changes.isAuthenticated || changes.isGuest || changes.user || changes.authToken) {
+        console.log('🔐 Auth status changed via storage, updating UI...', {
+          isAuthenticated: changes.isAuthenticated?.newValue,
+          isGuest: changes.isGuest?.newValue,
+          hasUser: !!changes.user?.newValue,
+          hasToken: !!changes.authToken?.newValue
+        });
         
         // Update left header button
         updateLeftHeaderButton();
@@ -284,7 +291,7 @@ function setupAuthListener() {
       
       // Check if contacts data changed (from sync or background updates)
       if (changes.contacts) {
-        console.log('📋 Contacts data changed in storage, refreshing active tab...');
+        console.log('📋 Contacts data changed in storage (likely from sync), refreshing active tab...');
         
         // Get the currently active tab
         const activeTab = document.querySelector('.tab-btn.active');
@@ -816,22 +823,42 @@ async function handleDataMerge(action) {
  */
 async function updateAccountSettingsDisplay() {
   try {
-    const { isAuthenticated, user, isGuest } = await chrome.storage.local.get([
+    const result = await chrome.storage.local.get([
       'isAuthenticated',
       'user',
-      'isGuest'
+      'isGuest',
+      'authToken'
     ]);
     
-    console.log('Account settings - Auth status:', { isAuthenticated, isGuest, user });
+    const { isAuthenticated, user, isGuest, authToken } = result;
     
-    if (isAuthenticated && user && !isGuest) {
+    console.log('🔍 Account settings check:', { 
+      isAuthenticated, 
+      isGuest, 
+      hasUser: !!user,
+      hasToken: !!authToken,
+      userEmail: user?.email 
+    });
+    
+    // Only hide if explicitly not authenticated OR if guest mode
+    // Don't hide if we just can't find the data (might be race condition during sync)
+    if (isAuthenticated === false || isGuest === true) {
+      console.log('❌ Hiding account settings: not authenticated or guest mode');
+      hideAccountSettings();
+      return;
+    }
+    
+    // If we have a valid user and token, show settings
+    if (user && authToken && isAuthenticated !== false) {
+      console.log('✅ Showing account settings for:', user.email);
       showAccountSettings(user);
     } else {
-      hideAccountSettings();
+      console.log('⚠️ Incomplete auth data, keeping current state');
+      // Don't hide - might be race condition, keep current state
     }
   } catch (error) {
-    console.error('Error updating account settings:', error);
-    hideAccountSettings();
+    console.error('❌ Error updating account settings:', error);
+    // Don't hide on error - might be temporary issue
   }
 }
 
@@ -841,11 +868,17 @@ async function updateAccountSettingsDisplay() {
 function showAccountSettings(user) {
   const container = document.getElementById('accountSettingsContainer');
   if (!container) {
-    console.error('Account settings container not found');
+    console.error('❌ Account settings container not found');
     return;
   }
   
-  console.log('Showing account settings for user:', user);
+  // Validate user object
+  if (!user || !user.email) {
+    console.error('❌ Invalid user object, cannot show account settings:', user);
+    return;
+  }
+  
+  console.log('✅ Showing account settings for user:', user.email);
   container.style.display = 'block';
   
   // Get user initials for avatar

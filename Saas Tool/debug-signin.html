@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debug Sign In</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .info-box {
+      background: #f0f0f0;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+    h3 {
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Sign In Debug Tool</h1>
+  <p>This will help us figure out the correct URL format for your website.</p>
+  
+  <h3>Extension Info:</h3>
+  <div class="info-box" id="extensionInfo">Loading...</div>
+  
+  <h3>CONFIG Info:</h3>
+  <div class="info-box" id="configInfo">Loading...</div>
+  
+  <h3>Test Different URL Formats:</h3>
+  
+  <h4>Option 1: Parameters AFTER hash (current)</h4>
+  <div class="info-box" id="url1">Loading...</div>
+  <button id="test1">Open Option 1</button>
+  
+  <h4>Option 2: Parameters BEFORE hash</h4>
+  <div class="info-box" id="url2">Loading...</div>
+  <button id="test2">Open Option 2</button>
+  
+  <h4>Option 3: Direct URL (no params)</h4>
+  <div class="info-box" id="url3">Loading...</div>
+  <button id="test3">Open Option 3</button>
+  
+  <h4>Option 4: Try with query string</h4>
+  <div class="info-box" id="url4">Loading...</div>
+  <button id="test4">Open Option 4</button>
+
+  <script src="config.js"></script>
+  <script>
+    const extensionId = chrome.runtime.id;
+    const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
+    
+    // Display info
+    document.getElementById('extensionInfo').textContent = `Extension ID: ${extensionId}`;
+    document.getElementById('configInfo').textContent = JSON.stringify(window.CONFIG, null, 2);
+    
+    // Option 1: Parameters AFTER hash (current implementation)
+    const url1 = `${websiteUrl}/#/login?source=extension&extensionId=${extensionId}`;
+    document.getElementById('url1').textContent = url1;
+    document.getElementById('test1').addEventListener('click', () => {
+      chrome.tabs.create({ url: url1 });
+    });
+    
+    // Option 2: Parameters BEFORE hash (might work better with SPAs)
+    const url2 = `${websiteUrl}/?source=extension&extensionId=${extensionId}#/login`;
+    document.getElementById('url2').textContent = url2;
+    document.getElementById('test2').addEventListener('click', () => {
+      chrome.tabs.create({ url: url2 });
+    });
+    
+    // Option 3: Direct URL without params
+    const url3 = `${websiteUrl}/#/login`;
+    document.getElementById('url3').textContent = url3;
+    document.getElementById('test3').addEventListener('click', () => {
+      chrome.tabs.create({ url: url3 });
+    });
+    
+    // Option 4: Using search/query params
+    const url4 = `${websiteUrl}/#/login?mode=extension&ext=${encodeURIComponent(extensionId)}`;
+    document.getElementById('url4').textContent = url4;
+    document.getElementById('test4').addEventListener('click', () => {
+      chrome.tabs.create({ url: url4 });
+    });
+  </script>
+</body>
+</html>

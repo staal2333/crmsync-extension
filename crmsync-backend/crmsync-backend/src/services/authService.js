@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../config/database');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const emailService = require('./emailService');
 
 class AuthService {
   async register(email, password, displayName) {
@@ -27,6 +28,15 @@ class AuthService {
       [user.id]
     );
     
+    // Send welcome email (async, don't wait)
+    emailService.sendWelcomeEmail({
+      email: user.email,
+      displayName: user.display_name || email.split('@')[0],
+    }).catch(err => {
+      console.error('Failed to send welcome email:', err);
+      // Don't fail registration if email fails
+    });
+    
     const accessToken = generateAccessToken(user.id, user.email);
     const refreshToken = generateRefreshToken(user.id);
     
@@ -36,6 +46,7 @@ class AuthService {
         email: user.email,
         displayName: user.display_name,
         subscriptionTier: user.subscription_tier,
+        tier: user.subscription_tier, // Extension compatibility
         createdAt: user.created_at,
       },
       token: accessToken, // Frontend expects 'token'
@@ -79,6 +90,7 @@ class AuthService {
         displayName: user.display_name,
         avatarUrl: user.avatar_url,
         subscriptionTier: user.subscription_tier,
+        tier: user.subscription_tier, // Extension compatibility
       },
       token: accessToken, // Frontend expects 'token'
       accessToken,
@@ -111,6 +123,14 @@ class AuthService {
       // Create default settings and sync metadata
       await pool.query(`INSERT INTO user_settings (user_id) VALUES ($1)`, [user.id]);
       await pool.query(`INSERT INTO sync_metadata (user_id) VALUES ($1)`, [user.id]);
+      
+      // Send welcome email for new Google users (async, don't wait)
+      emailService.sendWelcomeEmail({
+        email: user.email,
+        displayName: displayName || user.display_name || email.split('@')[0],
+      }).catch(err => {
+        console.error('Failed to send welcome email:', err);
+      });
     } else {
       user = result.rows[0];
       
@@ -135,6 +155,7 @@ class AuthService {
         displayName: user.display_name || displayName,
         avatarUrl: user.avatar_url || avatarUrl,
         subscriptionTier: user.subscription_tier,
+        tier: user.subscription_tier, // Extension compatibility
       },
       accessToken,
       refreshToken,

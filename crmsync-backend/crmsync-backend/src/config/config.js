@@ -26,7 +26,27 @@ module.exports = {
   },
   
   cors: {
-    origins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origins: process.env.ALLOWED_ORIGINS?.split(',') || [
+      'https://www.crm-sync.net',
+      'https://crm-sync.net',
+      'https://crm-sync.vercel.app',
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:5173'
+    ],
+  },
+  
+  email: {
+    host: process.env.EMAIL_HOST,
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true',
+    user: process.env.EMAIL_USER,
+    password: process.env.EMAIL_PASSWORD,
+    from: process.env.EMAIL_FROM || 'CRMSYNC <noreply@crm-sync.net>',
+  },
+  
+  frontend: {
+    url: process.env.FRONTEND_URL || 'https://www.crm-sync.net',
   },
 };
 

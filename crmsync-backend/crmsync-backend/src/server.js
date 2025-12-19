@@ -105,9 +105,13 @@ app.use(cors({
 
 // IMPORTANT: Stripe webhook endpoint must be registered BEFORE body parser
 // This is because Stripe requires raw body for signature verification
-app.use('/api/subscription/webhook', subscriptionRoutes);
+// Mount webhook route with raw body parser
+app.use('/api/subscription/webhook', 
+  express.raw({ type: 'application/json' }),
+  require('./routes/webhookHandler')
+);
 
-// Body parser
+// Body parser (for all other routes)
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

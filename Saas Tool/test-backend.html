@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backend CORS Test Tool</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+    }
+    
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+    
+    .test-section {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    
+    .test-section h2 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .input-group {
+      margin-bottom: 16px;
+    }
+    
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+    }
+    
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .result-box {
+      margin-top: 16px;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      border: 2px solid #e2e8f0;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .success {
+      color: #10b981;
+      font-weight: 600;
+    }
+    
+    .error {
+      color: #ef4444;
+      font-weight: 600;
+    }
+    
+    .warning {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-success {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    
+    .status-error {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Backend CORS Test Tool</h1>
+    <p class="subtitle">Test if your backend is configured correctly for the extension</p>
+    
+    <!-- Test 1: Basic Connectivity -->
+    <div class="test-section">
+      <h2>
+        <span id="test1-status">⏸️</span>
+        Test 1: Backend Connectivity
+      </h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+        Check if your backend API is online and responding
+      </p>
+      
+      <div class="input-group">
+        <label>Backend URL:</label>
+        <input 
+          type="text" 
+          id="backendUrl" 
+          value="https://crmsync-api.onrender.com"
+          placeholder="https://your-api.com"
+        />
+      </div>
+      
+      <button onclick="testConnectivity()">Run Test 1</button>
+      
+      <div id="test1-result" class="result-box" style="display: none;"></div>
+    </div>
+    
+    <!-- Test 2: CORS Configuration -->
+    <div class="test-section">
+      <h2>
+        <span id="test2-status">⏸️</span>
+        Test 2: CORS Configuration
+      </h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+        Check if CORS is enabled for your domain
+      </p>
+      
+      <div class="input-group">
+        <label>Your Website Domain:</label>
+        <input 
+          type="text" 
+          id="websiteDomain" 
+          value="https://www.crm-sync.net"
+          placeholder="https://www.your-site.com"
+        />
+      </div>
+      
+      <button onclick="testCORS()">Run Test 2</button>
+      
+      <div id="test2-result" class="result-box" style="display: none;"></div>
+    </div>
+    
+    <!-- Test 3: Login Endpoint -->
+    <div class="test-section">
+      <h2>
+        <span id="test3-status">⏸️</span>
+        Test 3: Login Endpoint
+      </h2>
+      <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">
+        Test the login API endpoint with test credentials
+      </p>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+        <div class="input-group">
+          <label>Email:</label>
+          <input type="email" id="testEmail" value="test@example.com" />
+        </div>
+        <div class="input-group">
+          <label>Password:</label>
+          <input type="password" id="testPassword" value="password123" />
+        </div>
+      </div>
+      
+      <button onclick="testLogin()">Run Test 3</button>
+      
+      <div id="test3-result" class="result-box" style="display: none;"></div>
+    </div>
+    
+    <!-- Fix Instructions -->
+    <div class="test-section" id="fixInstructions" style="display: none; background: #fef3c7; border-left: 4px solid #f59e0b;">
+      <h2>🔧 How to Fix CORS Issues</h2>
+      <p style="color: #92400e; margin-bottom: 16px;">
+        Your backend needs to allow requests from your website. Add this code:
+      </p>
+      
+      <div class="code-block" id="fixCode"></div>
+      
+      <p style="color: #92400e; margin-top: 16px; font-size: 14px;">
+        After adding this code, redeploy your backend and run the tests again.
+      </p>
+    </div>
+    
+    <!-- All Tests Passed -->
+    <div class="test-section" id="successMessage" style="display: none; background: #dcfce7; border-left: 4px solid #10b981;">
+      <h2 style="color: #16a34a;">🎉 All Tests Passed!</h2>
+      <p style="color: #166534; margin-bottom: 16px;">
+        Your backend is configured correctly. The extension should work now!
+      </p>
+      
+      <p style="color: #166534; font-size: 14px;">
+        <strong>Next steps:</strong>
+      </p>
+      <ol style="color: #166534; margin-left: 20px; margin-top: 8px; font-size: 14px;">
+        <li>Click "Sign In" in the extension</li>
+        <li>Log in on your website</li>
+        <li>You'll be redirected back to the extension</li>
+        <li>Your account and tier will appear in the popup</li>
+      </ol>
+    </div>
+  </div>
+  
+  <script>
+    async function testConnectivity() {
+      const statusEl = document.getElementById('test1-status');
+      const resultEl = document.getElementById('test1-result');
+      const backendUrl = document.getElementById('backendUrl').value;
+      
+      statusEl.textContent = '⏳';
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = 'Testing connectivity...';
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/auth/login`, {
+          method: 'OPTIONS'
+        });
+        
+        if (response.ok || response.status === 200 || response.status === 204) {
+          statusEl.textContent = '✅';
+          resultEl.innerHTML = `<span class="success">✓ Backend is online and responding!</span>\n\nStatus: ${response.status}\nBackend URL: ${backendUrl}`;
+        } else {
+          statusEl.textContent = '❌';
+          resultEl.innerHTML = `<span class="error">✗ Backend responded with status ${response.status}</span>\n\nThis might be okay if CORS is configured. Check Test 2.`;
+        }
+      } catch (error) {
+        statusEl.textContent = '❌';
+        resultEl.innerHTML = `<span class="error">✗ Cannot connect to backend!</span>\n\nError: ${error.message}\n\nPossible causes:\n1. Backend is offline\n2. Wrong URL\n3. Network issue\n\nCheck your backend logs on Render.`;
+      }
+    }
+    
+    async function testCORS() {
+      const statusEl = document.getElementById('test2-status');
+      const resultEl = document.getElementById('test2-result');
+      const backendUrl = document.getElementById('backendUrl').value;
+      const websiteDomain = document.getElementById('websiteDomain').value;
+      
+      statusEl.textContent = '⏳';
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = 'Testing CORS configuration...';
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/auth/login`, {
+          method: 'OPTIONS',
+          headers: {
+            'Origin': websiteDomain,
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'Content-Type, Authorization'
+          }
+        });
+        
+        const corsOrigin = response.headers.get('Access-Control-Allow-Origin');
+        const corsMethods = response.headers.get('Access-Control-Allow-Methods');
+        const corsHeaders = response.headers.get('Access-Control-Allow-Headers');
+        
+        if (corsOrigin && (corsOrigin === websiteDomain || corsOrigin === '*')) {
+          statusEl.textContent = '✅';
+          resultEl.innerHTML = `<span class="success">✓ CORS is configured correctly!</span>\n\nAllowed Origin: ${corsOrigin}\nAllowed Methods: ${corsMethods || 'Not specified'}\nAllowed Headers: ${corsHeaders || 'Not specified'}\n\nYour website can make requests to this backend.`;
+        } else {
+          statusEl.textContent = '❌';
+          resultEl.innerHTML = `<span class="error">✗ CORS is NOT configured!</span>\n\nExpected: ${websiteDomain}\nGot: ${corsOrigin || 'No CORS headers'}\n\nYour backend needs to allow requests from your website domain.`;
+          showFixInstructions();
+        }
+      } catch (error) {
+        statusEl.textContent = '❌';
+        resultEl.innerHTML = `<span class="error">✗ CORS test failed!</span>\n\nError: ${error.message}\n\nThis usually means CORS is blocking the request.`;
+        showFixInstructions();
+      }
+    }
+    
+    async function testLogin() {
+      const statusEl = document.getElementById('test3-status');
+      const resultEl = document.getElementById('test3-result');
+      const backendUrl = document.getElementById('backendUrl').value;
+      const email = document.getElementById('testEmail').value;
+      const password = document.getElementById('testPassword').value;
+      
+      statusEl.textContent = '⏳';
+      resultEl.style.display = 'block';
+      resultEl.innerHTML = 'Testing login endpoint...';
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          statusEl.textContent = '✅';
+          resultEl.innerHTML = `<span class="success">✓ Login endpoint works!</span>\n\nStatus: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}\n\nNote: You'll need valid credentials for actual login.`;
+        } else {
+          statusEl.textContent = '⚠️';
+          resultEl.innerHTML = `<span class="warning">⚠ Login endpoint responded</span>\n\nStatus: ${response.status}\nResponse: ${JSON.stringify(data, null, 2)}\n\nThis is expected with test credentials.\nTry with real credentials from your website.`;
+        }
+      } catch (error) {
+        statusEl.textContent = '❌';
+        resultEl.innerHTML = `<span class="error">✗ Login test failed!</span>\n\nError: ${error.message}\n\nThis might be a CORS issue. Check Test 2.`;
+      }
+    }
+    
+    function showFixInstructions() {
+      const fixSection = document.getElementById('fixInstructions');
+      const fixCode = document.getElementById('fixCode');
+      const websiteDomain = document.getElementById('websiteDomain').value;
+      
+      fixSection.style.display = 'block';
+      
+      fixCode.innerHTML = `const cors = require('cors');
+
+app.use(cors({
+  origin: [
+    '${websiteDomain}',
+    'http://localhost:3000'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// IMPORTANT: Add this BEFORE your routes!`;
+    }
+    
+    // Auto-run tests on load
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        testConnectivity();
+        setTimeout(() => testCORS(), 1000);
+      }, 500);
+    });
+  </script>
+</body>
+</html>

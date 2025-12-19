@@ -14,43 +14,49 @@
         <span id="leftHeaderBtnIcon">👥</span>
         <span id="leftHeaderBtnText" style="display: none; font-size: 13px; font-weight: 600; margin-left: 4px;"></span>
       </button>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png.png'" />
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png'" />
         <span id="subscriptionTierBadge" class="tier-badge tier-free">FREE</span>
       </div>
       <button class="popup-widget-btn" id="showWidgetBtn" title="Show Widget on Gmail">
-        <img src="icons/widget-logo.png.png" alt="Widget" style="width: 20px; height: 20px; margin-right: 4px;" onerror="this.textContent='📌'"/>
-        <span>Show Widget</span>
+        📌
       </button>
     </div>
 
     <!-- Tabs -->
     <div class="tabs-container">
       <button class="tab-btn active" data-tab="all-contacts">
-        <span>📋</span>
         <span>Contacts</span>
       </button>
       <button class="tab-btn" data-tab="overview">
-        <span>📊</span>
         <span>Overview</span>
       </button>
+      <button class="tab-btn" data-tab="insights">
+        <span>📊 Insights</span>
+      </button>
       <button class="tab-btn" data-tab="daily-review">
-        <span>📅</span>
         <span>Today</span>
       </button>
       <button class="tab-btn" data-tab="settings">
-        <span>⚙️</span>
         <span>Settings</span>
       </button>
     </div>
 
     <!-- All Contacts Tab -->
     <div class="tab-content active" id="all-contacts-tab">
+      <!-- Limit Warning Banner -->
+      <div id="limitWarningBanner" style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; font-size: 13px; font-weight: 500;">
+        <div style="margin-bottom: 8px;">⚠️ <span id="limitWarningText">You're at your contact limit!</span></div>
+        <button id="upgradeLimitBtn" style="background: white; color: #ef4444; border: none; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+          ✨ Upgrade to Pro
+        </button>
+      </div>
+      
       <!-- Stats Row -->
       <div class="quick-stats">
         <div class="stat-mini">
           <span class="stat-mini-value" id="contactLimitInfo">0</span>
-          <span class="stat-mini-label">Contacts</span>
+          <span class="stat-mini-label">Total</span>
         </div>
         <div class="stat-mini">
           <span class="stat-mini-value" id="pendingCount">0</span>
@@ -58,22 +64,22 @@
         </div>
         <div class="stat-mini">
           <span class="stat-mini-value" id="newTodayMini">0</span>
-          <span class="stat-mini-label">Today</span>
+          <span class="stat-mini-label">New</span>
         </div>
       </div>
 
       <!-- Search and Filters -->
       <div class="search-section">
-        <input type="text" id="contactSearchInput" placeholder="🔍 Search contacts..." class="search-input">
+        <input type="text" id="contactSearchInput" placeholder="Search contacts..." class="search-input">
         <div class="filter-row">
           <select id="statusFilter" class="select-input">
-            <option value="">All Status</option>
+            <option value="">All</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="archived">Archived</option>
           </select>
           <select id="sortBy" class="select-input">
-            <option value="lastContact">Last Contact</option>
+            <option value="lastContact">Recent</option>
             <option value="name">Name</option>
             <option value="company">Company</option>
           </select>
@@ -85,10 +91,8 @@
         <table class="contacts-table">
           <thead>
             <tr>
-              <th>Name</th>
+              <th>Contact</th>
               <th>Company</th>
-              <th>Email</th>
-              <th>Phone</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -109,12 +113,10 @@
       <!-- Actions -->
       <div class="actions-row">
         <button class="btn-secondary" id="exportAllContactsCSV">
-          <span>📥</span>
-          <span>Export CSV</span>
+          Export CSV
         </button>
         <button class="btn-secondary" id="refreshAllContacts">
-          <span>🔄</span>
-          <span>Refresh</span>
+          Refresh
         </button>
       </div>
     </div>
@@ -168,6 +170,27 @@
       </div>
     </div>
 
+    <!-- Insights/Analytics Tab -->
+    <div class="tab-content" id="insights-tab">
+      <!-- Loading Skeleton -->
+      <div id="insightsLoading" style="display: none; padding: 16px;">
+        <div class="skeleton skeleton-stat" style="margin-bottom: 12px;"></div>
+        <div class="skeleton skeleton-stat" style="margin-bottom: 12px;"></div>
+        <div class="skeleton skeleton-contact"></div>
+        <div class="skeleton skeleton-contact"></div>
+        <div class="skeleton skeleton-contact"></div>
+      </div>
+
+      <!-- Analytics Content (populated by analytics.js) -->
+      <div id="analyticsContent">
+        <div class="empty-state-deluxe">
+          <div class="empty-icon">📊</div>
+          <h3>Loading insights...</h3>
+          <p>Analyzing your contact data to provide helpful insights</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Daily Review Tab -->
     <div class="tab-content" id="daily-review-tab">
       <!-- Today's Stats -->
@@ -192,8 +215,7 @@
 
       <!-- Actions -->
       <button class="btn-primary" id="exportAndMarkReviewed">
-        <span>📥</span>
-        <span>Export Today's Contacts</span>
+        Export Today's Contacts
       </button>
     </div>
 
@@ -272,10 +294,16 @@
                 <div style="display: flex; align-items: center; gap: 12px;">
                   <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 16px;" id="accountAvatar">U</div>
                   <div style="flex: 1;">
-                    <div style="font-weight: 600; font-size: 14px; color: var(--text);" id="accountName">Loading...</div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="font-weight: 600; font-size: 14px; color: var(--text);" id="accountName">Loading...</div>
+                      <span id="accountTier" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; background: #10b981; color: white;">FREE</span>
+                    </div>
                     <div style="font-size: 12px; color: var(--text-secondary);" id="accountEmail">Loading...</div>
                   </div>
                 </div>
+                <button class="btn-secondary" id="upgradeBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-bottom: 8px; display: none;">
+                  ✨ Upgrade to Pro
+                </button>
                 <button class="btn-secondary" id="settingsSignOutBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: #ef4444; color: white; border: none;">
                   🚪 Sign Out
                 </button>
@@ -387,10 +415,21 @@
     }
   </style>
 
+  <!-- Core Scripts -->
+  <script src="config.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
+  
+  <!-- UX Enhancement Scripts -->
+  <script src="toast.js"></script>
+  <script src="darkMode.js"></script>
+  <script src="quickActions.js"></script>
+  <script src="analytics.js"></script>
+  
+  <!-- Feature Scripts -->
   <script src="guest-mode-banner.js"></script>
   <script src="popup-subscription.js"></script>
   <script src="popup.js"></script>
+  <script src="popup-enhancements.js"></script>
 </body>
 </html>

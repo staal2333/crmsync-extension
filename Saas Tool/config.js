@@ -1,70 +1,63 @@
-/**
- * CRMSYNC Configuration
- * 
- * This file contains environment-specific configuration.
- * Update these values before deployment.
- */
-
+// Configuration for CRMSYNC Extension
 const CONFIG = {
-  // API Configuration
-  API: {
-    // For local development
-    LOCAL: 'http://localhost:3000',
-    
-    // For production (update this with your Render URL)
-    PRODUCTION: 'https://crmsync-api.onrender.com',
-    
-    // Current environment (change to 'production' before deployment)
-    ENVIRONMENT: 'production', // 'local' or 'production'
-    
-    // Get the current API URL based on environment
-    get BASE_URL() {
-      return this.ENVIRONMENT === 'production' ? this.PRODUCTION : this.LOCAL;
-    }
+  // Your website URL
+  WEBSITE_URL: 'https://www.crm-sync.net',
+  
+  // Backend API URL
+  API_URL: 'https://crmsync-api.onrender.com/api',
+  
+  // Auth endpoints (using hash-based routing)
+  AUTH: {
+    LOGIN: '/#/login',
+    SIGNUP: '/#/signup',
+    PRICING: '/#/pricing',
+    CALLBACK: '/auth/extension-callback'
   },
   
-  // Website URLs
-  WEBSITE: {
-    // Pricing page URL
-    PRICING: {
-      LOCAL: 'http://localhost:3001/pricing',
-      PRODUCTION: 'https://crm-sync.vercel.app/#/pricing',
-      
-      get URL() {
-        return CONFIG.API.ENVIRONMENT === 'production' 
-          ? this.PRODUCTION 
-          : this.LOCAL;
-      }
+  // Feature limits by tier
+  TIERS: {
+    free: {
+      name: 'Free',
+      contactLimit: 50,
+      exportLimit: 10,
+      features: [
+        'Extract up to 50 contacts',
+        'Export 10 contacts per month',
+        'Basic contact management'
+      ]
     },
-    
-    // Success page URL (after payment)
-    SUCCESS: {
-      LOCAL: 'http://localhost:3001/success',
-      PRODUCTION: 'https://crm-sync.vercel.app/#/success',
-      
-      get URL() {
-        return CONFIG.API.ENVIRONMENT === 'production' 
-          ? this.PRODUCTION 
-          : this.LOCAL;
-      }
+    pro: {
+      name: 'Pro',
+      contactLimit: 1000,
+      exportLimit: -1, // -1 = unlimited
+      features: [
+        'Extract up to 1,000 contacts',
+        'Unlimited exports',
+        'Advanced analytics',
+        'Priority support'
+      ]
+    },
+    enterprise: {
+      name: 'Enterprise',
+      contactLimit: -1, // -1 = unlimited
+      exportLimit: -1,
+      features: [
+        'Unlimited contacts',
+        'Unlimited exports',
+        'Team collaboration',
+        'API access',
+        'Dedicated support'
+      ]
     }
-  },
-  
-  // Feature flags
-  FEATURES: {
-    // Enable detailed logging (disable in production)
-    DEBUG_LOGGING: CONFIG.API.ENVIRONMENT !== 'production',
-    
-    // Enable analytics (optional)
-    ANALYTICS_ENABLED: false,
-    
-    // Enable error reporting (optional - Sentry, etc.)
-    ERROR_REPORTING: false
   }
 };
 
-// Export for use in other files
+// Make config available globally
+if (typeof window !== 'undefined') {
+  window.CONFIG = CONFIG;
+}
+
+// Export for use in other scripts
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = CONFIG;
 }
-

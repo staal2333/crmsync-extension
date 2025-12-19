@@ -78,8 +78,15 @@
 
   async function init() {
     try {
+      // Apply default theme immediately to prevent flash
+      document.documentElement.setAttribute('data-theme', 'light');
+      
       await loadContacts();
       await loadSettings();
+      
+      // Apply actual theme from settings
+      applyTheme();
+      
       hotkeysEnabled = settings.hotkeysEnabled === true;
       // Initialize counters from storage
       const stored = await chrome.storage.local.get(['lastSeenCountAtSidebarOpen', 'sessionFoundCount']);
@@ -2370,6 +2377,18 @@
         ${lastScanAt ? `<div class="status-time">${lastScanAt}</div>` : ''}
       </div>
 
+      <!-- Contact Limit Warning Banner -->
+      <div id="sidebar-limit-banner" class="sidebar-limit-banner" style="display: none;">
+        <div class="limit-banner-content">
+          <div class="limit-banner-icon">⚠️</div>
+          <div class="limit-banner-text">
+            <div class="limit-banner-title">Contact Limit Warning</div>
+            <div class="limit-banner-subtitle" id="sidebar-limit-text">-/-</div>
+          </div>
+          <button class="limit-banner-btn" id="sidebar-upgrade-btn">Upgrade</button>
+        </div>
+      </div>
+
       <!-- Tabs -->
       <div class="sidebar-tabs">
         <button class="sidebar-tab-btn active" data-sidebar-tab="crm">
@@ -2832,7 +2851,10 @@
     try {
       const response = await chrome.runtime.sendMessage({ action: 'getContacts' });
       const allContacts = (response && response.contacts) || [];
-      
+
+      // Update limit warning banner
+      updateSidebarLimitBanner();
+
       // Apply filters - show ALL contacts by default (like popup)
       const searchTerm = (document.getElementById('sidebar-search-input')?.value || '').toLowerCase();
       const statusFilter = document.getElementById('sidebar-status-filter')?.value || '';
@@ -3596,11 +3618,169 @@
   }
 
   /**
+   * Update the sidebar limit warning banner
+   */
+  async function updateSidebarLimitBanner() {
+    try {
+      const banner = document.getElementById('sidebar-limit-banner');
+      const limitText = document.getElementById('sidebar-limit-text');
+      const upgradeBtn = document.getElementById('sidebar-upgrade-btn');
+      
+      if (!banner || !limitText) return;
+
+      // Get contact limit info
+      const limitInfo = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
+          resolve(response || { success: false });
+        });
+      });
+
+      if (!limitInfo.success) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      const { count, limit, tier, isOverLimit, isNearLimit } = limitInfo;
+      const percentage = limit > 0 ? (count / limit) * 100 : 0;
+
+      // Show warning at 80% or above
+      if (percentage >= 80 || isNearLimit || isOverLimit) {
+        banner.style.display = 'block';
+        limitText.textContent = `${count}/${limit} contacts used`;
+
+        // Change styling based on severity
+        if (isOverLimit || percentage >= 100) {
+          banner.classList.add('limit-critical');
+          banner.classList.remove('limit-warning');
+          limitText.parentElement.querySelector('.limit-banner-title').textContent = '🚨 Limit Reached';
+        } else if (percentage >= 95 || isNearLimit) {
+          banner.classList.add('limit-warning');
+          banner.classList.remove('limit-critical');
+          limitText.parentElement.querySelector('.limit-banner-title').textContent = '⚠️ Almost Full';
+        } else {
+          banner.classList.remove('limit-critical', 'limit-warning');
+          limitText.parentElement.querySelector('.limit-banner-title').textContent = '💡 Getting Full';
+        }
+
+        // Setup upgrade button
+        if (upgradeBtn && !upgradeBtn.hasAttribute('data-listener')) {
+          upgradeBtn.setAttribute('data-listener', 'true');
+          upgradeBtn.addEventListener('click', () => {
+            const websiteUrl = 'https://www.crm-sync.net';
+            const pricingPath = '/#/pricing';
+            const extensionId = chrome.runtime.id;
+            const upgradeUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}${pricingPath}`;
+            chrome.tabs.create({ url: upgradeUrl });
+          });
+        }
+      } else {
+        banner.style.display = 'none';
+      }
+    } catch (error) {
+      console.error('Error updating sidebar limit banner:', error);
+    }
+  }
+
+  /**
+   * Show upgrade required panel when user is at contact limit
+   * @param {any} contact - The contact that triggered the limit
+   * @param {Object} limitInfo - Limit information from background
+   */
+  function showUpgradeRequiredPanel(contact, limitInfo) {
+    try {
+      // Remove existing panels
+      const existing = document.querySelector('.crmsync-approval-panel, .crmsync-upgrade-panel');
+      if (existing) {
+        existing.remove();
+      }
+
+      const panel = document.createElement('div');
+      panel.className = 'crmsync-upgrade-panel';
+      panel.setAttribute('data-contact-email', contact.email);
+      
+      const fullName = getFullName(contact.firstName, contact.lastName) || contact.email;
+      
+      panel.innerHTML = `
+        <div class="upgrade-overlay">
+          <div class="upgrade-icon">🔒</div>
+          <div class="upgrade-title">Contact Limit Reached</div>
+          <div class="upgrade-subtitle">${limitInfo.count}/${limitInfo.limit} contacts</div>
+          
+          <div class="upgrade-contact-preview">
+            <div class="upgrade-contact-icon">👤</div>
+            <div class="upgrade-contact-info">
+              <strong>${fullName}</strong>
+              <div style="font-size: 12px; opacity: 0.8;">${contact.email}</div>
+              ${contact.company ? `<div style="font-size: 11px; opacity: 0.7;">${contact.company}</div>` : ''}
+            </div>
+          </div>
+          
+          <div class="upgrade-message">
+            You've reached your ${limitInfo.tier || 'Free'} tier limit. Upgrade to <strong>Pro</strong> for <strong>1,000 contacts</strong>, or free up space by deleting old contacts.
+          </div>
+          
+          <div class="upgrade-actions">
+            <button class="btn-upgrade-now">✨ Upgrade to Pro</button>
+            <button class="btn-upgrade-dismiss">Not Now</button>
+          </div>
+          
+          <div class="upgrade-note">
+            💡 Tip: Export your contacts before deleting to keep a backup
+          </div>
+        </div>
+      `;
+
+      // Styling
+      panel.style.position = 'fixed';
+      panel.style.bottom = '100px';
+      panel.style.right = '24px';
+      panel.style.zIndex = '10005';
+      panel.style.width = '380px';
+      panel.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+      panel.style.border = 'none';
+      panel.style.borderRadius = '16px';
+      panel.style.padding = '0';
+      panel.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.4)';
+      panel.style.animation = 'slideIn 0.3s ease-out';
+
+      document.body.appendChild(panel);
+
+      // Upgrade button
+      const upgradeBtn = panel.querySelector('.btn-upgrade-now');
+      upgradeBtn.addEventListener('click', () => {
+        playClickSound('success');
+        // Open pricing page
+        const websiteUrl = 'https://www.crm-sync.net';
+        const pricingUrl = `${websiteUrl}?source=extension#/pricing`;
+        window.open(pricingUrl, '_blank');
+        panel.remove();
+      });
+
+      // Dismiss button
+      const dismissBtn = panel.querySelector('.btn-upgrade-dismiss');
+      dismissBtn.addEventListener('click', () => {
+        playClickSound('reject');
+        panel.remove();
+      });
+
+      // Auto-dismiss after 30 seconds
+      setTimeout(() => {
+        if (panel.parentNode) {
+          panel.remove();
+        }
+      }, 30000);
+
+    } catch (error) {
+      console.error('CRMSYNC: Error showing upgrade panel', error);
+    }
+  }
+
+  /**
    * Show approval panel for a new contact with 1-minute auto-pending timer
    * @param {any} contact
    * @param {HTMLElement} messageContainer - The message element to re-scan from
    */
-  function showApprovalPanel(contact, messageContainer) {
+  async function showApprovalPanel(contact, messageContainer) {
     try {
       // Check exclusions BEFORE showing the panel
       console.log(`🔍 DEBUG showApprovalPanel: Checking exclusions for ${contact.email}`);
@@ -3625,6 +3805,19 @@
       }
       
       console.log(`✅ CRMSYNC: Contact passed exclusion checks, showing approval panel`);
+      
+      // Check contact limit BEFORE showing approval panel
+      const limitInfo = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
+          resolve(response || { success: false });
+        });
+      });
+
+      // Only block if OVER limit (100%+), not just near it
+      if (limitInfo.success && limitInfo.isOverLimit) {
+        showUpgradeRequiredPanel(contact, limitInfo);
+        return;
+      }
       
       
       // Remove existing approval panel if any
@@ -5194,58 +5387,8 @@
   }
 
   /**
-   * Observe Gmail conversation views to detect inbound emails and enrich contact data.
+   * Detect the latest inbound email in the current thread
    */
-  // Debounce inbound email detection to avoid processing same email multiple times
-  let lastProcessedInboundEmail = null;
-  let inboundEmailDebounceTimer = null;
-
-  function setupInboundEmailObserver() {
-    try {
-      const observer = new MutationObserver(() => {
-        // Debounce: wait 2 seconds after DOM changes before processing
-        if (inboundEmailDebounceTimer) {
-          clearTimeout(inboundEmailDebounceTimer);
-        }
-
-        inboundEmailDebounceTimer = setTimeout(() => {
-          // Check if we should track based on labels
-          if (!shouldTrackBasedOnLabels()) {
-            return;
-          }
-
-          const inbound = detectLatestInboundEmailInThread();
-          if (inbound && inbound.email) {
-            // Avoid processing the same email multiple times
-            const emailKey = `${inbound.email}_${inbound.receivedAt}`;
-            if (lastProcessedInboundEmail === emailKey) {
-              return;
-            }
-            lastProcessedInboundEmail = emailKey;
-
-            chrome.runtime.sendMessage({
-              type: 'INBOUND_EMAIL',
-              payload: inbound
-            }).catch(error => {
-              console.error('CRMSYNC: Error sending INBOUND_EMAIL message', error);
-            });
-          }
-        }, 2000); // 2 second debounce
-      });
-
-      if (document.body) {
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
-      } else {
-        console.warn('CRMSYNC: document.body not ready for inbound observer');
-      }
-    } catch (error) {
-      console.error('CRMSYNC: Error setting up inbound email observer', error);
-    }
-  }
-
   function detectLatestInboundEmailInThread() {
     try {
       const threadMain = document.querySelector('[role="main"]');
@@ -5567,6 +5710,59 @@
 
   // Expose detector globally for debugging from the Gmail console
   window.detectLatestInboundEmailInThread = detectLatestInboundEmailInThread;
+
+  /**
+   * Observe Gmail conversation views to detect inbound emails and enrich contact data.
+   */
+  // Debounce inbound email detection to avoid processing same email multiple times
+  let lastProcessedInboundEmail = null;
+  let inboundEmailDebounceTimer = null;
+
+  function setupInboundEmailObserver() {
+    try {
+      const observer = new MutationObserver(() => {
+        // Debounce: wait 2 seconds after DOM changes before processing
+        if (inboundEmailDebounceTimer) {
+          clearTimeout(inboundEmailDebounceTimer);
+        }
+
+        inboundEmailDebounceTimer = setTimeout(() => {
+          // Check if we should track based on labels
+          if (!shouldTrackBasedOnLabels()) {
+            return;
+          }
+
+          const inbound = detectLatestInboundEmailInThread();
+          if (inbound && inbound.email) {
+            // Avoid processing the same email multiple times
+            const emailKey = `${inbound.email}_${inbound.receivedAt}`;
+            if (lastProcessedInboundEmail === emailKey) {
+              return;
+            }
+            lastProcessedInboundEmail = emailKey;
+
+            chrome.runtime.sendMessage({
+              type: 'INBOUND_EMAIL',
+              payload: inbound
+            }).catch(error => {
+              console.error('CRMSYNC: Error sending INBOUND_EMAIL message', error);
+            });
+          }
+        }, 2000); // 2 second debounce
+      });
+
+      if (document.body) {
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+      } else {
+        console.warn('CRMSYNC: document.body not ready for inbound observer');
+      }
+    } catch (error) {
+      console.error('CRMSYNC: Error setting up inbound email observer', error);
+    }
+  }
 
   /**
    * Extract signature block from email body (usually at the end, after common separators)

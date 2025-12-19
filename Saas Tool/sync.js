@@ -4,12 +4,12 @@
 // Note: API_URL is shared with auth.js via window scope
 // Don't redeclare - just use window.API_URL or reference the one from auth.js
 if (!window.API_URL) {
-  window.API_URL = 'https://crmsync-extension.onrender.com/api';
+  window.API_URL = window.CONFIG?.API_URL || 'https://crmsync-api.onrender.com/api';
 }
 
 class SyncManager {
   constructor() {
-    this.API_URL = window.API_URL || 'https://crmsync-extension.onrender.com/api';
+    this.API_URL = window.API_URL || window.CONFIG?.API_URL || 'https://crmsync-api.onrender.com/api';
     this.syncing = false;
     this.syncInterval = 5 * 60 * 1000; // 5 minutes
     this.lastSyncAt = null;

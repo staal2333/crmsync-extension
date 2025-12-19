@@ -1,505 +1,185 @@
-# CRMSYNC Backend API
+# 🚀 CRMSYNC - Chrome Extension + Backend
 
-**Version:** 1.0.0 (Production-Ready)  
-**Last Updated:** December 15, 2025
-
-Secure backend API for CRMSYNC Chrome extension providing user authentication, cloud synchronization, and GDPR-compliant data management.
+Complete CRMSYNC solution with Chrome extension and Node.js backend.
 
 ---
 
-## 🚀 Quick Links
+## 📁 Repository Structure
 
-- **🏠 Production URL**: https://crmsync-extension.onrender.com
-- **📋 Deployment Guide**: [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md)
-- **⚖️ Terms of Service**: [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md)
-- **🛡️ Security**: Winston logging + Sentry error tracking
-
----
-
-## ✨ Features
-
-### Core Functionality
-- ✅ **User Authentication** - Email/password + Google OAuth
-- ✅ **JWT-based Sessions** - Access & refresh tokens
-- ✅ **Cloud Synchronization** - Full & incremental sync
-- ✅ **Contact Management** - CRUD operations with search
-- ✅ **Settings Sync** - User preferences across devices
-
-### Production-Ready
-- ✅ **Security**: HTTPS redirect, rate limiting, Helmet headers
-- ✅ **Monitoring**: Winston logging, Sentry error tracking
-- ✅ **GDPR Compliance**: Data export, account deletion, data summary
-- ✅ **Rate Limiting**: 60 API requests/15min, 5 auth attempts/15min, 10 syncs/5min
-- ✅ **Error Handling**: Centralized error middleware
-- ✅ **Graceful Shutdown**: Clean server termination
-
-### GDPR Endpoints (New!)
-- `GET /api/user/export` - Export all user data (Article 15)
-- `DELETE /api/user/account` - Delete account & data (Article 17)
-- `GET /api/user/data-summary` - View data storage summary
-
----
-
-## 📚 API Documentation
-
-### Authentication Endpoints
-
-#### Register New User
-```http
-POST /api/auth/register
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePassword123!",
-  "displayName": "John Doe"
-}
 ```
-
-**Response:**
-```json
-{
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": "uuid",
-    "email": "user@example.com",
-    "displayName": "John Doe",
-    "subscriptionTier": "free"
-  }
-}
-```
-
-#### Login
-```http
-POST /api/auth/login
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "password": "SecurePassword123!"
-}
-```
-
-#### Refresh Token
-```http
-POST /api/auth/refresh
-Content-Type: application/json
-
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
-
-#### Logout
-```http
-POST /api/auth/logout
-Authorization: Bearer {accessToken}
-```
-
-#### Get Current User
-```http
-GET /api/auth/me
-Authorization: Bearer {accessToken}
+crmsync-extension/
+├── crmsync-backend/          # Node.js Backend API
+│   ├── src/
+│   │   ├── routes/           # API routes (auth, contacts, sync, etc.)
+│   │   ├── middleware/       # Auth, rate limiting, error handling
+│   │   ├── services/         # Business logic
+│   │   └── server.js         # Main server file
+│   ├── package.json
+│   └── README.md             # Backend documentation
+│
+└── Saas Tool/                # Chrome Extension
+    ├── manifest.json         # Extension configuration
+    ├── background.js         # Service worker
+    ├── content.js            # Gmail content script
+    ├── popup.html/js/css     # Extension popup
+    └── config.js             # Extension configuration
 ```
 
 ---
 
-### Sync Endpoints
+## 🎯 Quick Start
 
-#### Full Synchronization
-```http
-POST /api/sync/full
-Authorization: Bearer {accessToken}
-Content-Type: application/json
+### **Backend (crmsync-backend)**
 
-{
-  "contacts": [...],
-  "messages": [...],
-  "settings": {...},
-  "lastSyncAt": "2025-12-15T10:30:00Z"
-}
-```
+**Deployed on:** Render → https://crmsync-api.onrender.com
 
-#### Incremental Sync
-```http
-POST /api/sync/incremental
-Authorization: Bearer {accessToken}
-Content-Type: application/json
-
-{
-  "lastSyncAt": "2025-12-15T10:30:00Z",
-  "changes": {
-    "contactsAdded": [...],
-    "contactsUpdated": [...],
-    "contactsDeleted": ["id1", "id2"]
-  }
-}
-```
-
----
-
-### Contact Endpoints
-
-#### Get All Contacts
-```http
-GET /api/contacts?search=john&limit=50&offset=0
-Authorization: Bearer {accessToken}
-```
-
-#### Create Contact
-```http
-POST /api/contacts
-Authorization: Bearer {accessToken}
-Content-Type: application/json
-
-{
-  "email": "contact@example.com",
-  "name": "Jane Smith",
-  "company": "Acme Corp",
-  "phone": "+1234567890"
-}
-```
-
-#### Update Contact
-```http
-PUT /api/contacts/:id
-Authorization: Bearer {accessToken}
-Content-Type: application/json
-
-{
-  "name": "Jane Smith-Updated",
-  "phone": "+9876543210"
-}
-```
-
-#### Delete Contact
-```http
-DELETE /api/contacts/:id
-Authorization: Bearer {accessToken}
-```
-
----
-
-### GDPR Endpoints (New!)
-
-#### Export All Data
-```http
-GET /api/user/export
-Authorization: Bearer {accessToken}
-```
-
-**Response:**
-```json
-{
-  "message": "User data export successful",
-  "data": {
-    "user": {...},
-    "contacts": [...],
-    "messages": [...],
-    "settings": {...},
-    "exportedAt": "2025-12-15T12:00:00Z"
-  },
-  "gdpr_notice": "This export contains all personal data..."
-}
-```
-
-#### Delete Account
-```http
-DELETE /api/user/account
-Authorization: Bearer {accessToken}
-Content-Type: application/json
-
-{
-  "confirmPassword": "SecurePassword123!"
-}
-```
-
-#### Data Summary
-```http
-GET /api/user/data-summary
-Authorization: Bearer {accessToken}
-```
-
----
-
-## 🛠️ Setup & Deployment
-
-### Local Development
-
-1. **Clone and Install**
+**Local Setup:**
 ```bash
-git clone https://github.com/yourusername/crmsync-extension.git
-cd crmsync-extension/crmsync-backend
+cd crmsync-backend
 npm install
+cp ENV_TEMPLATE.txt .env
+# Edit .env with your configuration
+npm start
 ```
 
-2. **Set Up Environment**
-```bash
-cp CRMSYNC\ Backend\ Configuration.env.txt .env
-# Edit .env with your settings
-```
-
-3. **Start Database** (PostgreSQL)
-```bash
-# On Render: Automatically provided via DATABASE_URL
-# Locally: Install PostgreSQL or use Docker
-docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres
-```
-
-4. **Run Migrations**
-```bash
-npm run migrate
-```
-
-5. **Start Server**
-```bash
-npm run dev  # Development mode with nodemon
-# or
-npm start    # Production mode
-```
-
-### Production Deployment
-
-**See [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md) for complete guide**
-
-**Quick Deploy to Render:**
-
-1. Run production setup script:
-```bash
-chmod +x production-setup.sh
-./production-setup.sh
-```
-
-2. Update Render environment variables with generated secrets
-
-3. Deploy:
-```bash
-git push origin main  # Auto-deploys to Render
-```
-
-4. Verify:
-```bash
-curl https://crmsync-extension.onrender.com/health
-```
+**See:** `crmsync-backend/RENDER-SETUP.md` for deployment guide
 
 ---
 
-## 🔒 Security Features
+### **Extension (Saas Tool)**
 
-### Authentication & Authorization
-- **JWT Tokens**: Access (15min) + Refresh (7 days)
-- **Password Hashing**: Bcrypt with salt
-- **Token Validation**: On every protected route
-- **Session Management**: Refresh token rotation
+**Load in Chrome:**
+1. Open `chrome://extensions`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `Saas Tool` folder
+5. Extension will appear in toolbar
 
-### Rate Limiting
-- **API Endpoints**: 60 requests per 15 minutes
-- **Auth Endpoints**: 5 attempts per 15 minutes
-- **Sync Endpoints**: 10 operations per 5 minutes
-- **Per-IP tracking**: Prevents abuse
-
-### Network Security
-- **HTTPS Only**: Automatic redirect in production
-- **CORS**: Whitelist-based origin checking
-- **Helmet.js**: Security headers (CSP, XSS protection, etc.)
-- **Input Validation**: Express-validator on all inputs
-
-### Monitoring & Logging
-- **Winston**: Structured JSON logging
-- **Sentry**: Real-time error tracking
-- **Request Logging**: Method, path, status, duration, IP
-- **Health Checks**: `/health` endpoint with uptime
+**See:** `Saas Tool/README.md` for full documentation
 
 ---
 
-## 📊 Database Schema
+## 🌐 Live URLs
 
-### Users Table
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  display_name VARCHAR(255),
-  avatar_url VARCHAR(500),
-  subscription_tier VARCHAR(50) DEFAULT 'free',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_login_at TIMESTAMP
-);
-```
-
-### Contacts Table
-```sql
-CREATE TABLE contacts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  email VARCHAR(255) NOT NULL,
-  name VARCHAR(255),
-  company VARCHAR(255),
-  job_title VARCHAR(255),
-  phone VARCHAR(50),
-  linkedin_url VARCHAR(500),
-  status VARCHAR(50) DEFAULT 'pending',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-See `src/migrations/001_initial_schema.sql` for complete schema.
+- **Website:** https://www.crm-sync.net
+- **Backend API:** https://crmsync-api.onrender.com
+- **Extension:** Load unpacked from `Saas Tool/` folder
 
 ---
 
-## 🧪 Testing
+## 🔧 Configuration
 
-### Health Check
-```bash
-curl https://crmsync-extension.onrender.com/health
-```
+### Backend Environment Variables (Render)
 
-### Register & Login
-```bash
-# Register
-curl -X POST https://crmsync-extension.onrender.com/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"Test123!","displayName":"Test User"}'
+Required environment variables on Render:
 
-# Login
-curl -X POST https://crmsync-extension.onrender.com/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"Test123!"}'
-```
-
-### Load Testing
-```bash
-# Install Apache Bench
-# Windows: Download from Apache website
-# Mac: brew install apache-bench
-# Linux: sudo apt-get install apache2-utils
-
-# Test 1000 requests, 10 concurrent
-ab -n 1000 -c 10 https://crmsync-extension.onrender.com/health
-```
-
----
-
-## 📁 Project Structure
-
-```
-crmsync-backend/
-├── src/
-│   ├── config/
-│   │   ├── config.js          # App configuration
-│   │   ├── database.js        # PostgreSQL connection
-│   │   └── database-sqlite.js # SQLite (dev only)
-│   ├── middleware/
-│   │   ├── auth.js            # JWT authentication
-│   │   ├── errorHandler.js   # Error handling
-│   │   └── rateLimiter.js    # Rate limiting
-│   ├── migrations/
-│   │   ├── 001_initial_schema.sql
-│   │   └── run.js             # Migration runner
-│   ├── routes/
-│   │   ├── auth.js            # Authentication routes
-│   │   ├── contacts.js        # Contact CRUD
-│   │   ├── settings.js        # User settings
-│   │   ├── sync.js            # Sync endpoints
-│   │   └── user.js            # GDPR endpoints (NEW)
-│   ├── services/
-│   │   ├── authService.js     # Auth business logic
-│   │   ├── googleOAuth.js     # Google Sign-In
-│   │   └── syncService.js     # Sync logic
-│   ├── utils/
-│   │   └── jwt.js             # JWT helpers
-│   └── server.js              # Express app (UPDATED with logging)
-├── production-setup.sh        # Production setup script (NEW)
-├── PRODUCTION_DEPLOYMENT.md   # Deployment guide (NEW)
-├── TERMS_OF_SERVICE.md        # Legal terms (NEW)
-├── package.json
-└── README.md                  # This file
-```
-
----
-
-## 🌍 Environment Variables
-
-### Required
 ```env
 NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://user:pass@host:5432/db
-JWT_SECRET=<64-char-hex-secret>
-REFRESH_TOKEN_SECRET=<different-64-char-hex-secret>
+DATABASE_URL=<auto-set-by-render>
+ALLOWED_ORIGINS=https://www.crm-sync.net,https://crm-sync.net
+JWT_SECRET=<generate-64-char-secret>
+REFRESH_TOKEN_SECRET=<generate-64-char-secret>
+STRIPE_SECRET_KEY=sk_live_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+FRONTEND_URL=https://www.crm-sync.net
 ```
 
-### Optional
-```env
-SENTRY_DSN=https://xxx@xxx.ingest.sentry.io/xxx
-LOG_LEVEL=info
-ALLOWED_ORIGINS=https://mail.google.com,chrome-extension://YOUR_ID
-GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=xxx
+### Extension Configuration
+
+The extension is pre-configured for production:
+
+```javascript
+// Saas Tool/config.js
+const CONFIG = {
+  WEBSITE_URL: 'https://www.crm-sync.net',
+  API_URL: 'https://crmsync-api.onrender.com/api',
+  // ...
+};
 ```
 
-**Generate secrets:**
-```bash
-./production-setup.sh
-```
+---
+
+## 🚀 Deployment
+
+### **Backend → Render**
+
+Render is configured to:
+- **Repository:** staal2333/crmsync-extension
+- **Branch:** main
+- **Root Directory:** `crmsync-backend`
+- **Build Command:** `npm install`
+- **Start Command:** `npm start`
+
+**Auto-deploys** when you push to `main` branch.
+
+### **Extension → Chrome Web Store**
+
+1. Zip the `Saas Tool` folder
+2. Upload to Chrome Web Store Developer Dashboard
+3. Follow submission guidelines in `Saas Tool/README.md`
 
 ---
 
-## 💰 Hosting Costs
+## 📚 Documentation
 
-### Free Tier (Good for beta)
-- Render Web Service: $0/mo
-- Render PostgreSQL: $0/mo
-- ⚠️ Spins down after 15min inactivity
-
-### Recommended Production
-- Render Web Service Starter: $7/mo
-- Render Database Starter: $7/mo
-- **Total: $14/month** ✅
-
-See [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md) for detailed cost breakdown.
+- **Backend Setup:** `crmsync-backend/RENDER-SETUP.md`
+- **Extension Setup:** `Saas Tool/README.md`
+- **Website Integration:** `Saas Tool/WEBSITE-INTEGRATION.md`
+- **Backend API:** `crmsync-backend/README.md`
 
 ---
 
-## 📞 Support
+## 🔐 Features
 
-- **Issues**: https://github.com/yourusername/crmsync-extension/issues
-- **Email**: support@crmsync.com
-- **Render Support**: https://render.com/support
-- **Sentry Docs**: https://docs.sentry.io
+### **Extension**
+- ✅ Gmail contact extraction
+- ✅ Real-time sidebar widget
+- ✅ Contact limits by tier (Free: 50, Pro: 1000, Enterprise: Unlimited)
+- ✅ CSV export
+- ✅ Website authentication integration
 
----
-
-## 📜 License
-
-Proprietary - CRMSYNC
-
-See [TERMS_OF_SERVICE.md](./TERMS_OF_SERVICE.md) for usage terms.
-
----
-
-## 🎉 What's New in v1.0.0
-
-- ✅ **Winston Logging**: Structured production logging
-- ✅ **Sentry Integration**: Real-time error tracking
-- ✅ **HTTPS Redirect**: Automatic in production
-- ✅ **GDPR Endpoints**: Data export, deletion, summary
-- ✅ **Stricter Rate Limits**: Production-ready values
-- ✅ **Sync Rate Limiting**: Prevent abuse of data-heavy ops
-- ✅ **Production Scripts**: Automated setup and deployment
-- ✅ **Terms of Service**: Legal compliance documentation
-- ✅ **Graceful Shutdown**: Clean server termination
+### **Backend**
+- ✅ JWT authentication
+- ✅ PostgreSQL database
+- ✅ Contact sync API
+- ✅ Stripe subscription management
+- ✅ Rate limiting & security
+- ✅ CORS configured for www.crm-sync.net
 
 ---
 
-**Ready for Production! 🚀**
+## 🛠️ Tech Stack
 
-Follow [PRODUCTION_DEPLOYMENT.md](./PRODUCTION_DEPLOYMENT.md) to deploy securely.
+- **Backend:** Node.js, Express, PostgreSQL, Stripe
+- **Extension:** Vanilla JavaScript, Chrome APIs
+- **Frontend:** React (separate repo: `Crm-sync`)
+- **Hosting:** Render (backend), Vercel (frontend)
 
 ---
 
-*Last Updated: December 15, 2025*  
-*CRMSYNC Backend API v1.0.0*
+## 📊 Current Status
+
+| Component | Status | URL |
+|-----------|--------|-----|
+| **Backend API** | ✅ Live | https://crmsync-api.onrender.com |
+| **Frontend Website** | ✅ Live | https://www.crm-sync.net |
+| **Extension** | 📦 Development | Load unpacked |
+| **Database** | ✅ Live | PostgreSQL on Render |
+
+---
+
+## 🆘 Support
+
+- **Backend Issues:** Check `crmsync-backend/RENDER-SETUP.md`
+- **Extension Issues:** Check `Saas Tool/README.md`
+- **CORS Issues:** Check `Saas Tool/BACKEND-SETUP-GUIDE.md`
+
+---
+
+## 📝 License
+
+MIT License - See individual folders for details.
+
+---
+
+**Built with ❤️ for CRMSYNC**

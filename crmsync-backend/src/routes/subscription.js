@@ -62,7 +62,8 @@ router.post('/create-checkout',
   [
     body('priceId').notEmpty().withMessage('Price ID is required'),
     body('successUrl').optional().isURL().withMessage('Invalid success URL'),
-    body('cancelUrl').optional().isURL().withMessage('Invalid cancel URL')
+    body('cancelUrl').optional().isURL().withMessage('Invalid cancel URL'),
+    body('tier').optional().isString().withMessage('Invalid tier')
   ],
   async (req, res, next) => {
     const errors = validationResult(req);
@@ -72,7 +73,20 @@ router.post('/create-checkout',
 
     try {
       const userId = req.user.userId; // Changed from req.user.id to match JWT payload
-      const { priceId, successUrl, cancelUrl } = req.body;
+      const { priceId, successUrl, cancelUrl, tier } = req.body;
+      
+      // Determine tier from priceId if not provided
+      let subscriptionTier = tier;
+      if (!subscriptionTier) {
+        // Map price IDs to tiers (you'll need to add your actual price IDs here)
+        const priceTierMap = {
+          [process.env.STRIPE_PRICE_PRO_MONTHLY]: 'pro',
+          [process.env.STRIPE_PRICE_PRO_YEARLY]: 'pro',
+          [process.env.STRIPE_PRICE_BUSINESS_MONTHLY]: 'business',
+          [process.env.STRIPE_PRICE_BUSINESS_YEARLY]: 'business',
+        };
+        subscriptionTier = priceTierMap[priceId] || 'pro'; // Default to pro if unknown
+      }
       
       // Get user email
       const userResult = await db.query(
@@ -131,11 +145,13 @@ router.post('/create-checkout',
         billing_address_collection: 'auto',
         metadata: {
           userId: userId,
-          priceId: priceId
+          priceId: priceId,
+          tier: subscriptionTier  // ADD TIER HERE!
         },
         subscription_data: {
           metadata: {
-            userId: userId
+            userId: userId,
+            tier: subscriptionTier  // AND HERE!
           },
           trial_period_days: 14  // Optional: 14-day free trial
         }

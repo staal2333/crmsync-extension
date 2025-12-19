@@ -132,6 +132,8 @@ router.get('/me', authenticateToken, async (req, res, next) => {
         displayName: user.display_name,
         avatarUrl: user.avatar_url,
         subscriptionTier: user.subscription_tier,
+        tier: user.subscription_tier, // Add tier for extension compatibility
+        subscriptionStatus: user.subscription_status,
         createdAt: user.created_at,
         lastLoginAt: user.last_login_at,
       }

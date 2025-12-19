@@ -6,8 +6,8 @@
 // Import configuration (or define inline for service worker compatibility)
 const API_CONFIG = {
   LOCAL: 'http://localhost:3000',
-  PRODUCTION: 'https://crmsync-api.onrender.com', // Update with your actual URL
-  ENVIRONMENT: 'production' // Change to 'production' before deployment
+  PRODUCTION: 'https://crmsync-api.onrender.com', // Your production API URL
+  ENVIRONMENT: 'production' // Change to 'local' for development
 };
 
 const API_BASE_URL = API_CONFIG.ENVIRONMENT === 'production' 
@@ -32,7 +32,7 @@ class SubscriptionService {
       return this.cachedSubscription;
     }
 
-    const authState = await chrome.storage.local.get(['isAuthenticated', 'user']);
+    const authState = await chrome.storage.local.get(['isAuthenticated', 'user', 'authToken']);
 
     // Guest mode = free tier
     if (!authState.isAuthenticated) {
@@ -40,10 +40,33 @@ class SubscriptionService {
       return localSub;
     }
 
+    // If user has tier in profile, use that directly (faster than API call)
+    if (authState.user && authState.user.tier) {
+      const contacts = await chrome.storage.local.get(['contacts']);
+      const contactList = contacts.contacts || [];
+      
+      const subscription = {
+        tier: authState.user.tier,
+        status: authState.user.subscriptionStatus || 'active',
+        contactLimit: this.getContactLimitByTier(authState.user.tier),
+        currentContactCount: contactList.length,
+        features: this.getFeaturesByTier(authState.user.tier),
+        canUpgrade: authState.user.tier !== 'enterprise'
+      };
+      
+      // Cache it
+      this.cachedSubscription = subscription;
+      this.cacheExpiry = Date.now() + this.CACHE_DURATION;
+      await chrome.storage.local.set({ subscription });
+      
+      return subscription;
+    }
+
+    // Fallback: Try to fetch from API
     try {
       const response = await fetch(`${API_BASE_URL}/api/subscription/status`, {
         headers: {
-          'Authorization': `Bearer ${authState.user.accessToken}`
+          'Authorization': `Bearer ${authState.authToken}`  // Fixed: use authToken, not user.accessToken
         }
       });
 
@@ -191,6 +214,19 @@ class SubscriptionService {
     chrome.tabs.create({
       url: PRICING_URL
     });
+  }
+
+  /**
+   * Get contact limit by tier
+   */
+  getContactLimitByTier(tier) {
+    const limits = {
+      free: 50,
+      pro: -1,      // unlimited
+      business: -1, // unlimited
+      enterprise: -1 // unlimited
+    };
+    return limits[tier?.toLowerCase()] || 50;
   }
 
   /**

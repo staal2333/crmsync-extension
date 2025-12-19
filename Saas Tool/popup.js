@@ -281,22 +281,71 @@ function setupAuthListener() {
           loadAllContacts();
         }
       }
+      
+      // Check if contacts data changed (from sync or background updates)
+      if (changes.contacts) {
+        console.log('📋 Contacts data changed in storage, refreshing active tab...');
+        
+        // Get the currently active tab
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab) {
+          const targetTab = activeTab.getAttribute('data-tab');
+          console.log(`📊 Reloading ${targetTab} tab due to contacts change`);
+          
+          // Reload the appropriate tab
+          if (targetTab === 'all-contacts') {
+            loadAllContacts();
+          } else if (targetTab === 'overview') {
+            loadStatsAndPreview();
+          } else if (targetTab === 'daily-review') {
+            loadDailyReview();
+          }
+        }
+      }
     }
   });
   
   // Also update when popup becomes visible or gains focus
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden) {
-      console.log('Popup became visible, refreshing auth status...');
+      console.log('Popup became visible, refreshing auth status and data...');
       await updateLeftHeaderButton();
       await updateAccountSettingsDisplay();
+      
+      // Refresh data for the active tab
+      const activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab) {
+        const targetTab = activeTab.getAttribute('data-tab');
+        console.log(`📊 Refreshing data for active tab on visibility change: ${targetTab}`);
+        if (targetTab === 'all-contacts') {
+          await loadAllContacts();
+        } else if (targetTab === 'daily-review') {
+          await loadDailyReview();
+        } else if (targetTab === 'overview') {
+          await loadStatsAndPreview();
+        }
+      }
     }
   });
   
   window.addEventListener('focus', async () => {
-    console.log('Popup gained focus, refreshing auth status...');
+    console.log('Popup gained focus, refreshing auth status and data...');
     await updateLeftHeaderButton();
     await updateAccountSettingsDisplay();
+    
+    // Refresh data for the active tab
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+      const targetTab = activeTab.getAttribute('data-tab');
+      console.log(`📊 Refreshing data for active tab on focus: ${targetTab}`);
+      if (targetTab === 'all-contacts') {
+        await loadAllContacts();
+      } else if (targetTab === 'daily-review') {
+        await loadDailyReview();
+      } else if (targetTab === 'overview') {
+        await loadStatsAndPreview();
+      }
+    }
   });
 }
 
@@ -428,7 +477,13 @@ function showFirstTimeUserPrompt() {
   if (signInBtn) {
     signInBtn.addEventListener('click', async () => {
       try {
-        const loginUrl = chrome.runtime.getURL('login.html');
+        // Redirect to website for login
+        const extensionId = chrome.runtime.id;
+        const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
+        const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
+
+        // For hash routing, put params BEFORE the hash
+        const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
         const tab = await chrome.tabs.create({ url: loginUrl });
         banner.remove();
       } catch (error) {
@@ -615,9 +670,21 @@ async function updateLeftHeaderButton() {
       const newBtn = btn.cloneNode(true);
       btn.parentNode.replaceChild(newBtn, btn);
       
-      document.getElementById('leftHeaderBtn').addEventListener('click', () => {
+      // Add event listener to the NEW button
+      newBtn.addEventListener('click', () => {
         console.log('Sign In button clicked');
-        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+        const extensionId = chrome.runtime.id;
+        const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
+        const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
+
+        // For hash routing, put params BEFORE the hash
+        const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
+        console.log('Opening login URL:', loginUrl);
+
+        chrome.tabs.create({ url: loginUrl }).catch(err => {
+          console.error('Failed to open tab:', err);
+          alert('Failed to open login page. Please check the extension permissions.');
+        });
       });
     }
   } catch (error) {
@@ -784,7 +851,9 @@ function showAccountSettings(user) {
   // Get user initials for avatar
   const initials = user.displayName 
     ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-    : user.email.charAt(0).toUpperCase();
+    : (user.name 
+      ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
+      : user.email.charAt(0).toUpperCase());
   
   // Update avatar
   const avatar = document.getElementById('accountAvatar');
@@ -795,7 +864,7 @@ function showAccountSettings(user) {
   // Update name
   const nameEl = document.getElementById('accountName');
   if (nameEl) {
-    nameEl.textContent = user.displayName || user.email.split('@')[0] || 'User';
+    nameEl.textContent = user.displayName || user.name || user.email.split('@')[0] || 'User';
   }
   
   // Update email
@@ -804,8 +873,107 @@ function showAccountSettings(user) {
     emailEl.textContent = user.email;
   }
   
+  // Update tier badge (in settings tab)
+  const tierEl = document.getElementById('accountTier');
+  if (tierEl && user.tier) {
+    const tierUpper = user.tier.toUpperCase();
+    tierEl.textContent = tierUpper;
+    
+    // Set tier badge color
+    if (user.tier === 'free') {
+      tierEl.style.background = '#10b981'; // green
+    } else if (user.tier === 'pro') {
+      tierEl.style.background = '#667eea'; // purple
+    } else if (user.tier === 'enterprise') {
+      tierEl.style.background = '#f59e0b'; // gold
+    }
+  }
+  
+  // Update header tier badge
+  const headerBadge = document.getElementById('subscriptionTierBadge');
+  if (headerBadge && user.tier) {
+    const tierUpper = user.tier.toUpperCase();
+    headerBadge.textContent = tierUpper;
+    
+    // Remove all tier classes
+    headerBadge.classList.remove('tier-free', 'tier-pro', 'tier-business', 'tier-enterprise');
+    
+    // Add appropriate tier class
+    headerBadge.classList.add(`tier-${user.tier.toLowerCase()}`);
+  }
+  
+  // Show/hide upgrade button based on tier
+  const upgradeBtn = document.getElementById('upgradeBtn');
+  if (upgradeBtn) {
+    if (user.tier === 'free') {
+      upgradeBtn.style.display = 'block';
+      setupUpgradeButton();
+    } else {
+      upgradeBtn.style.display = 'none';
+    }
+  }
+  
   // Setup sign out button (only once)
   setupSignOutButton();
+}
+
+/**
+ * Update limit warning banner visibility and text
+ */
+function updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit) {
+  const banner = document.getElementById('limitWarningBanner');
+  const warningText = document.getElementById('limitWarningText');
+  const upgradeBtn = document.getElementById('upgradeLimitBtn');
+  
+  if (!banner || !warningText || !upgradeBtn) return;
+  
+  // Only show for free tier users at or near limit
+  if (tier === 'free' && (isOverLimit || isNearLimit)) {
+    banner.style.display = 'block';
+    
+    if (isOverLimit) {
+      warningText.textContent = `You're over your limit! (${count}/${limit}) Delete contacts or upgrade.`;
+      banner.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    } else if (isNearLimit) {
+      warningText.textContent = `Almost at your limit! (${count}/${limit}) Upgrade for 1,000 contacts.`;
+      banner.style.background = 'linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)';
+    }
+    
+    // Set up upgrade button click
+    const newUpgradeBtn = upgradeBtn.cloneNode(true);
+    upgradeBtn.parentNode.replaceChild(newUpgradeBtn, upgradeBtn);
+    
+    newUpgradeBtn.addEventListener('click', () => {
+      const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
+      const pricingPath = window.CONFIG?.AUTH?.PRICING || '/#/pricing';
+      const pricingUrl = `${websiteUrl}?source=extension${pricingPath}`;
+      chrome.tabs.create({ url: pricingUrl });
+    });
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+/**
+ * Setup upgrade button event listener
+ */
+function setupUpgradeButton() {
+  const upgradeBtn = document.getElementById('upgradeBtn');
+  if (!upgradeBtn) return;
+  
+  // Remove existing listener by cloning
+  const newUpgradeBtn = upgradeBtn.cloneNode(true);
+  upgradeBtn.parentNode.replaceChild(newUpgradeBtn, upgradeBtn);
+  
+  newUpgradeBtn.addEventListener('click', () => {
+    // Open website pricing page
+    const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
+    const pricingPath = window.CONFIG?.AUTH?.PRICING || '/#/pricing';
+    
+    // For hash routing, put params BEFORE the hash
+    const pricingUrl = `${websiteUrl}?source=extension${pricingPath}`;
+    chrome.tabs.create({ url: pricingUrl });
+  });
 }
 
 /**
@@ -872,7 +1040,8 @@ function setupTabs() {
         }
       });
 
-      // Load data for active tab
+      // Always reload data for active tab when switching
+      console.log(`📊 Refreshing data for tab: ${targetTab}`);
       if (targetTab === 'all-contacts') {
         loadAllContacts();
       } else if (targetTab === 'daily-review') {
@@ -1534,14 +1703,16 @@ async function loadAllContacts() {
   }
   
   try {
-    // Add timeout to prevent infinite loading (reduced to 5 seconds)
+    // Add timeout to prevent infinite loading (increased to 10 seconds)
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Loading contacts timed out')), 5000)
+      setTimeout(() => reject(new Error('Loading contacts timed out')), 10000)
     );
     
+    console.log('📤 Sending getContacts message...');
     const messagePromise = chrome.runtime.sendMessage({ action: 'getContacts' });
     
     const response = await Promise.race([messagePromise, timeoutPromise]);
+    console.log('📥 Received contacts response:', response);
     allContactsData = (response && response.contacts) || [];
     
     console.log(`✅ Loaded ${allContactsData.length} contacts`);
@@ -1553,10 +1724,41 @@ async function loadAllContacts() {
       return dateB - dateA;
     });
     
-    // Update mini stats
-    const allCountEl = document.getElementById('allContactsCount');
+    // Update mini stats with limit info
+    const allCountEl = document.getElementById('contactLimitInfo');
     if (allCountEl) {
-      allCountEl.textContent = allContactsData.length;
+      // Get limit info from background
+      chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
+        if (response && response.success) {
+          const { count, limit, isOverLimit, isNearLimit, tier } = response;
+          
+          if (limit === -1) {
+            // Unlimited
+            allCountEl.textContent = count;
+            allCountEl.style.color = '';
+          } else {
+            // Show count/limit
+            allCountEl.textContent = `${count}/${limit}`;
+            
+            // Color code based on status
+            if (isOverLimit) {
+              allCountEl.style.color = '#ef4444'; // Red if over limit
+              allCountEl.title = 'Over contact limit! Delete contacts or upgrade.';
+            } else if (isNearLimit) {
+              allCountEl.style.color = '#f59e0b'; // Orange if near limit
+              allCountEl.title = 'Almost at contact limit. Consider upgrading.';
+            } else {
+              allCountEl.style.color = '';
+              allCountEl.title = '';
+            }
+          }
+          
+          // Show/hide limit warning banner
+          updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit);
+        } else {
+          allCountEl.textContent = allContactsData.length;
+        }
+      });
     }
     
     const pendingCountEl = document.getElementById('pendingCount');
@@ -1590,9 +1792,24 @@ async function loadAllContacts() {
     allContactsData = [];
     
     // Update counts immediately
-    document.getElementById('allContactsCount').textContent = '0';
-    document.getElementById('pendingCount').textContent = '0';
-    document.getElementById('newTodayMini').textContent = '0';
+    const allCountEl = document.getElementById('contactLimitInfo');
+    if (allCountEl) {
+      // Also update with limit when showing 0
+      chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
+        if (response && response.success) {
+          const { limit } = response;
+          allCountEl.textContent = limit === -1 ? '0' : `0/${limit}`;
+        } else {
+          allCountEl.textContent = '0';
+        }
+      });
+    }
+    
+    const pendingCountEl = document.getElementById('pendingCount');
+    if (pendingCountEl) pendingCountEl.textContent = '0';
+    
+    const newTodayEl = document.getElementById('newTodayMini');
+    if (newTodayEl) newTodayEl.textContent = '0';
     
     const tbody = document.getElementById('allContactsTableBody');
     if (tbody) {
@@ -1625,20 +1842,10 @@ async function loadAllContacts() {
       }, 0);
     }
     
-    // Update counts to 0
-    const allCountEl = document.getElementById('allContactsCount');
-    if (allCountEl) allCountEl.textContent = '0';
-    
     // Refresh subscription display even on error
     if (typeof refreshSubscriptionDisplay === 'function') {
       await refreshSubscriptionDisplay().catch(err => console.error('Subscription display error:', err));
     }
-    
-    const pendingCountEl = document.getElementById('pendingCount');
-    if (pendingCountEl) pendingCountEl.textContent = '0';
-    
-    const newTodayEl = document.getElementById('newTodayMini');
-    if (newTodayEl) newTodayEl.textContent = '0';
   } finally {
     // Ensure we always render something, even on error
     if (!allContactsData || allContactsData.length === 0) {
@@ -1788,37 +1995,24 @@ function renderContactsTable() {
   const pageContacts = filteredContacts.slice(startIndex, endIndex);
   
   tbody.innerHTML = pageContacts.map((contact, index) => {
-    const lastContact = contact.lastContactAt 
-      ? new Date(contact.lastContactAt).toLocaleDateString() 
-      : 'Never';
     const statusClass = getStatusClass(contact.status);
     const rowIndex = startIndex + index;
+    const fullName = getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown';
     
     return `
-      <tr class="contact-row" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border); cursor: pointer;">
-        <td style="padding: 10px;">
-          <div style="font-weight: 500;">${getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown'}</div>
+      <tr class="contact-row" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 10px 12px;">
+          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px;">${fullName}</div>
+          <div style="font-size: 11px; color: var(--text-secondary);">${contact.email || ''}</div>
         </td>
-        <td style="padding: 10px; color: var(--text-secondary); font-size: 12px;">
-          ${contact.email || ''}
-        </td>
-        <td style="padding: 10px;">
+        <td style="padding: 10px 12px; color: var(--text);">
           ${contact.company || '-'}
         </td>
-        <td style="padding: 10px; color: var(--text-secondary); font-size: 12px;">
-          ${contact.title || '-'}
-        </td>
-        <td style="padding: 10px; color: var(--text-secondary); font-size: 12px;">
-          ${contact.phone || '-'}
-        </td>
-        <td style="padding: 10px; color: var(--text-secondary); font-size: 12px;">
-          ${lastContact}
-        </td>
-        <td style="padding: 10px;">
+        <td style="padding: 10px 12px;">
           <span class="status-badge ${statusClass}">${contact.status || 'approved'}</span>
         </td>
-        <td style="padding: 10px; text-align: center;" class="action-cell">
-          <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="Edit">
+        <td style="padding: 10px 12px; text-align: center; width: 40px;" class="action-cell">
+          <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="Edit" style="background: transparent; border: none; cursor: pointer; font-size: 16px; opacity: 0.6; transition: opacity 0.2s;">
             ✏️
           </button>
         </td>
@@ -2356,19 +2550,23 @@ function setupEventListeners() {
         btn.disabled = true;
         btn.textContent = 'Exporting...';
 
+        console.log('Exporting today\'s contacts...');
         const response = await chrome.runtime.sendMessage({ type: 'EXPORT_AND_MARK_REVIEWED' });
+        console.log('Export response:', response);
+        
         if (response && response.success) {
-          btn.textContent = '✓ Exported & Reviewed';
-          showToast('CSV exported and all contacts marked as reviewed for today.');
+          btn.textContent = '✓ Exported';
+          showToast('✅ CSV exported successfully');
           await loadDailyReview();
         } else {
           btn.textContent = 'Retry';
-          showToast(response && response.message ? response.message : 'Export failed. Please try again.', true);
+          const message = response?.message || 'Export failed. Please try again.';
+          showToast(message, true);
         }
       } catch (error) {
         console.error('Export & Mark Reviewed error:', error);
         btn.textContent = 'Retry';
-        showToast('Export failed due to an unexpected error.', true);
+        showToast(`Export failed: ${error.message}`, true);
       } finally {
         setTimeout(() => {
           btn.textContent = originalText;
@@ -2489,20 +2687,35 @@ function setupAllContactsListeners() {
   if (exportAllBtn) {
     exportAllBtn.addEventListener('click', async () => {
       try {
+        // Check if we have contacts to export
+        if (!allContactsData || allContactsData.length === 0) {
+          showToast('No contacts to export', true);
+          return;
+        }
+        
         exportAllBtn.disabled = true;
         exportAllBtn.textContent = 'Exporting...';
-        const response = await chrome.runtime.sendMessage({ type: 'EXPORT_CSV_CUSTOM', contacts: allContactsData });
+        
+        console.log('Exporting contacts:', allContactsData.length);
+        const response = await chrome.runtime.sendMessage({ 
+          type: 'EXPORT_CSV_CUSTOM', 
+          payload: { contacts: allContactsData } 
+        });
+        
+        console.log('Export response:', response);
+        
         if (response && response.success) {
-          showToast(`Exported ${allContactsData.length} contacts to CSV.`);
+          showToast(`✅ Exported ${allContactsData.length} contacts to CSV`);
         } else {
-          showToast('Export failed.', true);
+          const message = response?.message || 'Export failed. Please try again.';
+          showToast(message, true);
         }
       } catch (error) {
         console.error('Export error:', error);
-        showToast('Export failed.', true);
+        showToast(`Export failed: ${error.message}`, true);
       } finally {
         exportAllBtn.disabled = false;
-        exportAllBtn.textContent = '📥 Export All to CSV';
+        exportAllBtn.textContent = 'Export CSV';
       }
     });
   }
@@ -2513,7 +2726,10 @@ function setupAllContactsListeners() {
       try {
         exportFilteredBtn.disabled = true;
         exportFilteredBtn.textContent = 'Exporting...';
-        const response = await chrome.runtime.sendMessage({ type: 'EXPORT_CSV_CUSTOM', contacts: filteredContacts });
+        const response = await chrome.runtime.sendMessage({ 
+          type: 'EXPORT_CSV_CUSTOM', 
+          payload: { contacts: filteredContacts } 
+        });
         if (response && response.success) {
           showToast(`Exported ${filteredContacts.length} contacts to CSV.`);
         } else {
@@ -2524,7 +2740,7 @@ function setupAllContactsListeners() {
         showToast('Export failed.', true);
       } finally {
         exportFilteredBtn.disabled = false;
-        exportFilteredBtn.textContent = '📥 Export Filtered';
+        exportFilteredBtn.textContent = 'Export Filtered';
       }
     });
   }

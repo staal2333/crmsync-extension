@@ -274,18 +274,32 @@ function setupAuthListener() {
           hasToken: !!changes.authToken?.newValue
         });
         
-        // Update left header button
-        updateLeftHeaderButton();
+        // IMPORTANT: Only update UI if auth state actually changed
+        // Don't update if it's just a sync operation
+        const authActuallyChanged = 
+          (changes.isAuthenticated && changes.isAuthenticated.oldValue !== changes.isAuthenticated.newValue) ||
+          (changes.isGuest && changes.isGuest.oldValue !== changes.isGuest.newValue) ||
+          (changes.user && JSON.stringify(changes.user.oldValue) !== JSON.stringify(changes.user.newValue)) ||
+          (changes.authToken && changes.authToken.oldValue !== changes.authToken.newValue);
         
-        // Update account settings
-        updateAccountSettingsDisplay();
-        
-        // Re-check auth status
-        checkAuthStatus();
-        
-        // Reload contacts if needed
-        if (changes.isAuthenticated?.newValue === true) {
-          loadAllContacts();
+        if (authActuallyChanged) {
+          console.log('✅ Auth state actually changed, updating UI');
+          
+          // Update left header button
+          updateLeftHeaderButton();
+          
+          // Update account settings
+          updateAccountSettingsDisplay();
+          
+          // Re-check auth status
+          checkAuthStatus();
+          
+          // Reload contacts if needed
+          if (changes.isAuthenticated?.newValue === true) {
+            loadAllContacts();
+          }
+        } else {
+          console.log('⏭️ Auth data touched but not changed, skipping UI update');
         }
       }
       

@@ -231,9 +231,10 @@ async function getAuthToken() {
 /**
  * Refresh access token using refresh token
  * @param {string} refreshToken 
+ * @param {boolean} autoSignOut - Whether to automatically sign out on failure (default: false)
  * @returns {Promise<string>}
  */
-async function refreshAccessToken(refreshToken) {
+async function refreshAccessToken(refreshToken, autoSignOut = false) {
   try {
     const response = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
@@ -242,6 +243,10 @@ async function refreshAccessToken(refreshToken) {
     });
     
     if (!response.ok) {
+      // Check if it's a 401 (invalid refresh token) vs other errors
+      if (response.status === 401) {
+        throw new Error('INVALID_REFRESH_TOKEN');
+      }
       throw new Error('Token refresh failed');
     }
     
@@ -255,10 +260,18 @@ async function refreshAccessToken(refreshToken) {
     console.log('✅ Token refreshed');
     return data.accessToken;
   } catch (error) {
-    console.error('Token refresh error:', error);
-    // Token refresh failed, user needs to log in again
-    await signOut();
-    throw new Error('Session expired, please log in again');
+    console.error('❌ Token refresh error:', error.message);
+    
+    // Only auto-sign out if explicitly requested AND it's an invalid token
+    if (autoSignOut && error.message === 'INVALID_REFRESH_TOKEN') {
+      console.log('🚪 Invalid refresh token, signing out');
+      await signOut();
+      throw new Error('Session expired, please log in again');
+    }
+    
+    // Otherwise, just throw the error without signing out
+    // This allows sync to fail gracefully without logging the user out
+    throw error;
   }
 }
 

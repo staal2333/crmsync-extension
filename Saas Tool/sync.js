@@ -86,7 +86,9 @@ class SyncManager {
     try {
       const token = await window.CRMSyncAuth.getAuthToken();
       if (!token) {
-        throw new Error('Not authenticated');
+        console.log('⚠️ No auth token available, skipping sync');
+        this.showSyncNotification('Please sign in to sync', true);
+        return;
       }
       
       // Get local data
@@ -110,6 +112,13 @@ class SyncManager {
       });
       
       if (!response.ok) {
+        // Handle auth errors differently
+        if (response.status === 401) {
+          console.log('⚠️ Auth token invalid or expired');
+          this.showSyncNotification('Session expired, please sign in again', true);
+          return;
+        }
+        
         const error = await response.json();
         throw new Error(error.error || 'Sync failed');
       }
@@ -132,7 +141,16 @@ class SyncManager {
       this.showSyncNotification('Synced with cloud');
     } catch (error) {
       console.error('❌ Full sync error:', error);
-      this.showSyncNotification('Sync failed', true);
+      
+      // Show user-friendly error message
+      const errorMsg = error.message || 'Sync failed';
+      if (errorMsg.includes('Session expired') || errorMsg.includes('INVALID_REFRESH_TOKEN')) {
+        this.showSyncNotification('Session expired, please sign in again', true);
+      } else if (errorMsg.includes('NetworkError') || errorMsg.includes('Failed to fetch')) {
+        this.showSyncNotification('Network error, will retry later', true);
+      } else {
+        this.showSyncNotification('Sync failed: ' + errorMsg, true);
+      }
     } finally {
       this.syncing = false;
     }

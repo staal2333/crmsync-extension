@@ -71,6 +71,7 @@ const contactsRoutes = require('./routes/contacts');
 const settingsRoutes = require('./routes/settings');
 const userRoutes = require('./routes/user');
 const subscriptionRoutes = require('./routes/subscription');
+const integrationRoutes = require('./routes/integrations');
 
 const app = express();
 
@@ -199,6 +200,7 @@ app.use('/api/contacts', contactsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/user', userRoutes); // GDPR compliance endpoints
 app.use('/api/subscription', subscriptionRoutes); // Subscription & billing endpoints
+app.use('/api/integrations', integrationRoutes); // CRM integrations (HubSpot, Salesforce)
 
 // Root route
 app.get('/', (req, res) => {
@@ -213,6 +215,7 @@ app.get('/', (req, res) => {
       settings: '/api/settings',
       subscription: '/api/subscription',
       user: '/api/user',
+      integrations: '/api/integrations',
     },
   });
 });

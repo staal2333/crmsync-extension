@@ -1828,3 +1828,269 @@ body.bulk-mode .contact-checkbox {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ========================================
+   CRM INTEGRATIONS STYLES
+   ======================================== */
+
+.integration-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all var(--transition-base) var(--ease-out);
+}
+
+.integration-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.integration-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.integration-logo-container {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.integration-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+}
+
+.integration-logo-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+}
+
+.integration-info {
+  flex: 1;
+}
+
+.integration-info h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.integration-status {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.integration-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.integration-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.integration-actions .btn {
+  flex: 1;
+  min-width: 140px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.integration-actions .btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.integration-actions .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.3);
+}
+
+.integration-actions .btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.integration-actions .btn-secondary:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+}
+
+.integration-actions .btn-danger {
+  background: var(--error-light);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+.integration-actions .btn-danger:hover {
+  background: var(--error);
+  color: white;
+}
+
+.integration-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info-box {
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.info-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.info-box ul {
+  margin: 0 0 12px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.info-box ul li {
+  margin-bottom: 6px;
+}
+
+.info-box ul li strong {
+  color: var(--text);
+}
+
+.info-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  background: var(--bg);
+  border-radius: 6px;
+}
+
+/* CRM Badges on Contacts */
+.crm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+.crm-badge.hubspot {
+  background: #ff7a59;
+  color: white;
+}
+
+.crm-badge.salesforce {
+  background: #00a1e0;
+  color: white;
+}
+
+.crm-badge.synced {
+  background: var(--success-light);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+/* CRM Action Buttons on Contacts */
+.crm-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.crm-btn {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--transition-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.crm-btn:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.crm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.crm-btn.synced {
+  background: var(--success-light);
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.crm-btn img {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .integration-card {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .info-box {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+[data-theme="dark"] .info-note {
+  background: var(--surface);
+}
+
+/* ========================================
+   END OF INTEGRATIONS STYLES
+   ======================================== */

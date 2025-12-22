@@ -34,6 +34,9 @@
       <button class="tab-btn" data-tab="daily-review">
         <span>Today</span>
       </button>
+      <button class="tab-btn" data-tab="integrations">
+        <span>🔌 CRM</span>
+      </button>
       <button class="tab-btn" data-tab="settings">
         <span>Settings</span>
       </button>
@@ -342,6 +345,82 @@
         </div>
       </div>
     </div>
+
+    <!-- Integrations Tab -->
+    <div class="tab-content" id="integrations-tab">
+      <div class="tab-header">
+        <h2>🔌 CRM Integrations</h2>
+        <p class="tab-subtitle">Connect your CRM to sync contacts automatically</p>
+      </div>
+
+      <!-- HubSpot Integration Card -->
+      <div class="integration-card">
+        <div class="integration-header">
+          <div class="integration-logo-container">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23ff7a59'/%3E%3C/svg%3E" alt="HubSpot" class="integration-logo">
+            <div class="integration-logo-text">H</div>
+          </div>
+          <div class="integration-info">
+            <h3>HubSpot</h3>
+            <p class="integration-status" id="hubspot-status">Not connected</p>
+            <p class="integration-meta" id="hubspot-last-sync" style="display: none;">Last synced: Never</p>
+            <p class="integration-meta" id="hubspot-count" style="display: none;">0 contacts synced</p>
+          </div>
+        </div>
+        <div class="integration-actions">
+          <button class="btn btn-primary" id="hubspot-connect-btn">
+            <span>Connect HubSpot</span>
+          </button>
+          <button class="btn btn-secondary hidden" id="hubspot-sync-all-btn">
+            <span>🔄 Sync All Contacts</span>
+          </button>
+          <button class="btn btn-danger hidden" id="hubspot-disconnect-btn">
+            <span>Disconnect</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Salesforce Integration Card -->
+      <div class="integration-card">
+        <div class="integration-header">
+          <div class="integration-logo-container">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2300a1e0'/%3E%3C/svg%3E" alt="Salesforce" class="integration-logo">
+            <div class="integration-logo-text">S</div>
+          </div>
+          <div class="integration-info">
+            <h3>Salesforce</h3>
+            <p class="integration-status" id="salesforce-status">Not connected</p>
+            <p class="integration-meta" id="salesforce-last-sync" style="display: none;">Last synced: Never</p>
+            <p class="integration-meta" id="salesforce-count" style="display: none;">0 contacts synced</p>
+          </div>
+        </div>
+        <div class="integration-actions">
+          <button class="btn btn-primary" id="salesforce-connect-btn">
+            <span>Connect Salesforce</span>
+          </button>
+          <button class="btn btn-secondary hidden" id="salesforce-sync-all-btn">
+            <span>🔄 Sync All Contacts</span>
+          </button>
+          <button class="btn btn-danger hidden" id="salesforce-disconnect-btn">
+            <span>Disconnect</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Info Box -->
+      <div class="info-box">
+        <h4>💡 How it works</h4>
+        <ul>
+          <li><strong>Connect:</strong> Authorize access to your CRM (secure OAuth)</li>
+          <li><strong>Sync:</strong> Pull existing contacts to show "✓ In CRM" badges</li>
+          <li><strong>Push:</strong> Add new contacts with one click</li>
+          <li><strong>Automatic:</strong> Duplicate detection prevents duplicates</li>
+        </ul>
+        <p class="info-note">
+          🔒 Your credentials are never stored in the extension. All connections are secure and can be disconnected anytime.
+        </p>
+      </div>
+    </div>
   </div>
 
   <!-- Data Merge Dialog -->
@@ -395,6 +474,7 @@
   <script src="config.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
+  <script src="integrations.js"></script>
   
   <!-- UX Enhancement Scripts -->
   <script src="toast.js"></script>

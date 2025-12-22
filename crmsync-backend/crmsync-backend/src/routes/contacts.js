@@ -13,30 +13,41 @@ router.get('/', authenticateToken, async (req, res, next) => {
     const offset = (page - 1) * limit;
     
     let query = `
-      SELECT * FROM contacts 
-      WHERE user_id = $1 AND deleted_at IS NULL
+      SELECT 
+        c.*,
+        json_agg(
+          json_build_object(
+            'platform', m.platform,
+            'crm_contact_id', m.crm_contact_id,
+            'crm_record_type', m.crm_record_type,
+            'last_synced', m.last_synced
+          )
+        ) FILTER (WHERE m.id IS NOT NULL) as crm_status
+      FROM contacts c
+      LEFT JOIN crm_contact_mappings m ON c.id = m.contact_id AND m.user_id = c.user_id
+      WHERE c.user_id = $1 AND c.deleted_at IS NULL
     `;
     const params = [req.user.userId];
     let paramIndex = 2;
     
     if (status) {
-      query += ` AND status = $${paramIndex}`;
+      query += ` AND c.status = $${paramIndex}`;
       params.push(status);
       paramIndex++;
     }
     
     if (search) {
       query += ` AND (
-        email ILIKE $${paramIndex} OR 
-        first_name ILIKE $${paramIndex} OR 
-        last_name ILIKE $${paramIndex} OR 
-        company ILIKE $${paramIndex}
+        c.email ILIKE $${paramIndex} OR 
+        c.first_name ILIKE $${paramIndex} OR 
+        c.last_name ILIKE $${paramIndex} OR 
+        c.company ILIKE $${paramIndex}
       )`;
       params.push(`%${search}%`);
       paramIndex++;
     }
     
-    query += ` ORDER BY last_contact_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    query += ` GROUP BY c.id ORDER BY c.last_contact_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     params.push(parseInt(limit), offset);
     
     const result = await pool.query(query, params);

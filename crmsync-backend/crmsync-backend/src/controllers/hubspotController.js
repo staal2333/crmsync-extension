@@ -107,13 +107,19 @@ exports.hubspotCallback = async (req, res) => {
     console.log('🔵 HubSpot OAuth callback for user:', userId);
     
     // Exchange authorization code for tokens
-    const tokenResponse = await axios.post('https://api.hubapi.com/oauth/v1/token', {
-      grant_type: 'authorization_code',
-      client_id: process.env.HUBSPOT_CLIENT_ID,
-      client_secret: process.env.HUBSPOT_CLIENT_SECRET,
-      redirect_uri: process.env.HUBSPOT_REDIRECT_URI,
-      code: code
-    });
+    const tokenResponse = await axios.post(
+      'https://api.hubapi.com/oauth/v1/token',
+      new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: process.env.HUBSPOT_CLIENT_ID,
+        client_secret: process.env.HUBSPOT_CLIENT_SECRET,
+        redirect_uri: process.env.HUBSPOT_REDIRECT_URI,
+        code: code
+      }),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
     
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
     const expiresAt = new Date(Date.now() + expires_in * 1000);

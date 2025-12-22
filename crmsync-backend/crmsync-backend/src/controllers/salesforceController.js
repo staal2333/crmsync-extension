@@ -80,15 +80,14 @@ exports.salesforceCallback = async (req, res) => {
     
     // Store tokens in database (Salesforce tokens don't expire by default)
     await db.query(`
-      INSERT INTO crm_integrations (user_id, platform, access_token, refresh_token, instance_url, settings)
+      INSERT INTO crm_integrations (user_id, platform, access_token, refresh_token, instance_url, metadata)
       VALUES ($1, 'salesforce', $2, $3, $4, '{}')
       ON CONFLICT (user_id, platform) 
       DO UPDATE SET 
         access_token = $2,
         refresh_token = $3,
         instance_url = $4,
-        is_active = true,
-        updated_at = NOW()
+        is_active = true
     `, [userId, access_token, refresh_token, instance_url]);
     
     console.log('✅ Salesforce connected successfully for user:', userId, 'Instance:', instance_url);
@@ -425,7 +424,7 @@ exports.salesforceStatus = async (req, res) => {
     const userId = req.user.userId;
     
     const integration = await db.query(
-      'SELECT is_active, instance_url, created_at, updated_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
+      'SELECT is_active, instance_url, account_name, account_id, connected_at, last_synced_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
       [userId, 'salesforce']
     );
     
@@ -435,7 +434,7 @@ exports.salesforceStatus = async (req, res) => {
     
     // Get last sync time
     const lastSync = await db.query(
-      'SELECT MAX(created_at) as last_sync FROM crm_sync_logs WHERE user_id = $1 AND platform = $2 AND action = $3 AND status = $4',
+      'SELECT MAX(synced_at) as last_sync FROM crm_sync_logs WHERE user_id = $1 AND platform = $2 AND action = $3 AND status = $4',
       [userId, 'salesforce', 'sync_all', 'success']
     );
     
@@ -448,8 +447,10 @@ exports.salesforceStatus = async (req, res) => {
     res.json({ 
       connected: integration.rows[0].is_active,
       instanceUrl: integration.rows[0].instance_url,
-      connectedAt: integration.rows[0].created_at,
-      lastSync: lastSync.rows[0]?.last_sync || null,
+      accountName: integration.rows[0].account_name,
+      accountId: integration.rows[0].account_id,
+      connectedAt: integration.rows[0].connected_at,
+      lastSync: lastSync.rows[0]?.last_sync || integration.rows[0].last_synced_at || null,
       syncedContactsCount: parseInt(mappingCount.rows[0]?.count || 0)
     });
   } catch (error) {
@@ -464,7 +465,7 @@ exports.salesforceDisconnect = async (req, res) => {
     const userId = req.user.userId;
     
     await db.query(
-      'UPDATE crm_integrations SET is_active = false, updated_at = NOW() WHERE user_id = $1 AND platform = $2',
+      'UPDATE crm_integrations SET is_active = false WHERE user_id = $1 AND platform = $2',
       [userId, 'salesforce']
     );
     

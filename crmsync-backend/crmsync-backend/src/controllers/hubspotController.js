@@ -35,7 +35,7 @@ async function refreshHubSpotToken(userId, refreshToken) {
     
     // Update tokens in database
     await db.query(
-      'UPDATE crm_integrations SET access_token = $1, refresh_token = $2, token_expires_at = $3, updated_at = NOW() WHERE user_id = $4 AND platform = $5',
+      'UPDATE crm_integrations SET access_token = $1, refresh_token = $2, token_expires_at = $3 WHERE user_id = $4 AND platform = $5',
       [access_token, newRefreshToken, expiresAt, userId, 'hubspot']
     );
     
@@ -118,27 +118,28 @@ exports.hubspotCallback = async (req, res) => {
     const { access_token, refresh_token, expires_in } = tokenResponse.data;
     const expiresAt = new Date(Date.now() + expires_in * 1000);
     
-    // Get HubSpot account info (portal ID)
+    // Get HubSpot account info
     const accountInfo = await axios.get('https://api.hubapi.com/account-info/v3/details', {
       headers: { Authorization: `Bearer ${access_token}` }
     });
-    const portalId = accountInfo.data.portalId;
+    const accountId = String(accountInfo.data.portalId);
+    const accountName = accountInfo.data.name || 'HubSpot Account';
     
     // Store tokens in database
     await db.query(`
-      INSERT INTO crm_integrations (user_id, platform, access_token, refresh_token, token_expires_at, portal_id, settings)
-      VALUES ($1, 'hubspot', $2, $3, $4, $5, '{}')
+      INSERT INTO crm_integrations (user_id, platform, access_token, refresh_token, token_expires_at, account_id, account_name, metadata)
+      VALUES ($1, 'hubspot', $2, $3, $4, $5, $6, '{}')
       ON CONFLICT (user_id, platform) 
       DO UPDATE SET 
         access_token = $2,
         refresh_token = $3,
         token_expires_at = $4,
-        portal_id = $5,
-        is_active = true,
-        updated_at = NOW()
-    `, [userId, access_token, refresh_token, expiresAt, portalId]);
+        account_id = $5,
+        account_name = $6,
+        is_active = true
+    `, [userId, access_token, refresh_token, expiresAt, accountId, accountName]);
     
-    console.log('✅ HubSpot connected successfully for user:', userId, 'Portal ID:', portalId);
+    console.log('✅ HubSpot connected successfully for user:', userId, 'Account ID:', accountId);
     
     // Return success page that closes the popup
     res.send(`
@@ -477,7 +478,7 @@ exports.hubspotStatus = async (req, res) => {
     const userId = req.user.userId;
     
     const integration = await db.query(
-      'SELECT is_active, portal_id, created_at, updated_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
+      'SELECT is_active, account_id, account_name, connected_at, last_synced_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
       [userId, 'hubspot']
     );
     
@@ -487,7 +488,7 @@ exports.hubspotStatus = async (req, res) => {
     
     // Get last sync time
     const lastSync = await db.query(
-      'SELECT MAX(created_at) as last_sync FROM crm_sync_logs WHERE user_id = $1 AND platform = $2 AND action = $3 AND status = $4',
+      'SELECT MAX(synced_at) as last_sync FROM crm_sync_logs WHERE user_id = $1 AND platform = $2 AND action = $3 AND status = $4',
       [userId, 'hubspot', 'sync_all', 'success']
     );
     
@@ -499,9 +500,10 @@ exports.hubspotStatus = async (req, res) => {
     
     res.json({ 
       connected: integration.rows[0].is_active,
-      portalId: integration.rows[0].portal_id,
-      connectedAt: integration.rows[0].created_at,
-      lastSync: lastSync.rows[0]?.last_sync || null,
+      accountId: integration.rows[0].account_id,
+      accountName: integration.rows[0].account_name,
+      connectedAt: integration.rows[0].connected_at,
+      lastSync: lastSync.rows[0]?.last_sync || integration.rows[0].last_synced_at || null,
       syncedContactsCount: parseInt(mappingCount.rows[0]?.count || 0)
     });
   } catch (error) {
@@ -516,7 +518,7 @@ exports.hubspotDisconnect = async (req, res) => {
     const userId = req.user.userId;
     
     await db.query(
-      'UPDATE crm_integrations SET is_active = false, updated_at = NOW() WHERE user_id = $1 AND platform = $2',
+      'UPDATE crm_integrations SET is_active = false WHERE user_id = $1 AND platform = $2',
       [userId, 'hubspot']
     );
     

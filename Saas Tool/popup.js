@@ -1889,12 +1889,18 @@ async function loadAllContacts() {
         applyFiltersAndRender();
       }
     }
+    
+    // Update CRM Quick Widget after loading contacts
+    if (typeof updateCRMQuickWidget === 'function') {
+      updateCRMQuickWidget();
+    }
   }
 }
 
 function applyFiltersAndRender() {
   const searchTerm = (document.getElementById('contactSearchInput')?.value || '').toLowerCase();
   const statusFilter = document.getElementById('statusFilter')?.value || '';
+  const crmFilter = document.getElementById('crmFilter')?.value || '';
   
   // Filter contacts
   filteredContacts = allContactsData.filter(contact => {
@@ -1908,7 +1914,31 @@ function applyFiltersAndRender() {
     // Status filter
     const matchesStatus = !statusFilter || contact.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // CRM filter (NEW)
+    let matchesCRM = true;
+    if (crmFilter) {
+      const inHubSpot = contact.crmMappings?.hubspot || false;
+      const inSalesforce = contact.crmMappings?.salesforce || false;
+      
+      switch(crmFilter) {
+        case 'not-in-crm':
+          matchesCRM = !inHubSpot && !inSalesforce;
+          break;
+        case 'in-hubspot':
+          matchesCRM = inHubSpot;
+          break;
+        case 'in-salesforce':
+          matchesCRM = inSalesforce;
+          break;
+        case 'in-any-crm':
+          matchesCRM = inHubSpot || inSalesforce;
+          break;
+        default:
+          matchesCRM = true;
+      }
+    }
+    
+    return matchesSearch && matchesStatus && matchesCRM;
   });
   
   // Apply sorting
@@ -2642,6 +2672,16 @@ function setupAllContactsListeners() {
     });
   }
 
+  // CRM filter (NEW)
+  const crmFilter = document.getElementById('crmFilter');
+  if (crmFilter) {
+    crmFilter.addEventListener('change', () => {
+      currentPage = 1;
+      applyFiltersAndRender();
+      updateCRMQuickWidget(); // Update widget when filter changes
+    });
+  }
+
   // Sort dropdown
   const sortBy = document.getElementById('sortBy');
   if (sortBy) {
@@ -3283,5 +3323,193 @@ document.addEventListener('change', (e) => {
 // Initialize bulk actions when popup loads
 setTimeout(() => {
   initBulkActions();
+  initCRMQuickWidget();
+  initSyncHistoryToggle();
 }, 1000);
+
+// =====================================================
+// CRM QUICK WIDGET FUNCTIONS
+// =====================================================
+
+async function updateCRMQuickWidget() {
+  try {
+    const widget = document.getElementById('crmQuickWidget');
+    if (!widget) return;
+    
+    // Check if any CRM is connected
+    const hubspotConnected = window.integrationManager?.statusCache?.hubspot?.connected || false;
+    const salesforceConnected = window.integrationManager?.statusCache?.salesforce?.connected || false;
+    
+    if (!hubspotConnected && !salesforceConnected) {
+      widget.style.display = 'none';
+      return;
+    }
+    
+    widget.style.display = 'block';
+    
+    // Determine connected platform
+    const connectedPlatform = hubspotConnected ? 'HubSpot' : 'Salesforce';
+    const platformKey = hubspotConnected ? 'hubspot' : 'salesforce';
+    const platformData = window.integrationManager?.statusCache?.[platformKey];
+    
+    // Update platform name
+    document.getElementById('crmConnectedPlatform').textContent = `${connectedPlatform} Connected ✓`;
+    document.getElementById('pushAllPlatformName').textContent = connectedPlatform;
+    
+    // Update last sync time
+    const lastSync = platformData?.lastSync;
+    const syncText = lastSync ? `Last sync: ${getTimeAgo(new Date(lastSync))}` : 'Last sync: Never';
+    document.getElementById('crmQuickStats').textContent = syncText;
+    
+    // Check auto-sync status
+    const { autoSyncEnabled } = await chrome.storage.sync.get(['autoSyncEnabled']);
+    const autoSyncStatus = document.getElementById('crmAutoSyncStatus');
+    
+    if (autoSyncEnabled) {
+      autoSyncStatus.style.display = 'block';
+      
+      // Count today's auto-synced contacts
+      const { syncHistory } = await chrome.storage.local.get(['syncHistory']);
+      const today = new Date().toDateString();
+      const todayCount = (syncHistory || []).filter(entry => {
+        const entryDate = new Date(entry.timestamp).toDateString();
+        return entryDate === today && entry.result === 'success';
+      }).length;
+      
+      document.getElementById('autoSyncTodayCount').textContent = 
+        `${todayCount} contact${todayCount !== 1 ? 's' : ''} auto-synced today`;
+    } else {
+      autoSyncStatus.style.display = 'none';
+    }
+    
+    // Count contacts not in CRM
+    const notInCRM = allContactsData.filter(c => 
+      !c.crmMappings?.hubspot && !c.crmMappings?.salesforce
+    ).length;
+    
+    const newContactsAlert = document.getElementById('newContactsAlert');
+    if (notInCRM > 0) {
+      newContactsAlert.style.display = 'block';
+      document.getElementById('newContactsCount').textContent = notInCRM;
+    } else {
+      newContactsAlert.style.display = 'none';
+    }
+    
+  } catch (error) {
+    console.error('Error updating CRM widget:', error);
+  }
+}
+
+function initCRMQuickWidget() {
+  // "Push All New" button
+  const pushAllBtn = document.getElementById('pushAllNewToCRM');
+  if (pushAllBtn) {
+    pushAllBtn.addEventListener('click', async () => {
+      try {
+        const hubspotConnected = window.integrationManager?.statusCache?.hubspot?.connected;
+        const salesforceConnected = window.integrationManager?.statusCache?.salesforce?.connected;
+        const platform = hubspotConnected ? 'hubspot' : 'salesforce';
+        const platformName = hubspotConnected ? 'HubSpot' : 'Salesforce';
+        
+        // Get contacts not in CRM
+        const contactsToSync = allContactsData.filter(c => 
+          !c.crmMappings?.hubspot && !c.crmMappings?.salesforce
+        );
+        
+        if (contactsToSync.length === 0) {
+          alert('No new contacts to sync!');
+          return;
+        }
+        
+        const confirm = window.confirm(
+          `Push ${contactsToSync.length} new contact${contactsToSync.length !== 1 ? 's' : ''} to ${platformName}?`
+        );
+        
+        if (!confirm) return;
+        
+        pushAllBtn.disabled = true;
+        pushAllBtn.textContent = '⏳ Syncing...';
+        
+        let successCount = 0;
+        let failCount = 0;
+        
+        for (let i = 0; i < contactsToSync.length; i++) {
+          const contact = contactsToSync[i];
+          pushAllBtn.textContent = `⏳ ${i + 1}/${contactsToSync.length}`;
+          
+          try {
+            await window.integrationManager.syncContact(contact, platform);
+            successCount++;
+          } catch (error) {
+            console.error('Failed to sync:', contact.email, error);
+            failCount++;
+          }
+        }
+        
+        pushAllBtn.disabled = false;
+        pushAllBtn.innerHTML = `🔄 Push All to <span id="pushAllPlatformName">${platformName}</span>`;
+        
+        if (successCount > 0) {
+          alert(`✅ ${successCount} contact${successCount !== 1 ? 's' : ''} synced to ${platformName}!${failCount > 0 ? `\n❌ ${failCount} failed` : ''}`);
+        }
+        
+        // Refresh data
+        await loadContacts();
+        updateCRMQuickWidget();
+        
+      } catch (error) {
+        console.error('Push all error:', error);
+        alert('❌ Sync failed: ' + error.message);
+        pushAllBtn.disabled = false;
+        pushAllBtn.innerHTML = `🔄 Push All to <span id="pushAllPlatformName">CRM</span>`;
+      }
+    });
+  }
+  
+  // Widget settings button
+  const settingsBtn = document.getElementById('crmWidgetToggle');
+  if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+      // Switch to CRM tab
+      const crmTab = document.querySelector('[data-tab="integrations"]');
+      if (crmTab) crmTab.click();
+    });
+  }
+  
+  // Update widget when loading
+  updateCRMQuickWidget();
+}
+
+function initSyncHistoryToggle() {
+  const header = document.getElementById('historyHeaderToggle');
+  const content = document.getElementById('historyContent');
+  const icon = document.getElementById('historyToggleIcon');
+  const clearBtn = document.getElementById('clearHistoryBtn');
+  
+  if (header && content && icon) {
+    header.addEventListener('click', () => {
+      const isHidden = content.style.display === 'none';
+      content.style.display = isHidden ? 'block' : 'none';
+      icon.textContent = isHidden ? '▲' : '▼';
+      
+      if (clearBtn) {
+        clearBtn.classList.toggle('hidden', !isHidden);
+      }
+    });
+  }
+}
+
+function getTimeAgo(date) {
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+}
 

@@ -719,10 +719,12 @@ class IntegrationManager {
       const totalEl = document.getElementById('historyTotal');
       const successEl = document.getElementById('historySuccess');
       const failedEl = document.getElementById('historyFailed');
+      const summaryEl = document.getElementById('historyQuickSummary');
       
       if (totalEl) totalEl.textContent = syncHistory.length;
       if (successEl) successEl.textContent = successCount;
       if (failedEl) failedEl.textContent = errorCount;
+      if (summaryEl) summaryEl.textContent = `(${syncHistory.length} total, ${successCount} success, ${errorCount} failed)`;
       
     } catch (error) {
       console.error('Failed to render sync history:', error);

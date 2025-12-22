@@ -52,6 +52,37 @@
         </button>
       </div>
       
+      <!-- CRM Quick Status Widget (NEW) -->
+      <div class="crm-quick-widget" id="crmQuickWidget" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 24px;">🔌</div>
+            <div>
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px;" id="crmConnectedPlatform">HubSpot Connected ✓</div>
+              <div style="font-size: 12px; opacity: 0.9;" id="crmQuickStats">Last sync: Never</div>
+            </div>
+          </div>
+          <button class="btn-text" id="crmWidgetToggle" style="color: white; opacity: 0.8; font-size: 11px; padding: 4px 8px;">Settings</button>
+        </div>
+        
+        <div id="crmAutoSyncStatus" style="background: rgba(255,255,255,0.15); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 16px;">⚡</span>
+            <span style="font-weight: 600;">Auto-Sync Active</span>
+          </div>
+          <div style="opacity: 0.9; font-size: 12px;" id="autoSyncTodayCount">0 contacts auto-synced today</div>
+        </div>
+        
+        <div id="newContactsAlert" style="display: none; background: rgba(255,255,255,0.2); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+            🎯 <span id="newContactsCount">0</span> New Contacts Not in CRM
+          </div>
+          <button class="btn" id="pushAllNewToCRM" style="width: 100%; background: white; color: #667eea; font-weight: 600; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            🔄 Push All to <span id="pushAllPlatformName">CRM</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Stats Row -->
       <div class="quick-stats">
         <div class="stat-mini">
@@ -72,8 +103,15 @@
       <div class="search-section">
         <input type="text" id="contactSearchInput" placeholder="Search contacts..." class="search-input">
         <div class="filter-row">
+          <select id="crmFilter" class="select-input">
+            <option value="">All Contacts</option>
+            <option value="not-in-crm" selected>🎯 Not in CRM</option>
+            <option value="in-hubspot">In HubSpot</option>
+            <option value="in-salesforce">In Salesforce</option>
+            <option value="in-any-crm">In Any CRM</option>
+          </select>
           <select id="statusFilter" class="select-input">
-            <option value="">All</option>
+            <option value="">All Status</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="archived">Archived</option>
@@ -500,51 +538,59 @@
 
       <!-- Sync History & Logs -->
       <div class="sync-history-section" id="syncHistorySection" style="margin-top: 24px;">
-        <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 16px; font-weight: 600; color: var(--text);">📋 Recent Sync Operations</h3>
-          <button class="btn-text" id="clearHistoryBtn" style="font-size: 12px; color: var(--text-secondary);">Clear History</button>
+        <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; cursor: pointer;" id="historyHeaderToggle">
+          <h3 style="font-size: 16px; font-weight: 600; color: var(--text);">
+            📋 Recent Sync Operations
+            <span style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 8px;" id="historyQuickSummary">(0 total)</span>
+          </h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="btn-text hidden" id="clearHistoryBtn" style="font-size: 12px; color: var(--text-secondary);">Clear History</button>
+            <span id="historyToggleIcon" style="font-size: 16px; color: var(--text-secondary);">▼</span>
+          </div>
         </div>
         
-        <div class="history-filters" style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <select id="historyPlatformFilter" class="select-input" style="flex: 1;">
-            <option value="">All Platforms</option>
-            <option value="hubspot">HubSpot</option>
-            <option value="salesforce">Salesforce</option>
-          </select>
-          <select id="historyResultFilter" class="select-input" style="flex: 1;">
-            <option value="">All Results</option>
-            <option value="success">Success</option>
-            <option value="error">Error</option>
-          </select>
-        </div>
-        
-        <div class="sync-history-table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
-          <table class="sync-history-table" style="width: 100%; border-collapse: collapse;">
-            <thead style="position: sticky; top: 0; background: var(--surface); z-index: 1;">
-              <tr>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Time</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Platform</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Contact</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Action</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Result</th>
-              </tr>
-            </thead>
-            <tbody id="syncHistoryTableBody">
-              <tr>
-                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                  <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
-                  <div style="font-size: 14px;">No sync history yet</div>
-                  <div style="font-size: 12px; margin-top: 4px;">Sync operations will appear here</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        
-        <div class="history-stats" style="display: flex; justify-content: space-between; margin-top: 12px; padding: 12px; background: var(--surface); border-radius: 8px; font-size: 12px;">
-          <span style="color: var(--text-secondary);">Total: <strong id="historyTotal" style="color: var(--text);">0</strong></span>
-          <span style="color: var(--success);">Success: <strong id="historySuccess">0</strong></span>
-          <span style="color: var(--error);">Failed: <strong id="historyFailed">0</strong></span>
+        <div id="historyContent" style="display: none;">
+          <div class="history-filters" style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <select id="historyPlatformFilter" class="select-input" style="flex: 1;">
+              <option value="">All Platforms</option>
+              <option value="hubspot">HubSpot</option>
+              <option value="salesforce">Salesforce</option>
+            </select>
+            <select id="historyResultFilter" class="select-input" style="flex: 1;">
+              <option value="">All Results</option>
+              <option value="success">Success</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+          
+          <div class="sync-history-table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+            <table class="sync-history-table" style="width: 100%; border-collapse: collapse;">
+              <thead style="position: sticky; top: 0; background: var(--surface); z-index: 1;">
+                <tr>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Time</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Platform</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Contact</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Action</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Result</th>
+                </tr>
+              </thead>
+              <tbody id="syncHistoryTableBody">
+                <tr>
+                  <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                    <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+                    <div style="font-size: 14px;">No sync history yet</div>
+                    <div style="font-size: 12px; margin-top: 4px;">Sync operations will appear here</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="history-stats" style="display: flex; justify-content: space-between; margin-top: 12px; padding: 12px; background: var(--surface); border-radius: 8px; font-size: 12px;">
+            <span style="color: var(--text-secondary);">Total: <strong id="historyTotal" style="color: var(--text);">0</strong></span>
+            <span style="color: var(--success);">Success: <strong id="historySuccess">0</strong></span>
+            <span style="color: var(--error);">Failed: <strong id="historyFailed">0</strong></span>
+          </div>
         </div>
       </div>
 

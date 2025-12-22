@@ -15,6 +15,7 @@ router.get('/hubspot/callback', hubspotController.hubspotCallback);
 // Sync operations
 router.post('/hubspot/sync-contact', authenticateToken, hubspotController.hubspotSyncContact);
 router.post('/hubspot/sync-all', authenticateToken, hubspotController.hubspotSyncAll);
+router.post('/hubspot/check-duplicate', authenticateToken, hubspotController.hubspotCheckDuplicate);
 
 // Status & management
 router.get('/hubspot/status', authenticateToken, hubspotController.hubspotStatus);
@@ -31,6 +32,7 @@ router.get('/salesforce/callback', salesforceController.salesforceCallback);
 // Sync operations
 router.post('/salesforce/sync-contact', authenticateToken, salesforceController.salesforceSyncContact);
 router.post('/salesforce/sync-all', authenticateToken, salesforceController.salesforceSyncAll);
+router.post('/salesforce/check-duplicate', authenticateToken, salesforceController.salesforceCheckDuplicate);
 
 // Status & management
 router.get('/salesforce/status', authenticateToken, salesforceController.salesforceStatus);

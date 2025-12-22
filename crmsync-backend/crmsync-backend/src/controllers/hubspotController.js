@@ -547,6 +547,69 @@ exports.hubspotStatus = async (req, res) => {
   }
 };
 
+// Check for duplicate contacts in HubSpot
+exports.hubspotCheckDuplicate = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Get integration
+    const integration = await getHubSpotIntegration(userId);
+    const accessToken = await getValidAccessToken(userId, integration);
+    
+    // Search for contact by email in HubSpot
+    const searchResponse = await axios.post(
+      'https://api.hubapi.com/crm/v3/objects/contacts/search',
+      {
+        filterGroups: [{
+          filters: [{
+            propertyName: 'email',
+            operator: 'EQ',
+            value: email
+          }]
+        }],
+        properties: ['email', 'firstname', 'lastname', 'company', 'jobtitle', 'phone'],
+        limit: 1
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    const results = searchResponse.data.results || [];
+    const duplicate = results.length > 0 ? results[0] : null;
+    
+    if (duplicate) {
+      console.log(`🔍 Duplicate found in HubSpot for ${email}`);
+      res.json({
+        isDuplicate: true,
+        contact: {
+          id: duplicate.id,
+          email: duplicate.properties.email,
+          firstName: duplicate.properties.firstname,
+          lastName: duplicate.properties.lastname,
+          company: duplicate.properties.company,
+          title: duplicate.properties.jobtitle,
+          phone: duplicate.properties.phone
+        }
+      });
+    } else {
+      console.log(`✅ No duplicate found in HubSpot for ${email}`);
+      res.json({ isDuplicate: false });
+    }
+  } catch (error) {
+    console.error('❌ HubSpot duplicate check error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to check for duplicates' });
+  }
+};
+
 // Disconnect HubSpot integration
 exports.hubspotDisconnect = async (req, res) => {
   try {

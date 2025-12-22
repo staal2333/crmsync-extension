@@ -26,6 +26,8 @@ class IntegrationManager {
       await this.checkIntegrationStatus();
       await this.loadAutoSyncSetting();
       this.setupEventListeners();
+      this.setupHistoryListeners();
+      this.renderSyncHistory();
       console.log('✅ Integrations initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize integrations:', error);
@@ -345,9 +347,60 @@ class IntegrationManager {
   // SYNC OPERATIONS
   // =====================================================
   
+  async checkDuplicate(email, platform) {
+    try {
+      const token = await window.CRMSyncAuth.getAuthToken();
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      const response = await fetch(`${this.apiUrl}/${platform}/check-duplicate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Duplicate check failed');
+      }
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error(`❌ Failed to check duplicate in ${platform}:`, error);
+      return { isDuplicate: false };
+    }
+  }
+  
   async syncContact(contact, platform) {
     try {
       console.log(`🔄 Syncing contact to ${platform}:`, contact.email);
+      
+      // Check for duplicates first
+      const duplicateCheck = await this.checkDuplicate(contact.email, platform);
+      
+      if (duplicateCheck.isDuplicate) {
+        const platformName = platform === 'hubspot' ? 'HubSpot' : 'Salesforce';
+        const existingContact = duplicateCheck.contact;
+        const name = `${existingContact.firstName || ''} ${existingContact.lastName || ''}`.trim() || existingContact.email;
+        
+        const confirmUpdate = confirm(
+          `⚠️ Duplicate Found!\n\n` +
+          `"${name}" already exists in ${platformName}.\n` +
+          `Email: ${existingContact.email}\n` +
+          `Company: ${existingContact.company || 'N/A'}\n\n` +
+          `Do you want to update the existing contact?`
+        );
+        
+        if (!confirmUpdate) {
+          console.log('❌ User cancelled sync due to duplicate');
+          this.showNotification('Sync cancelled - duplicate detected', 'info');
+          return { skipped: true };
+        }
+      }
       
       const token = await window.CRMSyncAuth.getAuthToken();
       if (!token) {
@@ -382,6 +435,9 @@ class IntegrationManager {
       
       const result = await response.json();
       
+      // Log to history
+      await this.addSyncHistory(platform, contact, 'push', 'success');
+      
       // Show success notification
       const actionText = result.action === 'create' ? 'added to' : 'updated in';
       this.showNotification(`✓ Contact ${actionText} ${platform}`, 'success');
@@ -396,6 +452,10 @@ class IntegrationManager {
       return result;
     } catch (error) {
       console.error(`❌ Failed to sync to ${platform}:`, error);
+      
+      // Log to history
+      await this.addSyncHistory(platform, contact, 'push', 'error', error);
+      
       this.showNotification(`Failed to sync: ${error.message}`, 'error');
       throw error;
     }
@@ -552,6 +612,159 @@ class IntegrationManager {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔄 Sync All Contacts';
       }
+    }
+  }
+  
+  // =====================================================
+  // SYNC HISTORY
+  // =====================================================
+  
+  async addSyncHistory(platform, contact, action, result, error = null) {
+    try {
+      const history = await chrome.storage.local.get(['syncHistory']);
+      const syncHistory = history.syncHistory || [];
+      
+      const entry = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        platform,
+        contactEmail: contact.email,
+        contactName: contact.name || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || contact.email,
+        action, // 'push', 'sync-all', 'update'
+        result, // 'success' or 'error'
+        error: error ? error.message : null
+      };
+      
+      // Keep only last 100 entries
+      syncHistory.unshift(entry);
+      if (syncHistory.length > 100) {
+        syncHistory.pop();
+      }
+      
+      await chrome.storage.local.set({ syncHistory });
+      
+      // Update UI if history section is visible
+      if (document.getElementById('syncHistoryTableBody')) {
+        this.renderSyncHistory();
+      }
+    } catch (error) {
+      console.error('Failed to save sync history:', error);
+    }
+  }
+  
+  async renderSyncHistory() {
+    try {
+      const history = await chrome.storage.local.get(['syncHistory']);
+      const syncHistory = history.syncHistory || [];
+      
+      // Apply filters
+      const platformFilter = document.getElementById('historyPlatformFilter')?.value || '';
+      const resultFilter = document.getElementById('historyResultFilter')?.value || '';
+      
+      let filteredHistory = syncHistory;
+      
+      if (platformFilter) {
+        filteredHistory = filteredHistory.filter(entry => entry.platform === platformFilter);
+      }
+      
+      if (resultFilter) {
+        filteredHistory = filteredHistory.filter(entry => entry.result === resultFilter);
+      }
+      
+      const tbody = document.getElementById('syncHistoryTableBody');
+      if (!tbody) return;
+      
+      if (filteredHistory.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-secondary);">
+              <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+              <div style="font-size: 14px;">No sync history</div>
+              <div style="font-size: 12px; margin-top: 4px;">Sync operations will appear here</div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = filteredHistory.slice(0, 50).map(entry => {
+        const timeAgo = this.getTimeAgo(new Date(entry.timestamp));
+        const platformColor = entry.platform === 'hubspot' ? '#ff7a59' : '#00a1e0';
+        const resultIcon = entry.result === 'success' ? '✓' : '✗';
+        const resultColor = entry.result === 'success' ? 'var(--success)' : 'var(--error)';
+        
+        return `
+          <tr style="border-bottom: 1px solid var(--border);">
+            <td style="padding: 10px; font-size: 12px; color: var(--text-secondary); white-space: nowrap;">${timeAgo}</td>
+            <td style="padding: 10px;">
+              <span style="display: inline-block; padding: 4px 8px; background: ${platformColor}; color: white; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase;">
+                ${entry.platform === 'hubspot' ? 'H' : 'S'}
+              </span>
+            </td>
+            <td style="padding: 10px; font-size: 12px; color: var(--text);">${entry.contactName}</td>
+            <td style="padding: 10px; font-size: 12px; color: var(--text-secondary);">${entry.action}</td>
+            <td style="padding: 10px;">
+              <span style="color: ${resultColor}; font-weight: 600; font-size: 14px;" title="${entry.error || ''}">
+                ${resultIcon}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      
+      // Update stats
+      const successCount = syncHistory.filter(e => e.result === 'success').length;
+      const errorCount = syncHistory.filter(e => e.result === 'error').length;
+      
+      const totalEl = document.getElementById('historyTotal');
+      const successEl = document.getElementById('historySuccess');
+      const failedEl = document.getElementById('historyFailed');
+      
+      if (totalEl) totalEl.textContent = syncHistory.length;
+      if (successEl) successEl.textContent = successCount;
+      if (failedEl) failedEl.textContent = errorCount;
+      
+    } catch (error) {
+      console.error('Failed to render sync history:', error);
+    }
+  }
+  
+  getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  }
+  
+  setupHistoryListeners() {
+    // Filter listeners
+    const platformFilter = document.getElementById('historyPlatformFilter');
+    const resultFilter = document.getElementById('historyResultFilter');
+    const clearBtn = document.getElementById('clearHistoryBtn');
+    
+    if (platformFilter) {
+      platformFilter.addEventListener('change', () => this.renderSyncHistory());
+    }
+    
+    if (resultFilter) {
+      resultFilter.addEventListener('change', () => this.renderSyncHistory());
+    }
+    
+    if (clearBtn) {
+      clearBtn.addEventListener('click', async () => {
+        if (confirm('Clear all sync history?')) {
+          await chrome.storage.local.set({ syncHistory: [] });
+          this.renderSyncHistory();
+          this.showNotification('History cleared', 'success');
+        }
+      });
     }
   }
   

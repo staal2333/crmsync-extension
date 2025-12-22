@@ -494,6 +494,93 @@ exports.salesforceStatus = async (req, res) => {
   }
 };
 
+// Check for duplicate contacts in Salesforce
+exports.salesforceCheckDuplicate = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // Get integration
+    const integration = await getSalesforceIntegration(userId);
+    
+    // Search for contact by email in Salesforce (check both Leads and Contacts)
+    const query = `SELECT Id, Email, FirstName, LastName, Company, Title, Phone FROM Lead WHERE Email = '${email}' LIMIT 1`;
+    const contactQuery = `SELECT Id, Email, FirstName, LastName, Account.Name, Title, Phone FROM Contact WHERE Email = '${email}' LIMIT 1`;
+    
+    let duplicate = null;
+    let objectType = null;
+    
+    try {
+      // Check Leads first
+      const leadResponse = await axios.get(
+        `${integration.instance_url}/services/data/v57.0/query?q=${encodeURIComponent(query)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (leadResponse.data.records && leadResponse.data.records.length > 0) {
+        duplicate = leadResponse.data.records[0];
+        objectType = 'Lead';
+      }
+    } catch (error) {
+      console.log('No lead found, checking contacts...');
+    }
+    
+    // If no lead found, check Contacts
+    if (!duplicate) {
+      try {
+        const contactResponse = await axios.get(
+          `${integration.instance_url}/services/data/v57.0/query?q=${encodeURIComponent(contactQuery)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${integration.access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (contactResponse.data.records && contactResponse.data.records.length > 0) {
+          duplicate = contactResponse.data.records[0];
+          objectType = 'Contact';
+        }
+      } catch (error) {
+        console.log('No contact found');
+      }
+    }
+    
+    if (duplicate) {
+      console.log(`🔍 Duplicate found in Salesforce (${objectType}) for ${email}`);
+      res.json({
+        isDuplicate: true,
+        objectType,
+        contact: {
+          id: duplicate.Id,
+          email: duplicate.Email,
+          firstName: duplicate.FirstName,
+          lastName: duplicate.LastName,
+          company: duplicate.Company || duplicate.Account?.Name,
+          title: duplicate.Title,
+          phone: duplicate.Phone
+        }
+      });
+    } else {
+      console.log(`✅ No duplicate found in Salesforce for ${email}`);
+      res.json({ isDuplicate: false });
+    }
+  } catch (error) {
+    console.error('❌ Salesforce duplicate check error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to check for duplicates' });
+  }
+};
+
 // Disconnect Salesforce integration
 exports.salesforceDisconnect = async (req, res) => {
   try {

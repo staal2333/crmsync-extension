@@ -498,14 +498,8 @@ function showFirstTimeUserPrompt() {
   if (signInBtn) {
     signInBtn.addEventListener('click', async () => {
       try {
-        // Redirect to website for login
-        const extensionId = chrome.runtime.id;
-        const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
-        const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
-
-        // For hash routing, put params BEFORE the hash
-        const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
-        const tab = await chrome.tabs.create({ url: loginUrl });
+        // Open local login page instead of external website
+        await chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
         banner.remove();
       } catch (error) {
         console.error('Error opening login page:', error);
@@ -694,15 +688,8 @@ async function updateLeftHeaderButton() {
       // Add event listener to the NEW button
       newBtn.addEventListener('click', () => {
         console.log('Sign In button clicked');
-        const extensionId = chrome.runtime.id;
-        const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
-        const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
-
-        // For hash routing, put params BEFORE the hash
-        const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
-        console.log('Opening login URL:', loginUrl);
-
-        chrome.tabs.create({ url: loginUrl }).catch(err => {
+        // Open local login page instead of external website
+        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') }).catch(err => {
           console.error('Failed to open tab:', err);
           alert('Failed to open login page. Please check the extension permissions.');
         });

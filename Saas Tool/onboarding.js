@@ -1,363 +1,192 @@
-// Onboarding logic
-let currentStep = 1;
-const totalSteps = 5; // Updated to include exclude patterns step
+// =====================================================
+// CRMSYNC Onboarding Flow
+// =====================================================
 
-// Settings state
-const settings = {
-  autoApprove: false,
-  reminders: true,
+let currentStep = 1;
+const totalSteps = 5;
+const userPreferences = {
+  autoSync: false,
+  autoApprove: true,
+  sidebar: true,
   notifications: false
 };
 
-// User information
-const userInfo = {
-  firstName: '',
-  lastName: '',
-  company: '',
-  email: '',
-  phone: ''
-};
-
-// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-  updateProgress();
-  setupEventListeners();
+  initializeOnboarding();
 });
 
-function setupEventListeners() {
-  // Step 1 - Welcome
-  document.getElementById('getStartedBtn')?.addEventListener('click', nextStep);
-  document.getElementById('skipBtn')?.addEventListener('click', (e) => {
-    e.preventDefault();
-    skipOnboarding();
+function initializeOnboarding() {
+  // Setup toggle switches
+  setupToggles();
+  
+  // Step 1: Welcome
+  document.getElementById('getStartedBtn')?.addEventListener('click', () => {
+    goToStep(2);
   });
   
-  // Step 2 - Settings
-  document.getElementById('autoApproveToggle')?.addEventListener('click', () => toggleSetting('autoApprove'));
-  document.getElementById('remindersToggle')?.addEventListener('click', () => toggleSetting('reminders'));
-  document.getElementById('notificationsToggle')?.addEventListener('click', () => toggleSetting('notifications'));
-  document.getElementById('settingsBackBtn')?.addEventListener('click', prevStep);
-  document.getElementById('settingsContinueBtn')?.addEventListener('click', saveSettingsAndContinue);
-  
-  // Step 3 - Auth
-  document.getElementById('signInCard')?.addEventListener('click', chooseSignIn);
-  document.getElementById('guestCard')?.addEventListener('click', chooseGuest);
-  document.getElementById('authBackBtn')?.addEventListener('click', prevStep);
-  
-  // Step 4 - User Information
-  document.getElementById('excludeBackBtn')?.addEventListener('click', prevStep);
-  document.getElementById('excludeContinueBtn')?.addEventListener('click', saveUserInfoAndContinue);
-  document.getElementById('skipExcludeBtn')?.addEventListener('click', async (e) => {
+  document.getElementById('skipAllBtn')?.addEventListener('click', (e) => {
     e.preventDefault();
-    // Check which auth method was chosen
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    
-    if (onboardingAuthChoice === 'signin') {
-      // User chose to sign in - open login page (skip info collection)
-      openLoginPage();
-    } else {
-      // User chose guest mode - go to Step 5 (All Set)
-      nextStep();
-    }
+    finishOnboarding(true);
   });
   
-  // Step 5 - Finish
-  document.getElementById('finishBtn')?.addEventListener('click', finishOnboarding);
+  // Step 2: Features
+  document.getElementById('featuresBackBtn')?.addEventListener('click', () => {
+    goToStep(1);
+  });
+  
+  document.getElementById('featuresContinueBtn')?.addEventListener('click', () => {
+    goToStep(3);
+  });
+  
+  // Step 3: Auth Method
+  document.getElementById('signInCard')?.addEventListener('click', () => {
+    // Mark that user wants to sign in
+    chrome.storage.local.set({ wantsToSignIn: true });
+    goToStep(4);
+  });
+  
+  document.getElementById('guestCard')?.addEventListener('click', () => {
+    // Mark as guest mode
+    chrome.storage.local.set({ isGuest: true, guestModeChosenAt: new Date().toISOString() });
+    goToStep(4);
+  });
+  
+  document.getElementById('authBackBtn')?.addEventListener('click', () => {
+    goToStep(2);
+  });
+  
+  // Step 4: Settings
+  document.getElementById('settingsBackBtn')?.addEventListener('click', () => {
+    goToStep(3);
+  });
+  
+  document.getElementById('settingsContinueBtn')?.addEventListener('click', () => {
+    saveSettings();
+    goToStep(5);
+  });
+  
+  // Step 5: Finish
+  document.getElementById('finishBtn')?.addEventListener('click', () => {
+    finishOnboarding(false);
+  });
 }
 
-function updateProgress() {
-  const progressFill = document.getElementById('progressFill');
-  const progress = (currentStep / totalSteps) * 100;
-  progressFill.style.width = `${progress}%`;
+function setupToggles() {
+  const toggles = document.querySelectorAll('.toggle-switch');
+  
+  toggles.forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      toggle.classList.toggle('active');
+      const setting = toggle.getAttribute('data-setting');
+      if (setting) {
+        userPreferences[setting] = toggle.classList.contains('active');
+      }
+    });
+  });
 }
 
-function showStep(stepNumber) {
-  // Hide all steps
-  document.querySelectorAll('.step').forEach(step => {
-    step.classList.remove('active');
-  });
-  
-  // Show current step
-  const currentStepEl = document.querySelector(`[data-step="${stepNumber}"]`);
+function goToStep(step) {
+  // Hide current step
+  const currentStepEl = document.querySelector('.step.active');
   if (currentStepEl) {
-    currentStepEl.classList.add('active');
+    currentStepEl.classList.remove('active');
   }
   
-  currentStep = stepNumber;
-  updateProgress();
-}
-
-function nextStep() {
-  if (currentStep < totalSteps) {
-    showStep(currentStep + 1);
+  // Show new step
+  const newStepEl = document.querySelector(`.step[data-step="${step}"]`);
+  if (newStepEl) {
+    newStepEl.classList.add('active');
   }
-}
-
-function prevStep() {
-  if (currentStep > 1) {
-    showStep(currentStep - 1);
-  }
-}
-
-function toggleSetting(settingName) {
-  settings[settingName] = !settings[settingName];
-  const toggle = document.getElementById(`${settingName}Toggle`);
   
-  if (settings[settingName]) {
-    toggle.classList.add('active');
-  } else {
-    toggle.classList.remove('active');
+  // Update progress bar
+  currentStep = step;
+  const progress = (step / totalSteps) * 100;
+  const progressFill = document.getElementById('progressFill');
+  if (progressFill) {
+    progressFill.style.width = `${progress}%`;
   }
+  
+  // Scroll to top
+  window.scrollTo(0, 0);
 }
 
-async function saveSettingsAndContinue() {
+async function saveSettings() {
   try {
-    // Save basic settings to chrome storage
+    // Save to sync storage (syncs across devices)
     await chrome.storage.sync.set({
-      autoApproveContacts: settings.autoApprove,
-      reminderDays: settings.reminders ? 30 : 0,
-      emailNotifications: settings.notifications
+      autoSyncEnabled: userPreferences.autoSync,
+      settings: {
+        autoApprove: userPreferences.autoApprove,
+        sidebarEnabled: userPreferences.sidebar,
+        soundEffects: userPreferences.notifications,
+        darkMode: false,
+        reminderDays: 3,
+        trackedLabels: [],
+        noReplyAfterDays: [3, 7, 14],
+        hotkeysEnabled: false
+      }
     });
     
-    console.log('✅ Basic settings saved:', settings);
-    nextStep();
+    // Save to local storage
+    await chrome.storage.local.set({
+      settings: {
+        autoApprove: userPreferences.autoApprove,
+        sidebarEnabled: userPreferences.sidebar,
+        soundEffects: userPreferences.notifications,
+        darkMode: false,
+        reminderDays: 3,
+        trackedLabels: [],
+        noReplyAfterDays: [3, 7, 14],
+        hotkeysEnabled: false
+      }
+    });
+    
+    console.log('✅ Settings saved:', userPreferences);
   } catch (error) {
     console.error('Error saving settings:', error);
-    nextStep(); // Continue anyway
   }
 }
 
-// Track which auth method user chose
-let selectedAuthMethod = null;
-
-// New functions for auth choice
-async function chooseSignIn() {
-  // User chose to sign in - save choice and go to Step 4 to collect their info first
-  selectedAuthMethod = 'signin';
-  await chrome.storage.local.set({ onboardingAuthChoice: 'signin' });
-  console.log('✅ User chose Sign In, moving to info collection');
-  nextStep(); // Go to Step 4
-}
-
-async function chooseGuest() {
-  // User chose guest mode - save choice and go to Step 4 to collect their info
-  selectedAuthMethod = 'guest';
-  await chrome.storage.local.set({ 
-    isGuest: true,
-    onboardingAuthChoice: 'guest'
-  });
-  console.log('✅ User chose Guest mode, moving to info collection');
-  nextStep(); // Go to Step 4
-}
-
-async function saveUserInfoAndContinue() {
+async function finishOnboarding(skipped) {
   try {
-    // Get user inputs
-    const firstName = document.getElementById('userFirstName')?.value.trim();
-    const lastName = document.getElementById('userLastName')?.value.trim();
-    const company = document.getElementById('userCompany')?.value.trim();
-    const email = document.getElementById('userEmail')?.value.trim();
-    const phone = document.getElementById('userPhone')?.value.trim();
-    
-    // Prepare exclusion arrays (matching Settings structure)
-    const excludeNames = [];
-    const excludeDomains = [];
-    const excludePhones = [];
-    
-    // Add full name to exclude names
-    if (firstName && lastName) {
-      const fullName = `${firstName} ${lastName}`;
-      excludeNames.push(fullName);
-    } else if (firstName) {
-      excludeNames.push(firstName);
-    } else if (lastName) {
-      excludeNames.push(lastName);
-    }
-    
-    // Add company name to exclude names if provided
-    if (company) {
-      excludeNames.push(company);
-    }
-    
-    // Extract domain from email and add to exclude domains
-    if (email) {
-      const emailParts = email.split('@');
-      if (emailParts.length === 2) {
-        const domain = emailParts[1].toLowerCase();
-        excludeDomains.push(domain);
-      }
-      // Also add the full email as an exclude pattern
-      excludeNames.push(email);
-    }
-    
-    // Always exclude common system domains
-    if (excludeDomains.length === 0) {
-      excludeDomains.push('noreply.com', 'no-reply.com', 'notifications.com');
-    }
-    
-    // Add phone number to exclude phones
-    if (phone) {
-      // Normalize phone number (remove spaces, dashes, etc.)
-      const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
-      excludePhones.push(cleanPhone);
-    }
-    
-    // Save to storage (matching Settings storage keys)
-    await chrome.storage.sync.set({
-      userFirstName: firstName || '',
-      userLastName: lastName || '',
-      userCompany: company || '',
-      userEmail: email || '',
-      userPhone: phone || '',
-      excludeNames: excludeNames,
-      excludeDomains: excludeDomains,
-      excludePhones: excludePhones
-    });
-    
-    console.log('✅ User info saved:', { firstName, lastName, company, email, phone });
-    console.log('✅ Exclusions set:', { excludeNames, excludeDomains, excludePhones });
-    
-    // Check which auth method was chosen
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    
-    if (onboardingAuthChoice === 'signin') {
-      // User chose to sign in - open login page now (after collecting their info)
-      console.log('✅ Info collected, opening login page...');
-      openLoginPage();
-    } else {
-      // User chose guest mode - go to Step 5 (All Set)
-      nextStep();
-    }
-  } catch (error) {
-    console.error('Error saving user info:', error);
-    // Still continue based on auth choice
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    if (onboardingAuthChoice === 'signin') {
-      openLoginPage();
-    } else {
-      nextStep();
-    }
-  }
-}
-
-async function openLoginPage() {
-  try {
-    // Mark that user wants to sign in
+    // Mark onboarding as complete
     await chrome.storage.local.set({
-      onboardingAuthChoice: 'signin',
-      onboardingCompleted: true,
-      hasSeenWelcome: true
+      hasSeenWelcome: true,
+      onboardingComplete: true,
+      onboardingCompletedAt: new Date().toISOString(),
+      onboardingSkipped: skipped
     });
     
-    // Generate extension ID for callback
-    const extensionId = chrome.runtime.id;
+    // Check if user wants to sign in
+    const { wantsToSignIn, isGuest } = await chrome.storage.local.get(['wantsToSignIn', 'isGuest']);
     
-    // Open your website login page with extension ID as parameter
-    const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
-    const loginPath = window.CONFIG?.AUTH?.LOGIN || '/#/login';
+    if (wantsToSignIn && !isGuest) {
+      // Open login page
+      chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+    }
     
-    // For hash routing, put params BEFORE the hash
-    const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}${loginPath}`;
-    
-    console.log('✅ Opening website login page:', loginUrl);
-    
-    // Open login page in new tab
-    await chrome.tabs.create({ 
-      url: loginUrl
-    });
-    
-    // Close onboarding after a short delay
+    // Close onboarding tab
     setTimeout(() => {
       window.close();
-    }, 500);
+      
+      // If can't close (blocked by browser), show message
+      setTimeout(() => {
+        document.body.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center; color: white; padding: 40px;">
+            <div>
+              <div style="font-size: 64px; margin-bottom: 16px;">✅</div>
+              <h1 style="font-size: 32px; margin-bottom: 12px;">Setup Complete!</h1>
+              <p style="font-size: 18px; opacity: 0.9;">You can close this tab now.</p>
+              <button onclick="window.close()" style="margin-top: 24px; padding: 12px 32px; background: white; color: #667eea; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                Close Tab
+              </button>
+            </div>
+          </div>
+        `;
+      }, 500);
+    }, 100);
+    
   } catch (error) {
-    console.error('Error opening login page:', error);
-    // Fallback: try to open anyway
-    const websiteUrl = 'https://www.crm-sync.net';
-    chrome.tabs.create({ 
-      url: `${websiteUrl}/#/login?source=extension`
-    });
-    window.close();
+    console.error('Error finishing onboarding:', error);
   }
 }
-
-async function continueAsGuest() {
-  try {
-    // Set guest mode
-    await chrome.storage.local.set({
-      isGuest: true,
-      hasSeenWelcome: true,
-      onboardingAuthChoice: 'guest'
-    });
-    
-    console.log('✅ Set to guest mode, will complete at end');
-    nextStep(); // Go to exclude patterns
-  } catch (error) {
-    console.error('Error setting guest mode:', error);
-    nextStep();
-  }
-}
-
-async function finishOnboarding() {
-  try {
-    // Get the auth choice
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    
-    // Mark onboarding as completed
-    await chrome.storage.local.set({
-      onboardingCompleted: true,
-      hasSeenWelcome: true
-    });
-    
-    console.log('✅ Onboarding completed!');
-    
-    // If user chose to sign in, open login page
-    if (onboardingAuthChoice === 'signin') {
-      await openLoginPage();
-      return;
-    }
-    
-    // Otherwise, close and optionally open Gmail
-    window.close();
-    
-    // Try to open Gmail for guest users
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs[0] || tabs[0].url.includes('onboarding.html')) {
-        // If no active tab or we're on onboarding, open Gmail
-        chrome.tabs.create({ 
-          url: 'https://mail.google.com'
-        });
-      }
-    });
-  } catch (error) {
-    console.error('Error completing onboarding:', error);
-    window.close();
-  }
-}
-
-async function skipOnboarding() {
-  const confirmed = confirm(
-    'Skip onboarding?\n\n' +
-    'You can always configure settings later from the extension popup.'
-  );
-  
-  if (confirmed) {
-    await chrome.storage.local.set({
-      onboardingCompleted: true,
-      hasSeenWelcome: true,
-      isGuest: true
-    });
-    
-    window.close();
-  }
-}
-
-async function completeOnboarding() {
-  await chrome.storage.local.set({
-    onboardingCompleted: true,
-    hasSeenWelcome: true
-  });
-  
-  window.close();
-}
-

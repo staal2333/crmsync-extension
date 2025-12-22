@@ -383,7 +383,11 @@ async function checkAuthStatus() {
     ]);
     
     if (!isAuthenticated && !isGuest && !hasSeenWelcome) {
-      // First time user - show welcome prompt (non-blocking)
+      // First time user - open full onboarding experience
+      console.log('🎉 First time user detected! Opening onboarding...');
+      chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+      
+      // Show simplified banner while they complete onboarding
       showFirstTimeUserPrompt();
       return;
     }

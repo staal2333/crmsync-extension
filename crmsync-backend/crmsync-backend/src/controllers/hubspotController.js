@@ -429,18 +429,16 @@ exports.hubspotSyncAll = async (req, res) => {
               email, 
               first_name, 
               last_name,
-              source,
               created_at,
               updated_at
             )
-            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
             RETURNING id
           `, [
             userId, 
             email,
             crmContact.properties.firstname || '',
-            crmContact.properties.lastname || '',
-            'hubspot'
+            crmContact.properties.lastname || ''
           ]);
           
           ourContactId = insertResult.rows[0].id;

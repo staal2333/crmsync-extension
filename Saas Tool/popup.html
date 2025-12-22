@@ -527,6 +527,17 @@
             <span>Disconnect</span>
           </button>
         </div>
+        
+        <!-- Imported Contacts List (shown when connected and has contacts) -->
+        <div class="crm-contacts-section hidden" id="hubspot-contacts-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text);">📥 Imported Contacts</h4>
+            <span id="hubspot-contacts-count" style="font-size: 12px; color: var(--text-secondary);">0 contacts</span>
+          </div>
+          <div class="crm-contacts-list" id="hubspot-contacts-list" style="max-height: 300px; overflow-y: auto;">
+            <!-- Contacts will be populated here -->
+          </div>
+        </div>
       </div>
 
       <!-- Salesforce Integration Card -->
@@ -579,6 +590,17 @@
           <button class="btn btn-danger hidden" id="salesforce-disconnect-btn">
             <span>Disconnect</span>
           </button>
+        </div>
+        
+        <!-- Imported Contacts List (shown when connected and has contacts) -->
+        <div class="crm-contacts-section hidden" id="salesforce-contacts-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text);">📥 Imported Contacts</h4>
+            <span id="salesforce-contacts-count" style="font-size: 12px; color: var(--text-secondary);">0 contacts</span>
+          </div>
+          <div class="crm-contacts-list" id="salesforce-contacts-list" style="max-height: 300px; overflow-y: auto;">
+            <!-- Contacts will be populated here -->
+          </div>
         </div>
       </div>
 

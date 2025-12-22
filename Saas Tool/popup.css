@@ -2346,6 +2346,107 @@ body.bulk-mode .contact-checkbox {
   background: var(--bg);
 }
 
+/* CRM Contacts List Styles */
+.crm-contacts-section {
+  animation: slideDown 0.3s ease;
+}
+
+.crm-contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crm-contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.crm-contact-item:hover {
+  background: var(--bg);
+  border-color: var(--primary);
+  transform: translateX(2px);
+}
+
+.crm-contact-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.crm-contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.crm-contact-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crm-contact-email {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crm-contact-badge {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.crm-contact-badge.hubspot {
+  background: rgba(255, 122, 89, 0.15);
+  color: #ff7a59;
+}
+
+.crm-contact-badge.salesforce {
+  background: rgba(0, 161, 224, 0.15);
+  color: #00a1e0;
+}
+
+.crm-contacts-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+[data-theme="dark"] .crm-contact-item {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .crm-contact-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ========================================
    END OF INTEGRATIONS STYLES
    ======================================== */

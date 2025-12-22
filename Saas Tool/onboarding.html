@@ -619,8 +619,104 @@
       </div>
     </div>
     
-    <!-- Step 5: All Set! -->
+    <!-- Step 5: Exclusion Setup (Your Info) -->
     <div class="step" data-step="5">
+      <div class="step-icon">🚫</div>
+      <h1 class="step-title">Exclude Your Information</h1>
+      <p class="step-subtitle">
+        Prevent tracking yourself as a contact by excluding your personal info
+      </p>
+      
+      <div style="background: #f8fafc; border-radius: 16px; padding: 24px; margin-bottom: 24px;">
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+            📧 Your Email(s)
+          </label>
+          <input 
+            type="email" 
+            id="userEmail" 
+            placeholder="e.g., john@company.com"
+            style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;"
+          >
+          <p style="font-size: 12px; color: #64748b; margin-top: 6px;">
+            Your primary email - we'll exclude this from contacts
+          </p>
+        </div>
+        
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+            🏢 Your Company Domain
+          </label>
+          <input 
+            type="text" 
+            id="userDomain" 
+            placeholder="e.g., company.com"
+            style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;"
+          >
+          <p style="font-size: 12px; color: #64748b; margin-top: 6px;">
+            Exclude all emails from this domain (e.g., @company.com)
+          </p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+          <div class="form-group">
+            <label style="display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+              👤 First Name
+            </label>
+            <input 
+              type="text" 
+              id="userFirstName" 
+              placeholder="e.g., John"
+              style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;"
+            >
+          </div>
+          
+          <div class="form-group">
+            <label style="display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+              👤 Last Name
+            </label>
+            <input 
+              type="text" 
+              id="userLastName" 
+              placeholder="e.g., Smith"
+              style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;"
+            >
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label style="display: block; font-size: 14px; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
+            📞 Your Phone Number
+          </label>
+          <input 
+            type="tel" 
+            id="userPhone" 
+            placeholder="e.g., +1 234 567 8900"
+            style="width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: white;"
+          >
+          <p style="font-size: 12px; color: #64748b; margin-top: 6px;">
+            Prevents your own number from appearing in contacts
+          </p>
+        </div>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #3b82f6; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+        <p style="font-size: 13px; color: #1e40af; line-height: 1.6; margin: 0;">
+          💡 <strong>Tip:</strong> You can always add more exclusions later in Settings → Exclusions
+        </p>
+      </div>
+      
+      <div class="buttons">
+        <button class="btn btn-secondary" id="exclusionBackBtn">← Back</button>
+        <button class="btn btn-primary" id="exclusionContinueBtn">Continue →</button>
+      </div>
+      <div class="skip-btn">
+        <a href="#" id="skipExclusionBtn">Skip, I'll configure later</a>
+      </div>
+    </div>
+    
+    <!-- Step 6: All Set! -->
+    <div class="step" data-step="6">
       <div class="success-animation">
         <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
           <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>

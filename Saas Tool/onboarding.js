@@ -3,12 +3,19 @@
 // =====================================================
 
 let currentStep = 1;
-const totalSteps = 5;
+const totalSteps = 6;
 const userPreferences = {
   autoSync: false,
   autoApprove: true,
   sidebar: true,
   notifications: false
+};
+const userExclusions = {
+  email: '',
+  domain: '',
+  firstName: '',
+  lastName: '',
+  phone: ''
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -65,7 +72,22 @@ function initializeOnboarding() {
     goToStep(5);
   });
   
-  // Step 5: Finish
+  // Step 5: Exclusions
+  document.getElementById('exclusionBackBtn')?.addEventListener('click', () => {
+    goToStep(4);
+  });
+  
+  document.getElementById('exclusionContinueBtn')?.addEventListener('click', () => {
+    saveExclusions();
+    goToStep(6);
+  });
+  
+  document.getElementById('skipExclusionBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    goToStep(6);
+  });
+  
+  // Step 6: Finish
   document.getElementById('finishBtn')?.addEventListener('click', () => {
     finishOnboarding(false);
   });
@@ -144,6 +166,57 @@ async function saveSettings() {
     console.log('✅ Settings saved:', userPreferences);
   } catch (error) {
     console.error('Error saving settings:', error);
+  }
+}
+
+async function saveExclusions() {
+  try {
+    // Get values from form
+    const email = document.getElementById('userEmail')?.value.trim() || '';
+    const domain = document.getElementById('userDomain')?.value.trim() || '';
+    const firstName = document.getElementById('userFirstName')?.value.trim() || '';
+    const lastName = document.getElementById('userLastName')?.value.trim() || '';
+    const phone = document.getElementById('userPhone')?.value.trim() || '';
+    
+    // Build exclusion arrays
+    const excludeDomains = [];
+    const excludeNames = [];
+    const excludePhones = [];
+    
+    // Add domain (clean it first)
+    if (domain) {
+      const cleanDomain = domain.replace(/^@/, '').toLowerCase();
+      excludeDomains.push(cleanDomain);
+    }
+    
+    // Add full name if both provided
+    if (firstName && lastName) {
+      excludeNames.push(`${firstName} ${lastName}`);
+    }
+    
+    // Add phone if provided
+    if (phone) {
+      excludePhones.push(phone);
+    }
+    
+    // Save to storage
+    await chrome.storage.sync.set({
+      excludeDomains,
+      excludeNames,
+      excludePhones,
+      userEmail: email // Save user's email separately
+    });
+    
+    await chrome.storage.local.set({
+      excludeDomains,
+      excludeNames,
+      excludePhones,
+      userEmail: email
+    });
+    
+    console.log('✅ Exclusions saved:', { excludeDomains, excludeNames, excludePhones, email });
+  } catch (error) {
+    console.error('Error saving exclusions:', error);
   }
 }
 

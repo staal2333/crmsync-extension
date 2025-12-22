@@ -262,6 +262,14 @@ class IntegrationManager {
       this.statusCache.salesforce = salesforceData;
       this.updateIntegrationUI('salesforce', salesforceData.connected, salesforceData);
       
+      // Load CRM contacts for connected platforms
+      if (hubspotData.connected) {
+        await this.loadCRMContacts('hubspot');
+      }
+      if (salesforceData.connected) {
+        await this.loadCRMContacts('salesforce');
+      }
+      
       this.statusCache.lastChecked = new Date();
       console.log('✅ Integration status updated');
     } catch (error) {
@@ -568,6 +576,9 @@ class IntegrationManager {
       // Refresh status to update last sync time
       await this.checkIntegrationStatus();
       
+      // Load and display CRM contacts
+      await this.loadCRMContacts(platform);
+      
       // Refresh contact list to show badges
       if (window.loadContacts) {
         window.loadContacts();
@@ -842,6 +853,112 @@ class IntegrationManager {
   // Get last sync time for a platform
   getLastSync(platform) {
     return this.statusCache[platform]?.lastSync || null;
+  }
+  
+  // Load and display CRM contacts for a specific platform
+  async loadCRMContacts(platform) {
+    try {
+      console.log(`📋 Loading CRM contacts for ${platform}...`);
+      
+      // Get all contacts from storage
+      const { contacts } = await chrome.storage.local.get(['contacts']);
+      if (!contacts || contacts.length === 0) {
+        console.log('No contacts found in storage');
+        return;
+      }
+      
+      // Filter contacts that have CRM mappings for this platform
+      const crmContacts = contacts.filter(contact => {
+        return contact.crmMappings && contact.crmMappings[platform];
+      });
+      
+      console.log(`Found ${crmContacts.length} contacts from ${platform}`);
+      
+      // Get UI elements
+      const contactsSection = document.getElementById(`${platform}-contacts-section`);
+      const contactsList = document.getElementById(`${platform}-contacts-list`);
+      const contactsCount = document.getElementById(`${platform}-contacts-count`);
+      
+      if (!contactsSection || !contactsList) {
+        console.warn('CRM contacts UI elements not found');
+        return;
+      }
+      
+      // Update count
+      if (contactsCount) {
+        contactsCount.textContent = `${crmContacts.length} contact${crmContacts.length !== 1 ? 's' : ''}`;
+      }
+      
+      // Show/hide section based on contacts
+      if (crmContacts.length === 0) {
+        contactsSection.classList.add('hidden');
+        return;
+      }
+      
+      contactsSection.classList.remove('hidden');
+      
+      // Clear existing list
+      contactsList.innerHTML = '';
+      
+      // Sort contacts by name
+      const sortedContacts = crmContacts.sort((a, b) => {
+        const nameA = `${a.firstName || ''} ${a.lastName || ''}`.trim() || a.email;
+        const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim() || b.email;
+        return nameA.localeCompare(nameB);
+      });
+      
+      // Render contacts
+      sortedContacts.forEach(contact => {
+        const contactItem = document.createElement('div');
+        contactItem.className = 'crm-contact-item';
+        
+        // Get initials for avatar
+        const firstName = contact.firstName || '';
+        const lastName = contact.lastName || '';
+        const initials = firstName && lastName 
+          ? `${firstName[0]}${lastName[0]}`.toUpperCase()
+          : firstName 
+            ? firstName[0].toUpperCase()
+            : contact.email 
+              ? contact.email[0].toUpperCase()
+              : '?';
+        
+        const fullName = `${firstName} ${lastName}`.trim() || 'No Name';
+        
+        contactItem.innerHTML = `
+          <div class="crm-contact-avatar">${initials}</div>
+          <div class="crm-contact-info">
+            <div class="crm-contact-name">${fullName}</div>
+            <div class="crm-contact-email">${contact.email || 'No email'}</div>
+          </div>
+          <span class="crm-contact-badge ${platform}">${platform}</span>
+        `;
+        
+        // Click to view contact details (switch to All Contacts tab and filter)
+        contactItem.addEventListener('click', () => {
+          // Switch to All Contacts tab
+          const allContactsTab = document.querySelector('[data-tab="contacts"]');
+          if (allContactsTab) {
+            allContactsTab.click();
+          }
+          
+          // Filter to show this contact
+          setTimeout(() => {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+              searchInput.value = contact.email;
+              searchInput.dispatchEvent(new Event('input'));
+            }
+          }, 100);
+        });
+        
+        contactsList.appendChild(contactItem);
+      });
+      
+      console.log(`✅ Rendered ${crmContacts.length} CRM contacts for ${platform}`);
+    } catch (error) {
+      console.error(`❌ Failed to load CRM contacts for ${platform}:`, error);
+    }
   }
 }
 

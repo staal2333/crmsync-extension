@@ -27,7 +27,7 @@ async function getSalesforceIntegration(userId) {
 // Step 1: Initiate OAuth flow
 exports.salesforceConnect = (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     // Encode userId in state for callback
     const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
@@ -36,6 +36,7 @@ exports.salesforceConnect = (req, res) => {
       `response_type=code` +
       `&client_id=${process.env.SALESFORCE_CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(process.env.SALESFORCE_REDIRECT_URI)}` +
+      `&scope=api refresh_token offline_access` +
       `&state=${state}`;
     
     console.log('🔴 Starting Salesforce OAuth for user:', userId);
@@ -188,7 +189,7 @@ exports.salesforceCallback = async (req, res) => {
 // Sync single contact to Salesforce
 exports.salesforceSyncContact = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { contact, objectType = 'Lead' } = req.body; // 'Lead' or 'Contact'
     
     if (!contact || !contact.email) {
@@ -294,7 +295,7 @@ exports.salesforceSyncContact = async (req, res) => {
     if (req.body.contact?.id) {
       await db.query(
         'INSERT INTO crm_sync_logs (user_id, contact_id, platform, action, status, error_message) VALUES ($1, $2, $3, $4, $5, $6)',
-        [req.user.id, req.body.contact.id, 'salesforce', 'create', 'error', error.message]
+        [req.user.userId, req.body.contact.id, 'salesforce', 'create', 'error', error.message]
       );
     }
     
@@ -307,7 +308,7 @@ exports.salesforceSyncContact = async (req, res) => {
 // Sync ALL contacts from Salesforce (pull and create mappings)
 exports.salesforceSyncAll = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { objectTypes = ['Contact', 'Lead'] } = req.body; // Sync both Contacts and Leads by default
     
     console.log('🔴 Starting full Salesforce sync for user:', userId);
@@ -405,7 +406,7 @@ exports.salesforceSyncAll = async (req, res) => {
     // Log error
     await db.query(
       'INSERT INTO crm_sync_logs (user_id, platform, action, status, error_message) VALUES ($1, $2, $3, $4, $5)',
-      [req.user.id, 'salesforce', 'sync_all', 'error', error.message]
+      [req.user.userId, 'salesforce', 'sync_all', 'error', error.message]
     );
     
     res.status(500).json({ 
@@ -421,7 +422,7 @@ exports.salesforceSyncAll = async (req, res) => {
 // Get Salesforce connection status
 exports.salesforceStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const integration = await db.query(
       'SELECT is_active, instance_url, created_at, updated_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
@@ -460,7 +461,7 @@ exports.salesforceStatus = async (req, res) => {
 // Disconnect Salesforce integration
 exports.salesforceDisconnect = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     await db.query(
       'UPDATE crm_integrations SET is_active = false, updated_at = NOW() WHERE user_id = $1 AND platform = $2',

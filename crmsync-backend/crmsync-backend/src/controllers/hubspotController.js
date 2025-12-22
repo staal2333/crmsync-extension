@@ -73,7 +73,7 @@ async function getValidAccessToken(userId, integration) {
 // Step 1: Initiate OAuth flow
 exports.hubspotConnect = (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     // Encode userId in state for callback
     const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
@@ -236,7 +236,7 @@ exports.hubspotCallback = async (req, res) => {
 // Sync single contact to HubSpot
 exports.hubspotSyncContact = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const { contact } = req.body;
     
     if (!contact || !contact.email) {
@@ -352,7 +352,7 @@ exports.hubspotSyncContact = async (req, res) => {
     if (req.body.contact?.id) {
       await db.query(
         'INSERT INTO crm_sync_logs (user_id, contact_id, platform, action, status, error_message) VALUES ($1, $2, $3, $4, $5, $6)',
-        [req.user.id, req.body.contact.id, 'hubspot', 'create', 'error', error.message]
+        [req.user.userId, req.body.contact.id, 'hubspot', 'create', 'error', error.message]
       );
     }
     
@@ -365,7 +365,7 @@ exports.hubspotSyncContact = async (req, res) => {
 // Sync ALL contacts from HubSpot (pull and create mappings)
 exports.hubspotSyncAll = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     console.log('🔵 Starting full HubSpot sync for user:', userId);
     
@@ -458,7 +458,7 @@ exports.hubspotSyncAll = async (req, res) => {
     // Log error
     await db.query(
       'INSERT INTO crm_sync_logs (user_id, platform, action, status, error_message) VALUES ($1, $2, $3, $4, $5)',
-      [req.user.id, 'hubspot', 'sync_all', 'error', error.message]
+      [req.user.userId, 'hubspot', 'sync_all', 'error', error.message]
     );
     
     res.status(500).json({ 
@@ -474,7 +474,7 @@ exports.hubspotSyncAll = async (req, res) => {
 // Get HubSpot connection status
 exports.hubspotStatus = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     const integration = await db.query(
       'SELECT is_active, portal_id, created_at, updated_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
@@ -513,7 +513,7 @@ exports.hubspotStatus = async (req, res) => {
 // Disconnect HubSpot integration
 exports.hubspotDisconnect = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     
     await db.query(
       'UPDATE crm_integrations SET is_active = false, updated_at = NOW() WHERE user_id = $1 AND platform = $2',

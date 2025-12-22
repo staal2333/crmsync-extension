@@ -410,28 +410,60 @@ exports.hubspotSyncAll = async (req, res) => {
       }
     });
     
-    // Match CRM contacts with our contacts and create mappings
+    // Match CRM contacts with our contacts and create/update them
     let mappedCount = 0;
+    let importedCount = 0;
     
     for (const crmContact of allCrmContacts) {
       const email = crmContact.properties.email;
       if (!email) continue;
       
-      const ourContactId = contactEmailMap.get(email.toLowerCase());
-      if (ourContactId) {
-        // Create mapping
-        await db.query(`
-          INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, sync_direction, last_synced)
-          VALUES ($1, $2, 'hubspot', $3, 'pull', NOW())
-          ON CONFLICT (user_id, contact_id, platform) 
-          DO UPDATE SET 
-            crm_contact_id = $3,
-            sync_direction = 'pull',
-            last_synced = NOW()
-        `, [userId, ourContactId, crmContact.id]);
-        
-        mappedCount++;
+      let ourContactId = contactEmailMap.get(email.toLowerCase());
+      
+      // If contact doesn't exist in our database, create it
+      if (!ourContactId) {
+        try {
+          const insertResult = await db.query(`
+            INSERT INTO contacts (
+              user_id, 
+              email, 
+              first_name, 
+              last_name,
+              source,
+              created_at,
+              updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+            RETURNING id
+          `, [
+            userId, 
+            email,
+            crmContact.properties.firstname || '',
+            crmContact.properties.lastname || '',
+            'hubspot'
+          ]);
+          
+          ourContactId = insertResult.rows[0].id;
+          importedCount++;
+          console.log(`📥 Imported contact: ${email}`);
+        } catch (error) {
+          console.error(`❌ Failed to import contact ${email}:`, error.message);
+          continue;
+        }
       }
+      
+      // Create mapping
+      await db.query(`
+        INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, sync_direction, last_synced)
+        VALUES ($1, $2, 'hubspot', $3, 'pull', NOW())
+        ON CONFLICT (user_id, contact_id, platform) 
+        DO UPDATE SET 
+          crm_contact_id = $3,
+          sync_direction = 'pull',
+          last_synced = NOW()
+      `, [userId, ourContactId, crmContact.id]);
+      
+      mappedCount++;
     }
     
     // Log sync operation
@@ -439,17 +471,19 @@ exports.hubspotSyncAll = async (req, res) => {
       'INSERT INTO crm_sync_logs (user_id, platform, action, status, metadata) VALUES ($1, $2, $3, $4, $5)',
       [userId, 'hubspot', 'sync_all', 'success', JSON.stringify({ 
         total_crm_contacts: allCrmContacts.length,
+        imported_contacts: importedCount,
         mapped_contacts: mappedCount 
       })]
     );
     
-    console.log(`✅ Sync complete: Mapped ${mappedCount} contacts out of ${allCrmContacts.length} HubSpot contacts`);
+    console.log(`✅ Sync complete: Imported ${importedCount} new contacts, mapped ${mappedCount} total contacts from ${allCrmContacts.length} HubSpot contacts`);
     
     res.json({ 
       success: true,
       totalCrmContacts: allCrmContacts.length,
+      importedContacts: importedCount,
       mappedContacts: mappedCount,
-      message: `Successfully synced ${mappedCount} contacts from HubSpot`
+      message: `Successfully imported ${importedCount} contacts and synced ${mappedCount} total contacts from HubSpot`
     });
   } catch (error) {
     console.error('❌ HubSpot sync all error:', error.response?.data || error.message);

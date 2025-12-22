@@ -402,13 +402,12 @@ exports.salesforceSyncAll = async (req, res) => {
       
       // Create mapping
       await db.query(`
-        INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, crm_record_type, sync_direction, last_synced)
-        VALUES ($1, $2, 'salesforce', $3, $4, 'pull', NOW())
+        INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, crm_record_type, last_synced)
+        VALUES ($1, $2, 'salesforce', $3, $4, NOW())
         ON CONFLICT (user_id, contact_id, platform) 
         DO UPDATE SET 
           crm_contact_id = $3,
           crm_record_type = $4,
-          sync_direction = 'pull',
           last_synced = NOW()
       `, [userId, ourContactId, crmContact.Id, crmContact.objectType]);
       

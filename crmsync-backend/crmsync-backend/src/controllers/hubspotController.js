@@ -458,12 +458,11 @@ exports.hubspotSyncAll = async (req, res) => {
       
       // Create mapping
       await db.query(`
-        INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, sync_direction, last_synced)
-        VALUES ($1, $2, 'hubspot', $3, 'pull', NOW())
+        INSERT INTO crm_contact_mappings (user_id, contact_id, platform, crm_contact_id, last_synced)
+        VALUES ($1, $2, 'hubspot', $3, NOW())
         ON CONFLICT (user_id, contact_id, platform) 
         DO UPDATE SET 
           crm_contact_id = $3,
-          sync_direction = 'pull',
           last_synced = NOW()
       `, [userId, ourContactId, crmContact.id]);
       

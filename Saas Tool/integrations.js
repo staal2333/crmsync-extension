@@ -24,10 +24,30 @@ class IntegrationManager {
     
     try {
       await this.checkIntegrationStatus();
+      await this.loadAutoSyncSetting();
       this.setupEventListeners();
       console.log('✅ Integrations initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize integrations:', error);
+    }
+  }
+  
+  async loadAutoSyncSetting() {
+    try {
+      const settings = await chrome.storage.sync.get(['autoSyncEnabled']);
+      const autoSyncToggle = document.getElementById('autoSyncEnabled');
+      if (autoSyncToggle) {
+        autoSyncToggle.checked = settings.autoSyncEnabled || false;
+        autoSyncToggle.addEventListener('change', (e) => {
+          chrome.storage.sync.set({ autoSyncEnabled: e.target.checked });
+          this.showNotification(
+            e.target.checked ? 'Auto-sync enabled' : 'Auto-sync disabled',
+            'success'
+          );
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to load auto-sync setting:', error);
     }
   }
   
@@ -249,54 +269,75 @@ class IntegrationManager {
   
   updateIntegrationUI(platform, connected, data = {}) {
     const statusEl = document.getElementById(`${platform}-status`);
+    const accountEl = document.getElementById(`${platform}-account`);
     const connectBtn = document.getElementById(`${platform}-connect-btn`);
     const disconnectBtn = document.getElementById(`${platform}-disconnect-btn`);
     const syncBtn = document.getElementById(`${platform}-sync-all-btn`);
+    const statsContainer = document.getElementById(`${platform}-stats`);
     const lastSyncEl = document.getElementById(`${platform}-last-sync`);
     const countEl = document.getElementById(`${platform}-count`);
+    const syncStatusEl = document.getElementById(`${platform}-sync-status`);
     
     if (connected) {
       // Connected state
       if (statusEl) {
         statusEl.innerHTML = '<span style="color: #10B981;">✓ Connected</span>';
       }
+      
+      // Show account info
+      if (accountEl && data.accountName) {
+        accountEl.textContent = data.accountName;
+        accountEl.style.display = 'block';
+      }
+      
       if (connectBtn) connectBtn.classList.add('hidden');
       if (disconnectBtn) disconnectBtn.classList.remove('hidden');
       if (syncBtn) syncBtn.classList.remove('hidden');
+      if (statsContainer) statsContainer.classList.remove('hidden');
       
-      // Show last sync time
-      if (lastSyncEl && data.lastSync) {
-        const lastSyncDate = new Date(data.lastSync);
-        const now = new Date();
-        const diffMs = now - lastSyncDate;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        
-        let timeAgo;
-        if (diffMins < 1) timeAgo = 'just now';
-        else if (diffMins < 60) timeAgo = `${diffMins}m ago`;
-        else if (diffHours < 24) timeAgo = `${diffHours}h ago`;
-        else timeAgo = lastSyncDate.toLocaleDateString();
-        
-        lastSyncEl.textContent = `Last synced: ${timeAgo}`;
-        lastSyncEl.classList.remove('hidden');
+      // Update last sync time
+      if (lastSyncEl) {
+        if (data.lastSync) {
+          const lastSyncDate = new Date(data.lastSync);
+          const now = new Date();
+          const diffMs = now - lastSyncDate;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+          
+          let timeAgo;
+          if (diffMins < 1) timeAgo = 'Just now';
+          else if (diffMins < 60) timeAgo = `${diffMins}m ago`;
+          else if (diffHours < 24) timeAgo = `${diffHours}h ago`;
+          else if (diffDays < 7) timeAgo = `${diffDays}d ago`;
+          else timeAgo = lastSyncDate.toLocaleDateString();
+          
+          lastSyncEl.textContent = timeAgo;
+        } else {
+          lastSyncEl.textContent = 'Never';
+        }
       }
       
-      // Show contact count
-      if (countEl && typeof data.syncedContactsCount !== 'undefined') {
-        countEl.textContent = `${data.syncedContactsCount} contacts synced`;
-        countEl.classList.remove('hidden');
+      // Update contact count
+      if (countEl) {
+        const count = data.syncedContactsCount || 0;
+        countEl.textContent = count.toLocaleString();
+      }
+      
+      // Update sync status
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-idle">Idle</span>';
       }
     } else {
       // Disconnected state
       if (statusEl) {
         statusEl.innerHTML = '<span style="color: #6B7280;">Not connected</span>';
       }
+      if (accountEl) accountEl.style.display = 'none';
       if (connectBtn) connectBtn.classList.remove('hidden');
       if (disconnectBtn) disconnectBtn.classList.add('hidden');
       if (syncBtn) syncBtn.classList.add('hidden');
-      if (lastSyncEl) lastSyncEl.classList.add('hidden');
-      if (countEl) countEl.classList.add('hidden');
+      if (statsContainer) statsContainer.classList.add('hidden');
     }
   }
   
@@ -364,17 +405,47 @@ class IntegrationManager {
     try {
       console.log(`🔄 Syncing all contacts from ${platform}...`);
       
-      // Show loading state
+      // Get UI elements
       const syncBtn = document.getElementById(`${platform}-sync-all-btn`);
+      const progressContainer = document.getElementById(`${platform}-progress`);
+      const progressFill = document.getElementById(`${platform}-progress-fill`);
+      const progressText = document.getElementById(`${platform}-progress-text`);
+      const syncStatusEl = document.getElementById(`${platform}-sync-status`);
+      
+      // Show loading state
       const originalText = syncBtn ? syncBtn.textContent : '';
       if (syncBtn) {
         syncBtn.disabled = true;
         syncBtn.textContent = '🔄 Syncing...';
       }
       
+      // Show progress bar
+      if (progressContainer) {
+        progressContainer.classList.remove('hidden');
+      }
+      if (progressFill) {
+        progressFill.style.width = '20%';
+      }
+      if (progressText) {
+        progressText.textContent = 'Connecting to CRM...';
+      }
+      
+      // Update status badge
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-syncing">Syncing</span>';
+      }
+      
       const token = await window.CRMSyncAuth.getAuthToken();
       if (!token) {
         throw new Error('Not authenticated');
+      }
+      
+      // Update progress
+      if (progressFill) {
+        progressFill.style.width = '40%';
+      }
+      if (progressText) {
+        progressText.textContent = 'Fetching contacts...';
       }
       
       const response = await fetch(`${this.apiUrl}/${platform}/sync-all`, {
@@ -390,7 +461,23 @@ class IntegrationManager {
         throw new Error(error.error || 'Sync failed');
       }
       
+      // Update progress
+      if (progressFill) {
+        progressFill.style.width = '70%';
+      }
+      if (progressText) {
+        progressText.textContent = 'Mapping contacts...';
+      }
+      
       const result = await response.json();
+      
+      // Complete progress
+      if (progressFill) {
+        progressFill.style.width = '100%';
+      }
+      if (progressText) {
+        progressText.textContent = `✓ Synced ${result.mappedContacts} contacts!`;
+      }
       
       // Show success notification
       this.showNotification(
@@ -399,6 +486,24 @@ class IntegrationManager {
       );
       
       console.log(`✅ All contacts synced from ${platform}:`, result);
+      
+      // Update status badge
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-success">Success</span>';
+      }
+      
+      // Wait a moment before hiding progress
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Hide progress bar
+      if (progressContainer) {
+        progressContainer.classList.add('hidden');
+      }
+      
+      // Reset status badge
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-idle">Idle</span>';
+      }
       
       // Refresh status to update last sync time
       await this.checkIntegrationStatus();
@@ -416,6 +521,30 @@ class IntegrationManager {
     } catch (error) {
       console.error(`❌ Failed to sync all from ${platform}:`, error);
       this.showNotification(`Sync failed: ${error.message}`, 'error');
+      
+      // Show error state
+      const progressContainer = document.getElementById(`${platform}-progress`);
+      const progressText = document.getElementById(`${platform}-progress-text`);
+      const syncStatusEl = document.getElementById(`${platform}-sync-status`);
+      
+      if (progressText) {
+        progressText.textContent = `❌ ${error.message}`;
+      }
+      
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-error">Error</span>';
+      }
+      
+      // Wait before hiding
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      if (progressContainer) {
+        progressContainer.classList.add('hidden');
+      }
+      
+      if (syncStatusEl) {
+        syncStatusEl.innerHTML = '<span class="status-badge status-idle">Idle</span>';
+      }
       
       // Restore button state
       const syncBtn = document.getElementById(`${platform}-sync-all-btn`);

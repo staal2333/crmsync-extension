@@ -688,7 +688,7 @@ async function saveContact(contact) {
     }
 
     // Add new contact
-    contacts.push({
+    const newContact = {
       ...contact,
       email: normalizedEmail, // Ensure normalized email
       status: contact.status || 'approved', // Default to approved when saving
@@ -702,10 +702,127 @@ async function saveContact(contact) {
       messages: contact.messages || [],
       tags: contact.tags || []
     });
+    contacts.push(newContact);
+    
+    // Save contacts to storage
+    await chrome.storage.local.set({ contacts });
+    
+    // Check if auto-sync is enabled
+    const settings = await chrome.storage.sync.get(['autoSyncEnabled']);
+    if (settings.autoSyncEnabled) {
+      console.log('🔄 Auto-sync enabled, checking CRM integrations...');
+      autoSyncContact(newContact);
+    }
   }
   
-  await chrome.storage.local.set({ contacts });
+  // If contact already existed, just save
+  if (!contacts.includes(contact)) {
+    await chrome.storage.local.set({ contacts });
+  }
 }
+
+/**
+ * Auto-sync a contact to connected CRMs
+ * @param {CrmContact} contact 
+ */
+async function autoSyncContact(contact) {
+  try {
+    // Get auth token
+    const authData = await chrome.storage.local.get(['authToken']);
+    if (!authData.authToken) {
+      console.log('⚠️ No auth token, skipping auto-sync');
+      return;
+    }
+    
+    const apiUrl = 'https://crmsync-api.onrender.com/api/integrations';
+    
+    // Check which CRMs are connected
+    const [hubspotStatus, salesforceStatus] = await Promise.all([
+      fetch(`${apiUrl}/hubspot/status`, {
+        headers: { 'Authorization': `Bearer ${authData.authToken}` }
+      }).then(r => r.json()).catch(() => ({ connected: false })),
+      fetch(`${apiUrl}/salesforce/status`, {
+        headers: { 'Authorization': `Bearer ${authData.authToken}` }
+      }).then(r => r.json()).catch(() => ({ connected: false }))
+    ]);
+    
+    // Prepare contact data
+    const contactData = {
+      id: contact.id,
+      email: contact.email,
+      name: contact.name || `${contact.first_name || ''} ${contact.last_name || ''}`.trim(),
+      firstName: contact.first_name,
+      lastName: contact.last_name,
+      company: contact.company,
+      title: contact.title,
+      phone: contact.phone
+    };
+    
+    // Sync to connected CRMs
+    const syncPromises = [];
+    
+    if (hubspotStatus.connected) {
+      console.log('🔄 Auto-syncing to HubSpot...');
+      syncPromises.push(
+        fetch(`${apiUrl}/hubspot/sync-contact`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authData.authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ contact: contactData })
+        }).then(r => r.json())
+          .then(result => {
+            console.log('✅ Auto-synced to HubSpot:', result);
+            return { platform: 'HubSpot', success: true, result };
+          })
+          .catch(error => {
+            console.error('❌ Failed to auto-sync to HubSpot:', error);
+            return { platform: 'HubSpot', success: false, error };
+          })
+      );
+    }
+    
+    if (salesforceStatus.connected) {
+      console.log('🔄 Auto-syncing to Salesforce...');
+      syncPromises.push(
+        fetch(`${apiUrl}/salesforce/sync-contact`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authData.authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ contact: contactData })
+        }).then(r => r.json())
+          .then(result => {
+            console.log('✅ Auto-synced to Salesforce:', result);
+            return { platform: 'Salesforce', success: true, result };
+          })
+          .catch(error => {
+            console.error('❌ Failed to auto-sync to Salesforce:', error);
+            return { platform: 'Salesforce', success: false, error };
+          })
+      );
+    }
+    
+    if (syncPromises.length > 0) {
+      const results = await Promise.all(syncPromises);
+      const successful = results.filter(r => r.success);
+      
+      if (successful.length > 0) {
+        // Show notification
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: '✓ Contact Auto-Synced',
+          message: `${contact.name || contact.email} synced to ${successful.map(r => r.platform).join(', ')}`,
+          priority: 1
+        });
+      }
+    }
+  } catch (error) {
+    console.error('❌ Auto-sync error:', error);
+  }
 
 /**
  * Legacy updateContact used by older content flows.

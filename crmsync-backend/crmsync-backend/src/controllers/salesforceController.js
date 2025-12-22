@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const db = require('../config/database');
 
 // =====================================================
@@ -29,14 +30,24 @@ exports.salesforceConnect = (req, res) => {
   try {
     const userId = req.user.userId;
     
-    // Encode userId in state for callback
-    const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
+    // Generate PKCE code verifier and challenge
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+    
+    // Encode userId and codeVerifier in state for callback
+    const state = Buffer.from(JSON.stringify({ 
+      userId, 
+      codeVerifier,
+      timestamp: Date.now() 
+    })).toString('base64');
     
     const authUrl = `${process.env.SALESFORCE_LOGIN_URL}/services/oauth2/authorize?` +
       `response_type=code` +
       `&client_id=${process.env.SALESFORCE_CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(process.env.SALESFORCE_REDIRECT_URI)}` +
       `&scope=api refresh_token offline_access` +
+      `&code_challenge=${codeChallenge}` +
+      `&code_challenge_method=S256` +
       `&state=${state}`;
     
     console.log('🔴 Starting Salesforce OAuth for user:', userId);
@@ -56,12 +67,12 @@ exports.salesforceCallback = async (req, res) => {
       throw new Error('Missing code or state parameter');
     }
     
-    // Decode state to get userId
-    const { userId } = JSON.parse(Buffer.from(state, 'base64').toString());
+    // Decode state to get userId and codeVerifier
+    const { userId, codeVerifier } = JSON.parse(Buffer.from(state, 'base64').toString());
     
     console.log('🔴 Salesforce OAuth callback for user:', userId);
     
-    // Exchange authorization code for tokens
+    // Exchange authorization code for tokens (with PKCE)
     const tokenResponse = await axios.post(
       `${process.env.SALESFORCE_LOGIN_URL}/services/oauth2/token`,
       new URLSearchParams({
@@ -69,7 +80,8 @@ exports.salesforceCallback = async (req, res) => {
         client_id: process.env.SALESFORCE_CLIENT_ID,
         client_secret: process.env.SALESFORCE_CLIENT_SECRET,
         redirect_uri: process.env.SALESFORCE_REDIRECT_URI,
-        code: code
+        code: code,
+        code_verifier: codeVerifier
       }),
       {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }

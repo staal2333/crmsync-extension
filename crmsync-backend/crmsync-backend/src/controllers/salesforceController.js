@@ -110,6 +110,7 @@ exports.salesforceCallback = async (req, res) => {
       <html>
         <head>
           <title>Salesforce Connected</title>
+          <meta http-equiv="refresh" content="2;url=javascript:window.close()">
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -136,13 +137,11 @@ exports.salesforceCallback = async (req, res) => {
         <body>
           <div class="container">
             <h1>✓ Salesforce Connected!</h1>
-            <p>You can close this window now.</p>
+            <p>Closing window... You can close this manually if it doesn't close automatically.</p>
           </div>
-          <script>
-            // Notify parent window
-            if (window.opener) {
-              window.opener.postMessage({ type: 'SALESFORCE_CONNECTED', success: true }, '*');
-            }
+        </body>
+      </html>
+    `);
             // Auto-close after 2 seconds
             setTimeout(() => window.close(), 2000);
           </script>

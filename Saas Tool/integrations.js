@@ -111,6 +111,16 @@ class IntegrationManager {
       }
       
       console.log(`✅ OAuth window opened for ${platform}`);
+      
+      // Poll for connection status while window is open
+      const pollInterval = setInterval(async () => {
+        // Check if window is closed
+        if (authWindow.closed) {
+          clearInterval(pollInterval);
+          console.log(`🔍 OAuth window closed, checking ${platform} connection status...`);
+          await this.handleConnectionSuccess(platform);
+        }
+      }, 1000); // Check every second
     } catch (error) {
       console.error(`❌ Failed to connect ${platform}:`, error);
       this.showNotification(`Failed to connect ${platform}`, 'error');
@@ -155,16 +165,52 @@ class IntegrationManager {
   }
   
   async handleConnectionSuccess(platform) {
-    console.log(`✅ ${platform} connected successfully!`);
-    this.showNotification(`${platform} connected successfully!`, 'success');
+    console.log(`✅ ${platform} connection callback received`);
     
-    // Update UI
-    await this.checkIntegrationStatus();
+    // Poll for connection status (since postMessage doesn't work with CSP)
+    let attempts = 0;
+    const maxAttempts = 10;
     
-    // Trigger initial sync
-    setTimeout(() => {
-      this.syncAllContacts(platform);
-    }, 1000);
+    const checkStatus = async () => {
+      attempts++;
+      console.log(`🔍 Checking ${platform} status (attempt ${attempts})...`);
+      
+      try {
+        await this.checkIntegrationStatus();
+        
+        // Check if connected
+        if (this.statusCache[platform]?.connected) {
+          this.showNotification(`${platform} connected successfully!`, 'success');
+          
+          // Refresh contact list to show badges
+          if (window.loadContacts) {
+            window.loadContacts();
+          }
+          
+          // Trigger initial sync
+          setTimeout(() => {
+            this.syncAllContacts(platform);
+          }, 1000);
+          
+          return true;
+        }
+        
+        // Try again if not connected yet and haven't exceeded max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 2000); // Check every 2 seconds
+        } else {
+          this.showNotification(`${platform} connection may have succeeded, please reload the extension`, 'info');
+        }
+      } catch (error) {
+        console.error(`❌ Error checking ${platform} status:`, error);
+        if (attempts < maxAttempts) {
+          setTimeout(checkStatus, 2000);
+        }
+      }
+    };
+    
+    // Start checking after a short delay
+    setTimeout(checkStatus, 1000);
   }
   
   // =====================================================

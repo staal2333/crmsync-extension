@@ -147,6 +147,7 @@ exports.hubspotCallback = async (req, res) => {
       <html>
         <head>
           <title>HubSpot Connected</title>
+          <meta http-equiv="refresh" content="2;url=javascript:window.close()">
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -173,16 +174,8 @@ exports.hubspotCallback = async (req, res) => {
         <body>
           <div class="container">
             <h1>✓ HubSpot Connected!</h1>
-            <p>You can close this window now.</p>
+            <p>Closing window... You can close this manually if it doesn't close automatically.</p>
           </div>
-          <script>
-            // Notify parent window
-            if (window.opener) {
-              window.opener.postMessage({ type: 'HUBSPOT_CONNECTED', success: true }, '*');
-            }
-            // Auto-close after 2 seconds
-            setTimeout(() => window.close(), 2000);
-          </script>
         </body>
       </html>
     `);

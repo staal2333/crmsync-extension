@@ -135,6 +135,31 @@ setTimeout(() => {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
   
+  // PRIORITY 0: Check if this is a first-time user BEFORE any UI setup
+  const { isAuthenticated, isGuest, hasSeenWelcome } = await chrome.storage.local.get([
+    'isAuthenticated',
+    'isGuest',
+    'hasSeenWelcome'
+  ]);
+  
+  console.log('🔍 First-time check:', { isAuthenticated, isGuest, hasSeenWelcome });
+  
+  if (!isAuthenticated && !isGuest && !hasSeenWelcome) {
+    console.log('🎉 FIRST TIME USER! Opening onboarding immediately...');
+    
+    // Open onboarding in a new tab
+    chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') }, (tab) => {
+      console.log('✅ Onboarding tab opened:', tab.id);
+    });
+    
+    // Show welcome banner in popup
+    showFirstTimeUserPrompt();
+    
+    // Don't continue with normal initialization
+    console.log('⏸️ Stopping normal popup init - onboarding will handle setup');
+    return;
+  }
+  
   // CRITICAL: Set up core UI immediately (non-blocking)
   console.log('🚀 Setting up core UI immediately...');
   setupTabs();
@@ -159,14 +184,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // Check authentication status (with timeout)
       console.log('2️⃣ Checking auth status...');
-      Promise.race([
+      const shouldContinue = await Promise.race([
         checkAuthStatus(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 500))
-      ]).then(() => {
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 2000))
+      ]).then((result) => {
         console.log('✓ Auth check complete');
+        return result !== false; // If checkAuthStatus returns false, stop initialization
       }).catch(err => {
         console.error('⚠️ Auth check failed or timed out:', err.message);
+        return true; // Continue on timeout
       });
+      
+      // If first-time user, onboarding will open - don't continue normal init
+      if (shouldContinue === false) {
+        console.log('⏸️ Pausing init - onboarding will handle setup');
+        return;
+      }
       
       // Update left header button based on auth status (force fresh check)
       console.log('3️⃣ Updating left header button...');
@@ -382,6 +415,10 @@ async function checkAuthStatus() {
       'hasSeenWelcome'
     ]);
     
+    console.log('🔍 Auth Status Check:', { isAuthenticated, isGuest, hasSeenWelcome });
+    
+    // First time user: no auth, not guest, hasn't seen welcome
+    // Note: undefined values are falsy, so this catches fresh installs too
     if (!isAuthenticated && !isGuest && !hasSeenWelcome) {
       // First time user - open full onboarding experience
       console.log('🎉 First time user detected! Opening onboarding...');
@@ -389,7 +426,9 @@ async function checkAuthStatus() {
       
       // Show simplified banner while they complete onboarding
       showFirstTimeUserPrompt();
-      return;
+      
+      // Return false to signal we should pause normal initialization
+      return false;
     }
     
     if (isGuest) {

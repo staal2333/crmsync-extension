@@ -1901,6 +1901,7 @@ function applyFiltersAndRender() {
   const searchTerm = (document.getElementById('contactSearchInput')?.value || '').toLowerCase();
   const statusFilter = document.getElementById('statusFilter')?.value || '';
   const crmFilter = document.getElementById('crmFilter')?.value || '';
+  const sourceFilter = document.getElementById('sourceFilter')?.value || ''; // NEW
   
   // Filter contacts
   filteredContacts = allContactsData.filter(contact => {
@@ -1914,7 +1915,14 @@ function applyFiltersAndRender() {
     // Status filter
     const matchesStatus = !statusFilter || contact.status === statusFilter;
     
-    // CRM filter (NEW)
+    // Source filter (NEW - Unified Contact Management)
+    let matchesSource = true;
+    if (sourceFilter) {
+      const contactSource = contact.source || (contact.crmMappings && Object.keys(contact.crmMappings).length > 0 ? 'crm' : 'local');
+      matchesSource = contactSource === sourceFilter;
+    }
+    
+    // CRM filter (legacy - for backward compatibility)
     let matchesCRM = true;
     if (crmFilter) {
       const inHubSpot = contact.crmMappings?.hubspot || false;
@@ -1938,7 +1946,7 @@ function applyFiltersAndRender() {
       }
     }
     
-    return matchesSearch && matchesStatus && matchesCRM;
+    return matchesSearch && matchesStatus && matchesSource && matchesCRM;
   });
   
   // Apply sorting
@@ -2064,13 +2072,27 @@ function renderContactsTable() {
     const fullName = getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown';
     const isChecked = window.bulkSelectedContacts && window.bulkSelectedContacts.has(contact.email);
     
+    // Determine source (NEW - Unified Contact Management)
+    const contactSource = contact.source || (contact.crmMappings && Object.keys(contact.crmMappings).length > 0 ? 'crm' : 'local');
+    let sourceBadge = '';
+    if (contactSource === 'local') {
+      sourceBadge = '<span style="background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px;" title="App Layer - Not synced to CRM">📥 LOCAL</span>';
+    } else if (contactSource === 'hybrid') {
+      sourceBadge = '<span style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px; cursor: pointer;" class="hybrid-badge" data-email="' + (contact.email || '') + '" title="Click to review changes">🔄 UPDATE</span>';
+    } else if (contactSource === 'crm') {
+      sourceBadge = '<span style="background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px;" title="Synced with CRM">✅ CRM</span>';
+    }
+    
     return `
       <tr class="contact-row ${isChecked ? 'row-selected' : ''}" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
         <td class="checkbox-col" style="padding: 10px 12px; text-align: center;">
           <input type="checkbox" class="contact-checkbox" data-email="${contact.email || ''}" ${isChecked ? 'checked' : ''}>
         </td>
         <td style="padding: 10px 12px;">
-          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px;">${fullName}</div>
+          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px; display: flex; align-items: center;">
+            ${fullName}
+            ${sourceBadge}
+          </div>
           <div style="font-size: 11px; color: var(--text-secondary);">${contact.email || ''}</div>
         </td>
         <td style="padding: 10px 12px; color: var(--text);">
@@ -2109,6 +2131,18 @@ function renderContactsTable() {
       const contact = filteredContacts.find(c => c.email === email);
       if (contact) {
         showContactDetailsPopup(contact);
+      }
+    });
+  });
+  
+  // Attach event listeners to hybrid badges (NEW)
+  tbody.querySelectorAll('.hybrid-badge').forEach(badge => {
+    badge.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const email = badge.getAttribute('data-email');
+      const contact = filteredContacts.find(c => c.email === email);
+      if (contact && window.UnifiedContactManagement) {
+        window.UnifiedContactManagement.showDiffViewer(contact);
       }
     });
   });
@@ -2679,6 +2713,18 @@ function setupAllContactsListeners() {
       currentPage = 1;
       applyFiltersAndRender();
       updateCRMQuickWidget(); // Update widget when filter changes
+    });
+  }
+
+  // Source filter (NEW - Unified Contact Management)
+  const sourceFilter = document.getElementById('sourceFilter');
+  if (sourceFilter) {
+    sourceFilter.addEventListener('change', () => {
+      currentPage = 1;
+      applyFiltersAndRender();
+      if (typeof window.UnifiedContactManagement !== 'undefined') {
+        window.UnifiedContactManagement.updateStagingDashboard();
+      }
     });
   }
 

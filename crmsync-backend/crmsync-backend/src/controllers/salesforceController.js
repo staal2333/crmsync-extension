@@ -142,12 +142,6 @@ exports.salesforceCallback = async (req, res) => {
         </body>
       </html>
     `);
-            // Auto-close after 2 seconds
-            setTimeout(() => window.close(), 2000);
-          </script>
-        </body>
-      </html>
-    `);
   } catch (error) {
     console.error('❌ Salesforce callback error:', error.response?.data || error.message);
     res.status(500).send(`

@@ -86,11 +86,36 @@
         </div>
       </div>
 
+      <!-- Bulk Actions Toolbar (hidden by default) -->
+      <div class="bulk-actions-toolbar hidden" id="bulkActionsToolbar">
+        <div class="bulk-actions-left">
+          <span class="bulk-count" id="bulkSelectedCount">0 selected</span>
+          <button class="btn-text" id="bulkSelectAll">Select All</button>
+          <button class="btn-text" id="bulkDeselectAll">Deselect All</button>
+        </div>
+        <div class="bulk-actions-right">
+          <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push to HubSpot">
+            <span class="crm-icon">H</span>
+            Push to HubSpot
+          </button>
+          <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push to Salesforce">
+            <span class="crm-icon">S</span>
+            Push to Salesforce
+          </button>
+          <button class="btn-icon-text btn-danger" id="bulkDelete" title="Delete selected">
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+
       <!-- Contacts Table -->
       <div class="contacts-table-wrapper">
         <table class="contacts-table">
           <thead>
             <tr>
+              <th class="checkbox-col">
+                <input type="checkbox" id="selectAllCheckbox" class="contact-checkbox" title="Select all">
+              </th>
               <th>Contact</th>
               <th>Company</th>
               <th>Status</th>

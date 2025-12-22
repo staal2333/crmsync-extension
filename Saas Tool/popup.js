@@ -2045,9 +2045,13 @@ function renderContactsTable() {
     const statusClass = getStatusClass(contact.status);
     const rowIndex = startIndex + index;
     const fullName = getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown';
+    const isChecked = window.bulkSelectedContacts && window.bulkSelectedContacts.has(contact.email);
     
     return `
-      <tr class="contact-row" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
+      <tr class="contact-row ${isChecked ? 'row-selected' : ''}" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
+        <td class="checkbox-col" style="padding: 10px 12px; text-align: center;">
+          <input type="checkbox" class="contact-checkbox" data-email="${contact.email || ''}" ${isChecked ? 'checked' : ''}>
+        </td>
         <td style="padding: 10px 12px;">
           <div style="font-weight: 500; color: var(--text); margin-bottom: 2px;">${fullName}</div>
           <div style="font-size: 11px; color: var(--text-secondary);">${contact.email || ''}</div>
@@ -3045,4 +3049,252 @@ function showContactDetailsPopup(contact) {
     });
   }
 }
+
+// =====================================================
+// BULK ACTIONS FUNCTIONALITY
+// =====================================================
+
+// Track selected contacts
+window.bulkSelectedContacts = new Set();
+
+// Initialize bulk actions
+function initBulkActions() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const bulkToolbar = document.getElementById('bulkActionsToolbar');
+  const bulkCountEl = document.getElementById('bulkSelectedCount');
+  const bulkSelectAllBtn = document.getElementById('bulkSelectAll');
+  const bulkDeselectAllBtn = document.getElementById('bulkDeselectAll');
+  const bulkPushHubSpotBtn = document.getElementById('bulkPushHubSpot');
+  const bulkPushSalesforceBtn = document.getElementById('bulkPushSalesforce');
+  const bulkDeleteBtn = document.getElementById('bulkDelete');
+  
+  // Select all checkbox handler
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      const checkboxes = document.querySelectorAll('.contact-checkbox[data-email]');
+      checkboxes.forEach(cb => {
+        cb.checked = isChecked;
+        const email = cb.getAttribute('data-email');
+        if (isChecked) {
+          window.bulkSelectedContacts.add(email);
+        } else {
+          window.bulkSelectedContacts.delete(email);
+        }
+        
+        // Update row styling
+        const row = cb.closest('tr');
+        if (row) {
+          if (isChecked) {
+            row.classList.add('row-selected');
+          } else {
+            row.classList.remove('row-selected');
+          }
+        }
+      });
+      updateBulkToolbar();
+    });
+  }
+  
+  // Bulk select all button
+  if (bulkSelectAllBtn) {
+    bulkSelectAllBtn.addEventListener('click', () => {
+      filteredContacts.forEach(contact => {
+        if (contact.email) {
+          window.bulkSelectedContacts.add(contact.email);
+        }
+      });
+      applyFiltersAndRender();
+      updateBulkToolbar();
+    });
+  }
+  
+  // Bulk deselect all button
+  if (bulkDeselectAllBtn) {
+    bulkDeselectAllBtn.addEventListener('click', () => {
+      window.bulkSelectedContacts.clear();
+      applyFiltersAndRender();
+      updateBulkToolbar();
+    });
+  }
+  
+  // Bulk push to HubSpot
+  if (bulkPushHubSpotBtn) {
+    bulkPushHubSpotBtn.addEventListener('click', async () => {
+      await bulkPushToCRM('hubspot');
+    });
+  }
+  
+  // Bulk push to Salesforce
+  if (bulkPushSalesforceBtn) {
+    bulkPushSalesforceBtn.addEventListener('click', async () => {
+      await bulkPushToCRM('salesforce');
+    });
+  }
+  
+  // Bulk delete
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', async () => {
+      if (!confirm(`Are you sure you want to delete ${window.bulkSelectedContacts.size} contacts?`)) {
+        return;
+      }
+      
+      const emailsToDelete = Array.from(window.bulkSelectedContacts);
+      for (const email of emailsToDelete) {
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'DELETE_CONTACT',
+            payload: { email }
+          });
+        } catch (error) {
+          console.error('Error deleting contact:', email, error);
+        }
+      }
+      
+      window.bulkSelectedContacts.clear();
+      await loadContacts();
+      showToast(`Deleted ${emailsToDelete.length} contacts`, false);
+    });
+  }
+  
+  // Update CRM button visibility based on connected integrations
+  updateCRMButtonVisibility();
+}
+
+async function bulkPushToCRM(platform) {
+  const selectedEmails = Array.from(window.bulkSelectedContacts);
+  const contacts = allContactsData.filter(c => selectedEmails.includes(c.email));
+  
+  if (contacts.length === 0) {
+    showToast('No contacts selected', true);
+    return;
+  }
+  
+  const platformName = platform === 'hubspot' ? 'HubSpot' : 'Salesforce';
+  const confirmMsg = `Push ${contacts.length} contact${contacts.length > 1 ? 's' : ''} to ${platformName}?`;
+  
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+  
+  showToast(`Pushing to ${platformName}...`, false);
+  
+  let successCount = 0;
+  let errorCount = 0;
+  
+  for (const contact of contacts) {
+    try {
+      if (window.integrationManager) {
+        await window.integrationManager.syncContact(contact, platform);
+        successCount++;
+      }
+    } catch (error) {
+      console.error(`Failed to push ${contact.email}:`, error);
+      errorCount++;
+    }
+  }
+  
+  const resultMsg = `✓ Pushed ${successCount} to ${platformName}${errorCount > 0 ? `, ${errorCount} failed` : ''}`;
+  showToast(resultMsg, errorCount > 0);
+  
+  // Refresh contact list
+  await loadContacts();
+}
+
+function updateBulkToolbar() {
+  const bulkToolbar = document.getElementById('bulkActionsToolbar');
+  const bulkCountEl = document.getElementById('bulkSelectedCount');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  
+  if (bulkToolbar && bulkCountEl) {
+    const count = window.bulkSelectedContacts.size;
+    
+    if (count > 0) {
+      bulkToolbar.classList.remove('hidden');
+      bulkCountEl.textContent = `${count} selected`;
+    } else {
+      bulkToolbar.classList.add('hidden');
+    }
+  }
+  
+  // Update select all checkbox state
+  if (selectAllCheckbox) {
+    const visibleEmails = filteredContacts.slice(
+      (currentPage - 1) * contactsPerPage,
+      currentPage * contactsPerPage
+    ).map(c => c.email);
+    
+    const allVisibleSelected = visibleEmails.length > 0 && 
+      visibleEmails.every(email => window.bulkSelectedContacts.has(email));
+    
+    selectAllCheckbox.checked = allVisibleSelected;
+    selectAllCheckbox.indeterminate = !allVisibleSelected && 
+      visibleEmails.some(email => window.bulkSelectedContacts.has(email));
+  }
+}
+
+async function updateCRMButtonVisibility() {
+  const bulkPushHubSpotBtn = document.getElementById('bulkPushHubSpot');
+  const bulkPushSalesforceBtn = document.getElementById('bulkPushSalesforce');
+  
+  if (!window.integrationManager) {
+    return;
+  }
+  
+  try {
+    await window.integrationManager.checkIntegrationStatus();
+    
+    const hubspotConnected = window.integrationManager.statusCache.hubspot?.connected;
+    const salesforceConnected = window.integrationManager.statusCache.salesforce?.connected;
+    
+    if (bulkPushHubSpotBtn) {
+      if (hubspotConnected) {
+        bulkPushHubSpotBtn.classList.remove('hidden');
+      } else {
+        bulkPushHubSpotBtn.classList.add('hidden');
+      }
+    }
+    
+    if (bulkPushSalesforceBtn) {
+      if (salesforceConnected) {
+        bulkPushSalesforceBtn.classList.remove('hidden');
+      } else {
+        bulkPushSalesforceBtn.classList.add('hidden');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking CRM status:', error);
+  }
+}
+
+// Event delegation for dynamically created checkboxes
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('contact-checkbox') && e.target.hasAttribute('data-email')) {
+    const email = e.target.getAttribute('data-email');
+    const isChecked = e.target.checked;
+    
+    if (isChecked) {
+      window.bulkSelectedContacts.add(email);
+    } else {
+      window.bulkSelectedContacts.delete(email);
+    }
+    
+    // Update row styling
+    const row = e.target.closest('tr');
+    if (row) {
+      if (isChecked) {
+        row.classList.add('row-selected');
+      } else {
+        row.classList.remove('row-selected');
+      }
+    }
+    
+    updateBulkToolbar();
+  }
+});
+
+// Initialize bulk actions when popup loads
+setTimeout(() => {
+  initBulkActions();
+}, 1000);
 

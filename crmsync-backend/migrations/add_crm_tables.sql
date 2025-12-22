@@ -7,7 +7,7 @@
 -- Table 1: Store OAuth tokens and integration settings
 CREATE TABLE IF NOT EXISTS crm_integrations (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   platform VARCHAR(50) NOT NULL CHECK (platform IN ('hubspot', 'salesforce')),
   access_token TEXT NOT NULL,
   refresh_token TEXT,
@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS crm_integrations (
 -- Table 2: Map our contacts to CRM contacts (for status badges)
 CREATE TABLE IF NOT EXISTS crm_contact_mappings (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  contact_id INTEGER REFERENCES contacts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE CASCADE,
   platform VARCHAR(50) NOT NULL CHECK (platform IN ('hubspot', 'salesforce')),
   crm_contact_id VARCHAR(255) NOT NULL, -- ID of contact in the CRM
   crm_record_type VARCHAR(50), -- For Salesforce: 'Contact' or 'Lead'
@@ -38,8 +38,8 @@ CREATE TABLE IF NOT EXISTS crm_contact_mappings (
 -- Table 3: Log all sync operations for debugging and analytics
 CREATE TABLE IF NOT EXISTS crm_sync_logs (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  contact_id INTEGER REFERENCES contacts(id) ON DELETE SET NULL,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
   platform VARCHAR(50) NOT NULL,
   action VARCHAR(50) NOT NULL, -- 'create', 'update', 'duplicate', 'sync_all'
   status VARCHAR(50) NOT NULL, -- 'success', 'error', 'skipped'

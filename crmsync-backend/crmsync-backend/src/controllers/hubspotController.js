@@ -23,12 +23,18 @@ async function getHubSpotIntegration(userId) {
 // Helper: Refresh HubSpot access token
 async function refreshHubSpotToken(userId, refreshToken) {
   try {
-    const tokenResponse = await axios.post('https://api.hubapi.com/oauth/v1/token', {
-      grant_type: 'refresh_token',
-      client_id: process.env.HUBSPOT_CLIENT_ID,
-      client_secret: process.env.HUBSPOT_CLIENT_SECRET,
-      refresh_token: refreshToken
-    });
+    const tokenResponse = await axios.post(
+      'https://api.hubapi.com/oauth/v1/token',
+      new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: process.env.HUBSPOT_CLIENT_ID,
+        client_secret: process.env.HUBSPOT_CLIENT_SECRET,
+        refresh_token: refreshToken
+      }),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
     
     const { access_token, refresh_token: newRefreshToken, expires_in } = tokenResponse.data;
     const expiresAt = new Date(Date.now() + expires_in * 1000);

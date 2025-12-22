@@ -26,6 +26,34 @@ const logger = winston.createLogger({
   ]
 });
 
+// Security logger for sensitive events (failed logins, etc.)
+const securityLogger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      )
+    }),
+    // In production, also log to file for security audit
+    ...(process.env.NODE_ENV === 'production' ? [
+      new winston.transports.File({ 
+        filename: 'logs/security.log',
+        maxsize: 5242880, // 5MB
+        maxFiles: 5,
+      })
+    ] : [])
+  ]
+});
+
+// Make security logger available globally
+global.securityLogger = securityLogger;
+
 // Initialize Sentry for production error tracking
 if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
   Sentry.init({
@@ -118,15 +146,50 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Rate limiting
 app.use('/api/', apiLimiter);
 
-// Health check
+// Health check endpoints
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    version: '1.0.0',
+    version: '2.0.0',
     environment: process.env.NODE_ENV,
-    uptime: process.uptime(),
+    uptime: Math.floor(process.uptime()),
+    memory: {
+      used: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+      total: Math.floor(process.memoryUsage().heapTotal / 1024 / 1024) + 'MB'
+    }
   });
+});
+
+// Database health check
+app.get('/health/db', async (req, res) => {
+  try {
+    const db = require('./config/database');
+    // Simple query to test database connection
+    if (config.dbType === 'postgres') {
+      await db.query('SELECT 1 as health');
+    } else {
+      await new Promise((resolve, reject) => {
+        db.get('SELECT 1 as health', (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    }
+    res.json({ 
+      status: 'healthy',
+      database: config.dbType,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Database health check failed:', error);
+    res.status(503).json({ 
+      status: 'unhealthy',
+      database: config.dbType,
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API routes

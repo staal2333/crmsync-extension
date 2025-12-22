@@ -57,9 +57,30 @@ router.post(
       const result = await authService.login(email, password);
       
       console.log(`✅ User logged in: ${email}`);
+      
+      // Log successful login for security audit
+      if (global.securityLogger) {
+        global.securityLogger.info('Successful login', {
+          email,
+          ip: req.ip,
+          userAgent: req.get('user-agent'),
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       res.json(result);
     } catch (error) {
       if (error.message === 'Invalid credentials') {
+        // Log failed login attempt for security monitoring
+        if (global.securityLogger) {
+          global.securityLogger.warn('Failed login attempt', {
+            email: req.body.email,
+            ip: req.ip,
+            userAgent: req.get('user-agent'),
+            reason: 'Invalid credentials',
+            timestamp: new Date().toISOString()
+          });
+        }
         return res.status(401).json({ error: 'Invalid email or password' });
       }
       next(error);

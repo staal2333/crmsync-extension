@@ -16,7 +16,18 @@
     console.log('🔐 Auth callback received:', { token, userEmail, userName, userTier });
     
     if (!token || !userEmail) {
-      throw new Error('Missing required authentication parameters');
+      // No auth parameters - user might have navigated here by mistake
+      // Redirect to login page instead
+      console.warn('⚠️ No auth parameters found. Redirecting to login...');
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('error').style.display = 'none';
+      document.getElementById('title').textContent = 'Redirecting...';
+      document.getElementById('message').textContent = 'Taking you to the login page...';
+      
+      setTimeout(() => {
+        window.location.href = chrome.runtime.getURL('login.html');
+      }, 1000);
+      return;
     }
     
     // Send auth data to background script
@@ -60,5 +71,25 @@
     document.getElementById('error').textContent = `Error: ${error.message}`;
     document.getElementById('title').textContent = 'Sign In Failed';
     document.getElementById('message').textContent = 'Please try signing in again from the extension.';
+    
+    // Offer redirect to login
+    setTimeout(() => {
+      const retryLink = document.createElement('button');
+      retryLink.textContent = 'Try Again';
+      retryLink.style.cssText = `
+        margin-top: 16px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+      `;
+      retryLink.onclick = () => {
+        window.location.href = chrome.runtime.getURL('login.html');
+      };
+      document.querySelector('.container').appendChild(retryLink);
+    }, 1000);
   }
 })();

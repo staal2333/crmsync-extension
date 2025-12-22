@@ -582,6 +582,41 @@ exports.salesforceCheckDuplicate = async (req, res) => {
 };
 
 // Disconnect Salesforce integration
+exports.salesforceGetContacts = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    console.log('📥 Fetching Salesforce contacts for user:', userId);
+    
+    // Query contacts with Salesforce mappings
+    const result = await db.query(`
+      SELECT 
+        c.id,
+        c.email,
+        c.first_name as "firstName",
+        c.last_name as "lastName",
+        c.company,
+        c.phone,
+        c.job_title as "title",
+        c.website,
+        c.created_at as "createdAt",
+        cm.crm_contact_id as "crmId"
+      FROM contacts c
+      INNER JOIN crm_contact_mappings cm ON c.id = cm.contact_id
+      WHERE c.user_id = $1 
+        AND cm.platform = 'salesforce'
+      ORDER BY c.first_name, c.last_name, c.email
+    `, [userId]);
+    
+    console.log(`✅ Found ${result.rows.length} Salesforce contacts`);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('❌ Failed to fetch Salesforce contacts:', error.message);
+    res.status(500).json({ error: 'Failed to fetch contacts' });
+  }
+};
+
 exports.salesforceDisconnect = async (req, res) => {
   try {
     const userId = req.user.userId;

@@ -19,6 +19,7 @@ router.post('/hubspot/check-duplicate', authenticateToken, hubspotController.hub
 
 // Status & management
 router.get('/hubspot/status', authenticateToken, hubspotController.hubspotStatus);
+router.get('/hubspot/contacts', authenticateToken, hubspotController.hubspotGetContacts);
 router.delete('/hubspot/disconnect', authenticateToken, hubspotController.hubspotDisconnect);
 
 // =====================================================
@@ -36,6 +37,7 @@ router.post('/salesforce/check-duplicate', authenticateToken, salesforceControll
 
 // Status & management
 router.get('/salesforce/status', authenticateToken, salesforceController.salesforceStatus);
+router.get('/salesforce/contacts', authenticateToken, salesforceController.salesforceGetContacts);
 router.delete('/salesforce/disconnect', authenticateToken, salesforceController.salesforceDisconnect);
 
 module.exports = router;

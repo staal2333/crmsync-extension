@@ -555,6 +555,12 @@ class IntegrationManager {
       
       console.log(`✅ All contacts synced from ${platform}:`, result);
       
+      // IMPORTANT: Fetch and save contacts to extension storage
+      if (progressText) {
+        progressText.textContent = 'Saving to extension...';
+      }
+      await this.fetchAndSaveCRMContacts(platform);
+      
       // Update status badge
       if (syncStatusEl) {
         syncStatusEl.innerHTML = '<span class="status-badge status-success">Success</span>';
@@ -853,6 +859,117 @@ class IntegrationManager {
   // Get last sync time for a platform
   getLastSync(platform) {
     return this.statusCache[platform]?.lastSync || null;
+  }
+  
+  // Fetch synced contacts from backend and save to extension storage
+  async fetchAndSaveCRMContacts(platform) {
+    try {
+      console.log(`📥 Fetching synced contacts from backend for ${platform}...`);
+      
+      const token = await window.CRMSyncAuth.getAuthToken();
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      // Fetch contacts from backend
+      const response = await fetch(`${this.apiUrl}/${platform}/contacts`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts from backend');
+      }
+      
+      const backendContacts = await response.json();
+      console.log(`📦 Received ${backendContacts.length} contacts from backend`);
+      
+      // Get current extension contacts
+      const { contacts: existingContacts } = await chrome.storage.local.get(['contacts']);
+      const contactsMap = new Map();
+      
+      // Add existing contacts to map (keyed by email)
+      if (existingContacts && Array.isArray(existingContacts)) {
+        existingContacts.forEach(contact => {
+          if (contact.email) {
+            contactsMap.set(contact.email.toLowerCase(), contact);
+          }
+        });
+      }
+      
+      // Merge backend contacts into extension storage
+      let addedCount = 0;
+      let updatedCount = 0;
+      
+      backendContacts.forEach(backendContact => {
+        if (!backendContact.email) return;
+        
+        const emailKey = backendContact.email.toLowerCase();
+        const existingContact = contactsMap.get(emailKey);
+        
+        if (existingContact) {
+          // Update existing contact with CRM data
+          existingContact.source = 'crm'; // Mark as CRM source
+          existingContact.crmMappings = existingContact.crmMappings || {};
+          existingContact.crmMappings[platform] = backendContact.crmId || backendContact.id;
+          existingContact.crmSnapshot = backendContact; // Save original CRM data
+          existingContact.lastSyncedAt = new Date().toISOString();
+          
+          // Update fields if they exist in backend
+          if (backendContact.firstName) existingContact.firstName = backendContact.firstName;
+          if (backendContact.lastName) existingContact.lastName = backendContact.lastName;
+          if (backendContact.company) existingContact.company = backendContact.company;
+          if (backendContact.phone) existingContact.phone = backendContact.phone;
+          if (backendContact.title) existingContact.jobTitle = backendContact.title;
+          if (backendContact.website) existingContact.website = backendContact.website;
+          
+          contactsMap.set(emailKey, existingContact);
+          updatedCount++;
+        } else {
+          // Add new contact from CRM
+          const newContact = {
+            email: backendContact.email,
+            firstName: backendContact.firstName || '',
+            lastName: backendContact.lastName || '',
+            company: backendContact.company || '',
+            phone: backendContact.phone || '',
+            jobTitle: backendContact.title || '',
+            website: backendContact.website || '',
+            source: 'crm',
+            crmMappings: {
+              [platform]: backendContact.crmId || backendContact.id
+            },
+            crmSnapshot: backendContact,
+            lastSyncedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            discoveredAt: backendContact.createdAt || new Date().toISOString(),
+            tags: [],
+            notes: '',
+            status: 'active'
+          };
+          
+          contactsMap.set(emailKey, newContact);
+          addedCount++;
+        }
+      });
+      
+      // Convert map back to array
+      const mergedContacts = Array.from(contactsMap.values());
+      
+      // Save to extension storage
+      await chrome.storage.local.set({ contacts: mergedContacts });
+      
+      console.log(`✅ Saved ${mergedContacts.length} total contacts to extension`);
+      console.log(`   ├─ Added: ${addedCount} new`);
+      console.log(`   └─ Updated: ${updatedCount} existing`);
+      
+      return { total: mergedContacts.length, added: addedCount, updated: updatedCount };
+    } catch (error) {
+      console.error(`❌ Failed to fetch and save CRM contacts:`, error);
+      throw error;
+    }
   }
   
   // Load and display CRM contacts for a specific platform

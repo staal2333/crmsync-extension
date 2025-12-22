@@ -38,6 +38,14 @@ importScripts('subscriptionService.js');
  * @property {string | undefined} [lastUpdated]
  * @property {string | undefined} [lastReviewedAt] // ISO timestamp when contact was last reviewed
  * @property {string | undefined} [followUpDate] // ISO timestamp for follow-up reminder
+ * 
+ * // NEW: Unified Contact Management & CRM Sync Hub fields
+ * @property {'local' | 'crm' | 'hybrid' | undefined} [source] // Data source: local = app-only, crm = synced from CRM, hybrid = both
+ * @property {Object | undefined} [crmSnapshot] // Snapshot of original CRM data (for comparison)
+ * @property {Object | undefined} [pendingChanges] // Proposed updates not yet pushed to CRM
+ * @property {string | undefined} [lastSyncedAt] // ISO timestamp of last CRM sync
+ * @property {boolean | undefined} [hasPendingUpdates] // Quick flag for filtering
+ * @property {Object | undefined} [crmMappings] // Mapping to CRM platform IDs (hubspot, salesforce)
  */
 
 /**
@@ -700,18 +708,28 @@ async function saveContact(contact) {
       outboundCount: contact.outboundCount || 0,
       inboundCount: contact.inboundCount || 0,
       messages: contact.messages || [],
-      tags: contact.tags || []
+      tags: contact.tags || [],
+      
+      // NEW: Unified Contact Management fields
+      source: contact.source || 'local', // New contacts are local by default
+      crmSnapshot: null, // No CRM data yet
+      pendingChanges: null, // No pending changes yet
+      lastSyncedAt: null, // Never synced
+      hasPendingUpdates: false, // No updates pending
+      crmMappings: contact.crmMappings || {} // Empty mappings initially
     });
     contacts.push(newContact);
     
     // Save contacts to storage
     await chrome.storage.local.set({ contacts });
     
-    // Check if auto-sync is enabled
+    // Check if auto-sync is enabled (DISABLED BY DEFAULT for staging mode)
     const settings = await chrome.storage.sync.get(['autoSyncEnabled']);
     if (settings.autoSyncEnabled) {
       console.log('🔄 Auto-sync enabled, checking CRM integrations...');
       autoSyncContact(newContact);
+    } else {
+      console.log('📥 New contact saved to App Layer (local). Manual push required.');
     }
   }
   

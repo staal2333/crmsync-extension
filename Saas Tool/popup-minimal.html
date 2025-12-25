@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRMSYNC</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    
+    <!-- Minimal Header -->
+    <div class="header">
+      <div class="header-logo">
+        <img src="icons/header-logo.png" alt="CRMSYNC" onerror="this.src='icons/widget-logo.png'" />
+        <span>CRMSYNC</span>
+      </div>
+      <div class="header-actions">
+        <span id="accountEmail" class="account-email"></span>
+        <button class="icon-btn" id="showWidgetBtn" title="Show in Gmail">
+          📌
+        </button>
+      </div>
+    </div>
+
+    <!-- 3 Simple Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="contacts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span>Contacts</span>
+      </button>
+      <button class="tab" data-tab="crm">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>CRM</span>
+      </button>
+      <button class="tab" data-tab="settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6m8.66-11.66l-5.66 5.66m0 0l-5.66 5.66M23 12h-6m-6 0H1"></path>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: CONTACTS -->
+    <div class="tab-content active" id="contacts-tab">
+      
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.35-4.35"></path>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search contacts..." />
+        <button class="btn-icon" id="addContactBtn" title="Add Contact">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Contacts List -->
+      <div class="contacts-list" id="contactsList">
+        <!-- Contacts will be populated here -->
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <h3>No contacts yet</h3>
+        <p>Open Gmail to automatically detect contacts</p>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: CRM -->
+    <div class="tab-content" id="crm-tab">
+      
+      <div class="crm-section">
+        <!-- HubSpot -->
+        <div class="crm-card" id="hubspotCard">
+          <div class="crm-header">
+            <div class="crm-logo">
+              <div class="crm-icon hubspot">H</div>
+              <div>
+                <h3>HubSpot</h3>
+                <span class="status" id="hubspot-status">Not connected</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="crm-stats" id="hubspot-stats" style="display: none;">
+            <div class="stat">
+              <span class="stat-label">Contacts</span>
+              <span class="stat-value" id="hubspot-count">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Last Sync</span>
+              <span class="stat-value" id="hubspot-last-sync">Never</span>
+            </div>
+          </div>
+          
+          <div class="crm-actions">
+            <button class="btn-primary" id="hubspot-connect-btn">Connect</button>
+            <button class="btn-secondary" id="hubspot-sync-btn" style="display: none;">Sync Now</button>
+            <button class="btn-text" id="hubspot-disconnect-btn" style="display: none;">Disconnect</button>
+          </div>
+        </div>
+
+        <!-- Salesforce -->
+        <div class="crm-card" id="salesforceCard">
+          <div class="crm-header">
+            <div class="crm-logo">
+              <div class="crm-icon salesforce">S</div>
+              <div>
+                <h3>Salesforce</h3>
+                <span class="status" id="salesforce-status">Not connected</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="crm-stats" id="salesforce-stats" style="display: none;">
+            <div class="stat">
+              <span class="stat-label">Contacts</span>
+              <span class="stat-value" id="salesforce-count">0</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Last Sync</span>
+              <span class="stat-value" id="salesforce-last-sync">Never</span>
+            </div>
+          </div>
+          
+          <div class="crm-actions">
+            <button class="btn-primary" id="salesforce-connect-btn">Connect</button>
+            <button class="btn-secondary" id="salesforce-sync-btn" style="display: none;">Sync Now</button>
+            <button class="btn-text" id="salesforce-disconnect-btn" style="display: none;">Disconnect</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 3: SETTINGS -->
+    <div class="tab-content" id="settings-tab">
+      
+      <!-- Account Section -->
+      <div class="settings-section">
+        <h3 class="section-title">Account</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label" id="settings-account-name">Loading...</span>
+            <span class="setting-desc" id="settings-account-email"></span>
+          </div>
+          <button class="btn-text" id="signOutBtn">Sign Out</button>
+        </div>
+      </div>
+
+      <!-- Sync Settings -->
+      <div class="settings-section">
+        <h3 class="section-title">Sync Settings</h3>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Auto-Sync to CRM</span>
+            <span class="setting-desc">Automatically push new contacts to connected CRM</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="autoSyncToggle">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Auto-Approve Contacts</span>
+            <span class="setting-desc">Skip manual review for new contacts</span>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="autoApproveToggle" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Exclusions -->
+      <div class="settings-section">
+        <h3 class="section-title">Exclusions</h3>
+        
+        <div class="setting-item column">
+          <div class="setting-info">
+            <span class="setting-label">Exclude Domains</span>
+            <span class="setting-desc">Contacts from these domains won't be saved</span>
+          </div>
+          <div class="tags-container" id="excludeDomainsContainer">
+            <!-- Tags will be added here -->
+          </div>
+          <input type="text" class="tag-input" id="excludeDomainInput" placeholder="Add domain (e.g., company.com)">
+        </div>
+        
+        <div class="setting-item column">
+          <div class="setting-info">
+            <span class="setting-label">Exclude Names</span>
+            <span class="setting-desc">People with these names won't be saved</span>
+          </div>
+          <div class="tags-container" id="excludeNamesContainer">
+            <!-- Tags will be added here -->
+          </div>
+          <input type="text" class="tag-input" id="excludeNameInput" placeholder="Add name (e.g., John Doe)">
+        </div>
+      </div>
+
+      <!-- Export -->
+      <div class="settings-section">
+        <h3 class="section-title">Data</h3>
+        <div class="setting-item">
+          <div class="setting-info">
+            <span class="setting-label">Export Contacts</span>
+            <span class="setting-desc">Download all contacts as CSV</span>
+          </div>
+          <button class="btn-secondary" id="exportContactsBtn">Export</button>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="settings-section">
+        <div class="about-info">
+          <div>Version 2.0.0</div>
+          <div class="links">
+            <a href="#" id="helpLink">Help</a>
+            <span>·</span>
+            <a href="#" id="privacyLink">Privacy</a>
+            <span>·</span>
+            <a href="#" id="termsLink">Terms</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+    <div class="spinner"></div>
+    <span id="loadingText">Loading...</span>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="config.js"></script>
+  <script src="background.js" type="module"></script>
+  <script src="popup.js"></script>
+  <script src="integrations.js"></script>
+</body>
+</html>

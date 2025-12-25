@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRMSYNC</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <div class="popup-header">
+      <button class="popup-contacts-btn" id="leftHeaderBtn" title="All Contacts">
+        <span id="leftHeaderBtnIcon">👥</span>
+        <span id="leftHeaderBtnText" style="display: none; font-size: 13px; font-weight: 600; margin-left: 4px;"></span>
+      </button>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png'" />
+        <span id="subscriptionTierBadge" class="tier-badge tier-free">FREE</span>
+      </div>
+      <button class="popup-widget-btn" id="showWidgetBtn" title="Show Widget on Gmail">
+        📌
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-container">
+      <button class="tab-btn active" data-tab="all-contacts">
+        <span>Contacts</span>
+      </button>
+      <button class="tab-btn" data-tab="overview">
+        <span>Overview</span>
+      </button>
+      <button class="tab-btn" data-tab="daily-review">
+        <span>Today</span>
+      </button>
+      <button class="tab-btn" data-tab="integrations">
+        <span>🔌 CRM</span>
+      </button>
+      <button class="tab-btn" data-tab="settings">
+        <span>Settings</span>
+      </button>
+    </div>
+
+    <!-- All Contacts Tab -->
+    <div class="tab-content active" id="all-contacts-tab">
+      <!-- Limit Warning Banner -->
+      <div id="limitWarningBanner" style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; font-size: 13px; font-weight: 500;">
+        <div style="margin-bottom: 8px;">⚠️ <span id="limitWarningText">You're at your contact limit!</span></div>
+        <button id="upgradeLimitBtn" style="background: white; color: #ef4444; border: none; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+          ✨ Upgrade to Pro
+        </button>
+      </div>
+      
+      <!-- CRM Quick Status Widget (NEW) -->
+      <div class="crm-quick-widget" id="crmQuickWidget" style="display: none; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 24px;">🔌</div>
+            <div>
+              <div style="font-weight: 600; font-size: 14px; margin-bottom: 2px;" id="crmConnectedPlatform">HubSpot Connected ✓</div>
+              <div style="font-size: 12px; opacity: 0.9;" id="crmQuickStats">Last sync: Never</div>
+            </div>
+          </div>
+          <button class="btn-text" id="crmWidgetToggle" style="color: white; opacity: 0.8; font-size: 11px; padding: 4px 8px;">Settings</button>
+        </div>
+        
+        <div id="crmAutoSyncStatus" style="background: rgba(255,255,255,0.15); padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; display: none;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 16px;">⚡</span>
+            <span style="font-weight: 600;">Auto-Sync Active</span>
+          </div>
+          <div style="opacity: 0.9; font-size: 12px;" id="autoSyncTodayCount">0 contacts auto-synced today</div>
+        </div>
+        
+        <div id="newContactsAlert" style="display: none; background: rgba(255,255,255,0.2); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px;">
+          <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">
+            🎯 <span id="newContactsCount">0</span> New Contacts Not in CRM
+          </div>
+          <button class="btn" id="pushAllNewToCRM" style="width: 100%; background: white; color: #667eea; font-weight: 600; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+            🔄 Push All to <span id="pushAllPlatformName">CRM</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Staging Dashboard (NEW) -->
+      <div class="staging-dashboard" id="stagingDashboard" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #cbd5e1;">
+        <h3 style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">📊</span>
+          Contact Staging Hub
+        </h3>
+        
+        <div class="staging-stats" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+          <!-- Local Contacts -->
+          <div class="staging-stat-card" style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 24px;">📥</span>
+              <span class="stat-value" id="localContactsCount" style="font-size: 24px; font-weight: 700; color: #3b82f6;">0</span>
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">New Leads (App Layer)</div>
+            <button class="btn btn-primary btn-sm" id="pushAllLocalBtn" style="width: 100%; padding: 6px; font-size: 12px; display: none;">
+              Push All to CRM
+            </button>
+          </div>
+          
+          <!-- Hybrid/Updates -->
+          <div class="staging-stat-card" style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #f59e0b; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 24px;">🔄</span>
+              <span class="stat-value" id="hybridContactsCount" style="font-size: 24px; font-weight: 700; color: #f59e0b;">0</span>
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-bottom: 8px;">Proposed Updates</div>
+            <button class="btn btn-secondary btn-sm" id="reviewUpdatesBtn" style="width: 100%; padding: 6px; font-size: 12px; display: none;">
+              Review Changes
+            </button>
+          </div>
+          
+          <!-- CRM Synced -->
+          <div class="staging-stat-card" style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <span style="font-size: 24px;">✅</span>
+              <span class="stat-value" id="crmContactsCount" style="font-size: 24px; font-weight: 700; color: #10b981;">0</span>
+            </div>
+            <div style="font-size: 12px; color: #64748b;">Synced with CRM</div>
+          </div>
+        </div>
+        
+        <div style="font-size: 11px; color: #64748b; text-align: center; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
+          💡 <strong>App Layer</strong> = New discoveries · <strong>CRM Layer</strong> = Synced data · <strong>Hybrid</strong> = Updates pending
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="quick-stats">
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="contactLimitInfo">0</span>
+          <span class="stat-mini-label">Total</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="pendingCount">0</span>
+          <span class="stat-mini-label">Pending</span>
+        </div>
+        <div class="stat-mini">
+          <span class="stat-mini-value" id="newTodayMini">0</span>
+          <span class="stat-mini-label">New</span>
+        </div>
+      </div>
+
+      <!-- Search and Filters -->
+      <div class="search-section">
+        <input type="text" id="contactSearchInput" placeholder="Search contacts..." class="search-input">
+        <div class="filter-row">
+          <select id="sourceFilter" class="select-input">
+            <option value="">All Sources</option>
+            <option value="local">📥 App Layer (New)</option>
+            <option value="hybrid">🔄 Updates Available</option>
+            <option value="crm">☁️ CRM Only</option>
+          </select>
+          <select id="statusFilter" class="select-input">
+            <option value="">All Status</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="archived">Archived</option>
+          </select>
+          <select id="sortBy" class="select-input">
+            <option value="lastContact">Recent</option>
+            <option value="name">Name</option>
+            <option value="company">Company</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Bulk Actions Toolbar (hidden by default) -->
+      <div class="bulk-actions-toolbar hidden" id="bulkActionsToolbar">
+        <div class="bulk-actions-left">
+          <span class="bulk-count" id="bulkSelectedCount">0 selected</span>
+          <button class="btn-text" id="bulkSelectAll">Select All</button>
+          <button class="btn-text" id="bulkDeselectAll">Deselect All</button>
+        </div>
+        <div class="bulk-actions-right">
+          <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push to HubSpot">
+            <span class="crm-icon">H</span>
+            Push to HubSpot
+          </button>
+          <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push to Salesforce">
+            <span class="crm-icon">S</span>
+            Push to Salesforce
+          </button>
+          <button class="btn-icon-text btn-danger" id="bulkDelete" title="Delete selected">
+            🗑️ Delete
+          </button>
+        </div>
+      </div>
+
+      <!-- Contacts Table -->
+      <div class="contacts-table-wrapper">
+        <table class="contacts-table">
+          <thead>
+            <tr>
+              <th class="checkbox-col">
+                <input type="checkbox" id="selectAllCheckbox" class="contact-checkbox" title="Select all">
+              </th>
+              <th>Contact</th>
+              <th>Company</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="allContactsTableBody">
+            <!-- Contacts will be loaded here dynamically -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination">
+        <button class="btn-icon" id="prevPage" disabled>←</button>
+        <span class="page-info" id="pageInfo">Page 1</span>
+        <button class="btn-icon" id="nextPage" disabled>→</button>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions-row">
+        <button class="btn-secondary" id="exportAllContactsCSV">
+          Export CSV
+        </button>
+        <button class="btn-secondary" id="refreshAllContacts">
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content" id="overview-tab">
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalContacts">0</div>
+          <div class="stat-label">Total Contacts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="newToday">0</div>
+          <div class="stat-label">New Today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="pendingApprovals">0</div>
+          <div class="stat-label">Pending</div>
+        </div>
+      </div>
+
+      <!-- Pending Approvals -->
+      <div class="section">
+        <h3 class="section-title">Pending Approvals</h3>
+        <div id="pendingList" class="contacts-list">
+          <div class="empty-state">No pending approvals</div>
+        </div>
+      </div>
+
+      <!-- Recent Contacts -->
+      <div class="section">
+        <div class="section-header">
+          <h3 class="section-title">Recent Contacts</h3>
+          <button class="btn-text" id="clearContacts">Clear All</button>
+        </div>
+        <div id="recentContactsList" class="contacts-list">
+          <div class="empty-state">No recent contacts</div>
+        </div>
+      </div>
+
+      <!-- Rejected Contacts -->
+      <div class="section">
+        <div class="section-header">
+          <h3 class="section-title">🚫 Rejected Contacts</h3>
+          <button class="btn-text" id="clearRejected">Clear All</button>
+        </div>
+        <div id="rejectedContactsList" class="contacts-list">
+          <div class="empty-state">No rejected contacts</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Review Tab -->
+    <div class="tab-content" id="daily-review-tab">
+      <!-- Today's Stats -->
+      <div class="stats-grid-compact">
+        <div class="stat-card-mini">
+          <span class="stat-value-mini" id="reviewNewToday">0</span>
+          <span class="stat-label-mini">New Today</span>
+        </div>
+        <div class="stat-card-mini">
+          <span class="stat-value-mini" id="reviewTotalToday">0</span>
+          <span class="stat-label-mini">Total Today</span>
+        </div>
+      </div>
+
+      <!-- Today's Contacts -->
+      <div class="section">
+        <h3 class="section-title">📅 Today's Contacts</h3>
+        <div id="dailyReviewList" class="contacts-list">
+          <div class="empty-state">No contacts added today</div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button class="btn-primary" id="exportAndMarkReviewed">
+        Export Today's Contacts
+      </button>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-content" id="settings-tab">
+      <div class="settings-section">
+        <!-- General Settings -->
+        <div class="setting-group">
+          <h3 class="group-title">General</h3>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Dark Mode</label>
+              <span class="setting-description">Switch to night theme</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkMode">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Sound Effects</label>
+              <span class="setting-description">Play sounds on interactions</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="soundEffects">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Enable Sidebar</label>
+              <span class="setting-description">Show sidebar in Gmail</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="sidebarEnabled" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Contact Management -->
+        <div class="setting-group">
+          <h3 class="group-title">Contact Management</h3>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Auto-Approve Contacts</label>
+              <span class="setting-description">Skip manual approval</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoApprove">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Advanced -->
+        <div class="setting-group">
+          <h3 class="group-title">Advanced</h3>
+          
+          <div class="setting-item-full">
+            <label class="setting-label">Track Gmail Labels</label>
+            <input type="text" id="gmailLabelsInput" placeholder="e.g., Outreach, Prospects" class="text-input">
+            <span class="setting-description">Comma-separated. Leave empty to track all emails</span>
+          </div>
+
+          <!-- Account Settings -->
+          <div class="setting-item-full" id="accountSettingsContainer" style="margin-top: 24px; display: none;">
+            <label class="setting-label">👤 Account Settings</label>
+            <div style="background: var(--surface); padding: 16px; border-radius: 12px; margin-top: 8px; border: 1px solid var(--border);">
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 16px;" id="accountAvatar">U</div>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="font-weight: 600; font-size: 14px; color: var(--text);" id="accountName">Loading...</div>
+                      <span id="accountTier" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; background: #10b981; color: white;">FREE</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);" id="accountEmail">Loading...</div>
+                  </div>
+                </div>
+                <button class="btn-secondary" id="upgradeBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-bottom: 8px; display: none;">
+                  ✨ Upgrade to Pro
+                </button>
+                <button class="btn-secondary" id="settingsSignOutBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: #ef4444; color: white; border: none;">
+                  🚪 Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Exclusions -->
+        <div class="setting-group">
+          <h3 class="group-title">🚫 Exclusions</h3>
+          <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+            Block specific contacts from being tracked. Use commas to separate multiple entries.
+          </p>
+          
+          <div class="setting-item-full">
+            <label class="setting-label">📧 Exclude Email Domains</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludeDomainsTags"></div>
+              <input type="text" id="excludeDomainsInput" placeholder="Type domain and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              ❌ Blocks: anyone@<strong>yourcompany.com</strong><br>
+              💡 Type domain and press <strong>Enter</strong> to add
+            </span>
+          </div>
+
+          <div class="setting-item-full">
+            <label class="setting-label">👤 Exclude Names</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludeNamesTags"></div>
+              <input type="text" id="excludeNamesInput" placeholder="Type name and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              <strong>Full Name:</strong> "John Smith" → Blocks ONLY John Smith<br>
+              💡 Type name and press <strong>Enter</strong> to add
+            </span>
+          </div>
+
+          <div class="setting-item-full">
+            <label class="setting-label">📞 Exclude Phone Numbers</label>
+            <div class="tag-input-container">
+              <div class="tags-display" id="excludePhonesTags"></div>
+              <input type="text" id="excludePhonesInput" placeholder="Type phone and press Enter..." class="tag-text-input">
+            </div>
+            <span class="setting-description">
+              ❌ Blocks these phone numbers<br>
+              💡 Type number and press <strong>Enter</strong> to add
+            </span>
+          </div>
+        </div>
+
+        <!-- Data Management -->
+        <div class="setting-group">
+          <h3 class="group-title">Data</h3>
+          <button class="btn-danger" id="clearAllData">
+            <span>🗑️</span>
+            <span>Clear All Data</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Integrations Tab -->
+    <div class="tab-content" id="integrations-tab">
+      <div class="tab-header">
+        <h2>🔌 CRM Integrations</h2>
+        <p class="tab-subtitle">Connect your CRM to sync contacts automatically</p>
+      </div>
+
+      <!-- Auto-Sync Settings -->
+      <div class="setting-group" style="background: var(--surface); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border);">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div style="flex: 1;">
+            <label class="setting-label" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; display: block;">⚡ Auto-Sync New Contacts</label>
+            <span class="setting-description" style="font-size: 12px; color: var(--text-secondary);">Automatically push new contacts to CRM when detected</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoSyncEnabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- HubSpot Integration Card -->
+      <div class="integration-card">
+        <div class="integration-header">
+          <div class="integration-logo-container">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23ff7a59'/%3E%3C/svg%3E" alt="HubSpot" class="integration-logo">
+            <div class="integration-logo-text">H</div>
+          </div>
+          <div class="integration-info">
+            <h3>HubSpot</h3>
+            <p class="integration-status" id="hubspot-status">Not connected</p>
+            <p class="integration-meta" id="hubspot-account" style="display: none; font-size: 12px; color: var(--text-secondary); margin-top: 2px;"></p>
+          </div>
+        </div>
+        
+        <!-- Sync Stats (shown when connected) -->
+        <div class="integration-stats hidden" id="hubspot-stats">
+          <div class="stat-item">
+            <div class="stat-label">📊 Synced Contacts</div>
+            <div class="stat-value" id="hubspot-count">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">🕐 Last Sync</div>
+            <div class="stat-value" id="hubspot-last-sync">Never</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">📈 Status</div>
+            <div class="stat-value" id="hubspot-sync-status">
+              <span class="status-badge status-idle">Idle</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Progress Bar (shown during sync) -->
+        <div class="sync-progress hidden" id="hubspot-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="hubspot-progress-fill"></div>
+          </div>
+          <p class="progress-text" id="hubspot-progress-text">Syncing contacts...</p>
+        </div>
+        
+        <div class="integration-actions">
+          <button class="btn btn-primary" id="hubspot-connect-btn">
+            <span>Connect HubSpot</span>
+          </button>
+          <button class="btn btn-secondary hidden" id="hubspot-sync-all-btn">
+            <span>🔄 Sync All Contacts</span>
+          </button>
+          <button class="btn btn-danger hidden" id="hubspot-disconnect-btn">
+            <span>Disconnect</span>
+          </button>
+        </div>
+        
+        <!-- Imported Contacts List (shown when connected and has contacts) -->
+        <div class="crm-contacts-section hidden" id="hubspot-contacts-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text);">📥 Imported Contacts</h4>
+            <span id="hubspot-contacts-count" style="font-size: 12px; color: var(--text-secondary);">0 contacts</span>
+          </div>
+          <div class="crm-contacts-list" id="hubspot-contacts-list" style="max-height: 300px; overflow-y: auto;">
+            <!-- Contacts will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Salesforce Integration Card -->
+      <div class="integration-card">
+        <div class="integration-header">
+          <div class="integration-logo-container">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2300a1e0'/%3E%3C/svg%3E" alt="Salesforce" class="integration-logo">
+            <div class="integration-logo-text">S</div>
+          </div>
+          <div class="integration-info">
+            <h3>Salesforce</h3>
+            <p class="integration-status" id="salesforce-status">Not connected</p>
+            <p class="integration-meta" id="salesforce-account" style="display: none; font-size: 12px; color: var(--text-secondary); margin-top: 2px;"></p>
+          </div>
+        </div>
+        
+        <!-- Sync Stats (shown when connected) -->
+        <div class="integration-stats hidden" id="salesforce-stats">
+          <div class="stat-item">
+            <div class="stat-label">📊 Synced Contacts</div>
+            <div class="stat-value" id="salesforce-count">0</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">🕐 Last Sync</div>
+            <div class="stat-value" id="salesforce-last-sync">Never</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">📈 Status</div>
+            <div class="stat-value" id="salesforce-sync-status">
+              <span class="status-badge status-idle">Idle</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Progress Bar (shown during sync) -->
+        <div class="sync-progress hidden" id="salesforce-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="salesforce-progress-fill"></div>
+          </div>
+          <p class="progress-text" id="salesforce-progress-text">Syncing contacts...</p>
+        </div>
+        
+        <div class="integration-actions">
+          <button class="btn btn-primary" id="salesforce-connect-btn">
+            <span>Connect Salesforce</span>
+          </button>
+          <button class="btn btn-secondary hidden" id="salesforce-sync-all-btn">
+            <span>🔄 Sync All Contacts</span>
+          </button>
+          <button class="btn btn-danger hidden" id="salesforce-disconnect-btn">
+            <span>Disconnect</span>
+          </button>
+        </div>
+        
+        <!-- Imported Contacts List (shown when connected and has contacts) -->
+        <div class="crm-contacts-section hidden" id="salesforce-contacts-section" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 style="font-size: 14px; font-weight: 600; color: var(--text);">📥 Imported Contacts</h4>
+            <span id="salesforce-contacts-count" style="font-size: 12px; color: var(--text-secondary);">0 contacts</span>
+          </div>
+          <div class="crm-contacts-list" id="salesforce-contacts-list" style="max-height: 300px; overflow-y: auto;">
+            <!-- Contacts will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sync History & Logs -->
+      <div class="sync-history-section" id="syncHistorySection" style="margin-top: 24px;">
+        <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; cursor: pointer;" id="historyHeaderToggle">
+          <h3 style="font-size: 16px; font-weight: 600; color: var(--text);">
+            📋 Recent Sync Operations
+            <span style="font-size: 12px; color: var(--text-secondary); font-weight: 400; margin-left: 8px;" id="historyQuickSummary">(0 total)</span>
+          </h3>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="btn-text hidden" id="clearHistoryBtn" style="font-size: 12px; color: var(--text-secondary);">Clear History</button>
+            <span id="historyToggleIcon" style="font-size: 16px; color: var(--text-secondary);">▼</span>
+          </div>
+        </div>
+        
+        <div id="historyContent" style="display: none;">
+          <div class="history-filters" style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <select id="historyPlatformFilter" class="select-input" style="flex: 1;">
+              <option value="">All Platforms</option>
+              <option value="hubspot">HubSpot</option>
+              <option value="salesforce">Salesforce</option>
+            </select>
+            <select id="historyResultFilter" class="select-input" style="flex: 1;">
+              <option value="">All Results</option>
+              <option value="success">Success</option>
+              <option value="error">Error</option>
+            </select>
+          </div>
+          
+          <div class="sync-history-table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
+            <table class="sync-history-table" style="width: 100%; border-collapse: collapse;">
+              <thead style="position: sticky; top: 0; background: var(--surface); z-index: 1;">
+                <tr>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Time</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Platform</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Contact</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Action</th>
+                  <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Result</th>
+                </tr>
+              </thead>
+              <tbody id="syncHistoryTableBody">
+                <tr>
+                  <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                    <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+                    <div style="font-size: 14px;">No sync history yet</div>
+                    <div style="font-size: 12px; margin-top: 4px;">Sync operations will appear here</div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
+          <div class="history-stats" style="display: flex; justify-content: space-between; margin-top: 12px; padding: 12px; background: var(--surface); border-radius: 8px; font-size: 12px;">
+            <span style="color: var(--text-secondary);">Total: <strong id="historyTotal" style="color: var(--text);">0</strong></span>
+            <span style="color: var(--success);">Success: <strong id="historySuccess">0</strong></span>
+            <span style="color: var(--error);">Failed: <strong id="historyFailed">0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Info Box -->
+      <div class="info-box">
+        <h4>💡 How it works</h4>
+        <ul>
+          <li><strong>Connect:</strong> Authorize access to your CRM (secure OAuth)</li>
+          <li><strong>Sync:</strong> Pull existing contacts to show "✓ In CRM" badges</li>
+          <li><strong>Push:</strong> Add new contacts with one click</li>
+          <li><strong>Auto-Sync:</strong> Enable to automatically push new contacts</li>
+          <li><strong>Duplicate Detection:</strong> Smart checks prevent duplicates</li>
+        </ul>
+        <p class="info-note">
+          🔒 Your credentials are never stored in the extension. All connections are secure and can be disconnected anytime.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Merge Dialog -->
+  <div id="dataMergeDialog" class="data-merge-overlay">
+    <div style="background: white; padding: 32px; border-radius: 16px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🔄</div>
+        <h2 style="margin: 0 0 8px 0; font-size: 22px; color: #1e293b;">Welcome Back!</h2>
+        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
+          You have <strong id="localContactCount">0</strong> contacts saved locally. Would you like to keep them or use your synced data?
+        </p>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <button id="keepLocalDataBtn" class="data-merge-btn-primary" style="padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+          📦 Keep My Local Data
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.9; margin-top: 4px;">
+            Merge local contacts with cloud data
+          </div>
+        </button>
+        
+        <button id="useSyncedDataBtn" class="data-merge-btn-secondary" style="padding: 16px; background: white; color: #475569; border: 2px solid #e2e8f0; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+          ☁️ Use Synced Data
+          <div style="font-size: 12px; font-weight: 400; opacity: 0.8; margin-top: 4px;">
+            Replace local data with cloud data
+          </div>
+        </button>
+        
+        <button id="cancelMergeBtn" class="data-merge-btn-cancel" style="padding: 12px; background: transparent; color: #94a3b8; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s;">
+          Decide Later
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    .data-merge-btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+    .data-merge-btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    .data-merge-btn-cancel:hover {
+      color: #64748b;
+    }
+  </style>
+
+  <!-- Diff Viewer Modal (NEW) -->
+  <div class="modal-overlay" id="diffModalOverlay" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+    <div class="diff-modal" style="background: white; width: 90%; max-width: 800px; max-height: 90vh; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+      <div class="diff-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="margin: 0; font-size: 18px; font-weight: 700;">🔄 Review Changes</h2>
+        <button class="close-modal" id="closeDiffModal" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1;">×</button>
+      </div>
+      
+      <div class="diff-content" style="padding: 24px; overflow-y: auto; max-height: calc(90vh - 200px);">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <strong style="font-size: 16px; color: #1e293b;" id="diffContactEmail">john@example.com</strong>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px;">
+          <!-- CRM Data -->
+          <div class="diff-section">
+            <h3 style="font-size: 14px; font-weight: 600; color: #64748b; margin-bottom: 12px; text-align: center;">Current (CRM Layer)</h3>
+            <div class="data-snapshot" id="crmDataSnapshot" style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 2px solid #e2e8f0;">
+              <!-- CRM data will be inserted here -->
+            </div>
+          </div>
+          
+          <!-- Arrow -->
+          <div style="display: flex; align-items: center; justify-content: center; font-size: 24px; color: #94a3b8;">
+            →
+          </div>
+          
+          <!-- Local Data -->
+          <div class="diff-section">
+            <h3 style="font-size: 14px; font-weight: 600; color: #64748b; margin-bottom: 12px; text-align: center;">Proposed (App Layer)</h3>
+            <div class="data-snapshot" id="localDataSnapshot" style="background: #fef3c7; padding: 16px; border-radius: 8px; border: 2px solid #fbbf24;">
+              <!-- Local data will be inserted here -->
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="diff-actions" style="padding: 20px; background: #f8fafc; display: flex; gap: 12px; justify-content: center; border-top: 1px solid #e2e8f0;">
+        <button class="btn btn-primary" id="mergeToCRMBtn" style="padding: 12px 24px;">
+          ✓ Merge to CRM
+        </button>
+        <button class="btn btn-secondary" id="keepCRMBtn" style="padding: 12px 24px;">
+          Keep CRM Data
+        </button>
+        <button class="btn btn-danger" id="discardLocalBtn" style="padding: 12px 24px;">
+          🗑️ Discard Local
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="config.js"></script>
+  <script src="auth.js"></script>
+  <script src="sync.js"></script>
+  <script src="integrations.js"></script>
+  
+  <!-- UX Enhancement Scripts -->
+  <script src="toast.js"></script>
+  <script src="darkMode.js"></script>
+  <script src="quickActions.js"></script>
+  <script src="analytics.js"></script>
+  
+  <!-- Feature Scripts -->
+  <script src="staging.js"></script>
+  <script src="guest-mode-banner.js"></script>
+  <script src="popup-subscription.js"></script>
+  <script src="popup.js"></script>
+  <script src="popup-enhancements.js"></script>
+</body>
+</html>

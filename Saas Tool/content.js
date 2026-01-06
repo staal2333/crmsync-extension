@@ -2367,29 +2367,24 @@
         <button class="toggle-sidebar" title="Close Sidebar">✕</button>
       </div>
 
-      <!-- Session Stats -->
-      <div class="sidebar-session-stats">
-        <div class="stat-card">
-          <div class="stat-icon">🆕</div>
-          <div class="stat-content">
-            <div class="stat-value" id="sidebar-new-count">0</div>
-            <div class="stat-label">New Today</div>
-          </div>
+      <!-- Session Stats (Collapsed by Default) -->
+      <div class="sidebar-session-stats-compact" id="sidebar-stats-toggle">
+        <div class="stats-summary">
+          <span>📊 Today: <strong id="sidebar-stats-text">0 new, 0 synced</strong></span>
+          <button class="stats-expand-btn" id="sidebar-stats-expand">▼</button>
         </div>
-        
-        <div class="stat-card">
-          <div class="stat-icon">✓</div>
-          <div class="stat-content">
-            <div class="stat-value" id="sidebar-synced-count">0</div>
-            <div class="stat-label">Synced</div>
+        <div class="stats-expanded" id="sidebar-stats-expanded" style="display: none;">
+          <div class="stat-card-inline">
+            <span class="stat-label-inline">New Today</span>
+            <span class="stat-value-inline" id="sidebar-new-count">0</span>
           </div>
-        </div>
-        
-        <div class="stat-card">
-          <div class="stat-icon">⏰</div>
-          <div class="stat-content">
-            <div class="stat-value" id="sidebar-followups-count">0</div>
-            <div class="stat-label">Follow-ups</div>
+          <div class="stat-card-inline">
+            <span class="stat-label-inline">Synced</span>
+            <span class="stat-value-inline" id="sidebar-synced-count">0</span>
+          </div>
+          <div class="stat-card-inline">
+            <span class="stat-label-inline">Follow-ups</span>
+            <span class="stat-value-inline" id="sidebar-followups-count">0</span>
           </div>
         </div>
       </div>
@@ -2427,15 +2422,24 @@
         </div>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="sidebar-actions">
-        <button class="btn-sidebar-primary" id="sidebar-scan-inbox-btn">
-          <span>🔍</span>
-          <span>Scan Inbox</span>
+      <!-- Floating Action Button -->
+      <button class="sidebar-fab" id="sidebar-fab-btn" title="Quick Actions">
+        <span>+</span>
+      </button>
+      
+      <!-- FAB Menu (Hidden by Default) -->
+      <div class="sidebar-fab-menu" id="sidebar-fab-menu" style="display: none;">
+        <button class="fab-menu-item" id="fab-scan-btn">
+          <span class="fab-icon">🔍</span>
+          <span class="fab-label">Scan Inbox</span>
         </button>
-        <button class="btn-sidebar-secondary" id="sidebar-open-popup-btn">
-          <span>📤</span>
-          <span>Open Full View</span>
+        <button class="fab-menu-item" id="fab-popup-btn">
+          <span class="fab-icon">📤</span>
+          <span class="fab-label">Open Full View</span>
+        </button>
+        <button class="fab-menu-item" id="fab-settings-btn">
+          <span class="fab-icon">⚙️</span>
+          <span class="fab-label">Settings</span>
         </button>
       </div>
     `;
@@ -2447,59 +2451,197 @@
       const style = document.createElement('style');
       style.id = 'crmsync-sidebar-styles';
       style.textContent = `
-        /* Simplified Sidebar Styles */
-        .sidebar-session-stats {
-          display: flex;
-          gap: 8px;
+        /* Compact Sidebar Styles */
+        
+        /* Collapsed Stats */
+        .sidebar-session-stats-compact {
           padding: 12px 16px;
           background: var(--surface, #f8f9fa);
           border-bottom: 1px solid var(--border, #e5e7eb);
         }
         
-        .stat-card {
-          flex: 1;
+        .stats-summary {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 12px;
-          background: var(--card-bg, #ffffff);
-          border: 1px solid var(--border, #e5e7eb);
-          border-radius: 8px;
+          justify-content: space-between;
+          font-size: 13px;
+          color: var(--text, #1f2937);
+          cursor: pointer;
+        }
+        
+        .stats-summary:hover {
+          color: var(--primary, #7c3aed);
+        }
+        
+        .stats-expand-btn {
+          background: transparent;
+          border: none;
+          font-size: 12px;
+          cursor: pointer;
+          padding: 4px 8px;
+          color: var(--text-secondary, #6b7280);
           transition: all 0.2s;
         }
         
-        .stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        .stats-expand-btn:hover {
+          color: var(--primary, #7c3aed);
         }
         
-        .stat-icon {
-          font-size: 20px;
-          flex-shrink: 0;
+        .stats-expanded {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid var(--border, #e5e7eb);
         }
         
-        .stat-content {
-          flex: 1;
-          min-width: 0;
+        .stat-card-inline {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 6px;
         }
         
-        .stat-value {
-          font-size: 20px;
+        .stat-label-inline {
+          font-size: 12px;
+          color: var(--text-secondary, #6b7280);
+          font-weight: 500;
+        }
+        
+        .stat-value-inline {
+          font-size: 16px;
           font-weight: 700;
-          line-height: 1;
           color: var(--text, #1f2937);
+        }
+        
+        /* Compact Contact Cards (2 rows) */
+        .sidebar-contact-card-compact {
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .sidebar-contact-card-compact:hover {
+          border-color: var(--primary, #7c3aed);
+          transform: translateX(-2px);
+          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
+        }
+        
+        .contact-row-compact {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           margin-bottom: 4px;
         }
         
-        .stat-label {
-          font-size: 10px;
-          color: var(--text-secondary, #6b7280);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+        .contact-name-compact {
           font-weight: 600;
-          line-height: 1;
+          font-size: 13px;
+          color: var(--text, #1f2937);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
         }
         
+        .contact-email-compact {
+          font-size: 12px;
+          color: var(--text-secondary, #6b7280);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .sync-badge {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--success, #10b981);
+          flex-shrink: 0;
+        }
+        
+        /* Floating Action Button */
+        .sidebar-fab {
+          position: fixed;
+          bottom: 24px;
+          right: calc(100% - var(--sidebar-width, 320px) + 24px);
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: var(--primary, #7c3aed);
+          color: white;
+          border: none;
+          font-size: 24px;
+          font-weight: 300;
+          cursor: pointer;
+          box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 10001;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .sidebar-fab:hover {
+          transform: scale(1.1);
+          box-shadow: 0 6px 20px rgba(124, 58, 237, 0.6);
+        }
+        
+        .sidebar-fab:active {
+          transform: scale(0.95);
+        }
+        
+        /* FAB Menu */
+        .sidebar-fab-menu {
+          position: fixed;
+          bottom: 90px;
+          right: calc(100% - var(--sidebar-width, 320px) + 24px);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          z-index: 10000;
+        }
+        
+        .fab-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 20px;
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 28px;
+          cursor: pointer;
+          box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+          transition: all 0.2s;
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--text, #1f2937);
+          white-space: nowrap;
+        }
+        
+        .fab-menu-item:hover {
+          background: var(--primary, #7c3aed);
+          color: white;
+          transform: translateX(-4px);
+          box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+        }
+        
+        .fab-icon {
+          font-size: 18px;
+        }
+        
+        .fab-label {
+          font-size: 13px;
+        }
+        
+        /* Today Section */
         .sidebar-today-section {
           flex: 1;
           display: flex;
@@ -2525,67 +2667,7 @@
         .sidebar-contacts-list {
           flex: 1;
           overflow-y: auto;
-          padding: 12px;
-        }
-        
-        .sidebar-contact-card {
-          background: var(--card-bg, #ffffff);
-          border: 1px solid var(--border, #e5e7eb);
-          border-radius: 8px;
-          padding: 12px;
-          margin-bottom: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .sidebar-contact-card:hover {
-          border-color: var(--primary, #7c3aed);
-          transform: translateX(-2px);
-          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
-        }
-        
-        .contact-row-1 {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 6px;
-        }
-        
-        .contact-name {
-          flex: 1;
-          font-weight: 600;
-          font-size: 13px;
-          color: var(--text, #1f2937);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        
-        .source-badge {
-          font-size: 11px;
-          flex-shrink: 0;
-        }
-        
-        .sync-badge {
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--success, #10b981);
-          flex-shrink: 0;
-        }
-        
-        .contact-row-2 {
-          font-size: 12px;
-          color: var(--text-secondary, #6b7280);
-          margin-bottom: 4px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        
-        .contact-row-3 {
-          font-size: 11px;
-          color: var(--text-secondary, #9ca3af);
-          font-style: italic;
+          padding: 12px 16px;
         }
         
         .sidebar-empty-state {
@@ -2615,54 +2697,6 @@
           color: var(--text-secondary, #6b7280);
         }
         
-        .sidebar-actions {
-          display: flex;
-          gap: 8px;
-          padding: 16px;
-          border-top: 1px solid var(--border, #e5e7eb);
-          background: var(--surface, #f8f9fa);
-        }
-        
-        .btn-sidebar-primary,
-        .btn-sidebar-secondary {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          padding: 10px 16px;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          border: none;
-          outline: none;
-        }
-        
-        .btn-sidebar-primary {
-          background: var(--primary, #7c3aed);
-          color: white;
-        }
-        
-        .btn-sidebar-primary:hover {
-          background: var(--primary-hover, #6d28d9);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
-        }
-        
-        .btn-sidebar-secondary {
-          background: var(--surface, #f8f9fa);
-          color: var(--text, #1f2937);
-          border: 1px solid var(--border, #e5e7eb);
-        }
-        
-        .btn-sidebar-secondary:hover {
-          background: var(--card-bg, #ffffff);
-          border-color: var(--primary, #7c3aed);
-          color: var(--primary, #7c3aed);
-        }
-        
         .sidebar-settings-btn {
           background: transparent;
           border: none;
@@ -2680,25 +2714,21 @@
         }
         
         /* Dark mode adjustments */
-        [data-theme="dark"] .stat-card,
-        [data-theme="dark"] .sidebar-contact-card {
+        [data-theme="dark"] .stat-card-inline,
+        [data-theme="dark"] .sidebar-contact-card-compact,
+        [data-theme="dark"] .fab-menu-item {
           background: var(--card-bg, #1e293b);
           border-color: var(--border, #334155);
         }
         
-        [data-theme="dark"] .sidebar-session-stats,
-        [data-theme="dark"] .sidebar-actions {
+        [data-theme="dark"] .sidebar-session-stats-compact {
           background: var(--surface, #0f172a);
           border-color: var(--border, #334155);
         }
         
-        [data-theme="dark"] .btn-sidebar-secondary {
-          background: var(--surface, #1e293b);
-          color: var(--text, #e2e8f0);
-        }
-        
-        [data-theme="dark"] .btn-sidebar-secondary:hover {
-          background: var(--card-bg, #334155);
+        [data-theme="dark"] .fab-menu-item:hover {
+          background: var(--primary, #7c3aed);
+          color: white;
         }
       `;
       document.head.appendChild(style);
@@ -3027,22 +3057,71 @@
       });
     }
 
-    // Scan Inbox button
-    const scanInboxBtn = sidebarContainer.querySelector('#sidebar-scan-inbox-btn');
-    if (scanInboxBtn) {
-      scanInboxBtn.addEventListener('click', async (e) => {
+    // Stats toggle button
+    const statsExpandBtn = sidebarContainer.querySelector('#sidebar-stats-expand');
+    const statsExpanded = sidebarContainer.querySelector('#sidebar-stats-expanded');
+    if (statsExpandBtn && statsExpanded) {
+      statsExpandBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        playClickSound('action');
-        await bulkScanAllEmails();
-        // Refresh sidebar after scan
-        await loadSidebarToday();
+        playClickSound('navigation');
+        const isExpanded = statsExpanded.style.display !== 'none';
+        statsExpanded.style.display = isExpanded ? 'none' : 'block';
+        statsExpandBtn.textContent = isExpanded ? '▼' : '▲';
       });
     }
 
-    // Open Full View button - opens popup
-    const openPopupBtn = sidebarContainer.querySelector('#sidebar-open-popup-btn');
-    if (openPopupBtn) {
-      openPopupBtn.addEventListener('click', (e) => {
+    // Floating Action Button (FAB)
+    const fabBtn = sidebarContainer.querySelector('#sidebar-fab-btn');
+    const fabMenu = sidebarContainer.querySelector('#sidebar-fab-menu');
+    if (fabBtn && fabMenu) {
+      let fabOpen = false;
+      
+      fabBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playClickSound('navigation');
+        fabOpen = !fabOpen;
+        fabMenu.style.display = fabOpen ? 'flex' : 'none';
+        fabBtn.style.transform = fabOpen ? 'rotate(45deg)' : 'rotate(0deg)';
+      });
+      
+      // Close FAB menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (fabOpen && !fabBtn.contains(e.target) && !fabMenu.contains(e.target)) {
+          fabOpen = false;
+          fabMenu.style.display = 'none';
+          fabBtn.style.transform = 'rotate(0deg)';
+        }
+      });
+    }
+
+    // FAB Menu Items
+    const fabScanBtn = sidebarContainer.querySelector('#fab-scan-btn');
+    const fabPopupBtn = sidebarContainer.querySelector('#fab-popup-btn');
+    const fabSettingsBtn = sidebarContainer.querySelector('#fab-settings-btn');
+    
+    if (fabScanBtn) {
+      fabScanBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        playClickSound('action');
+        // Close FAB menu
+        fabMenu.style.display = 'none';
+        fabBtn.style.transform = 'rotate(0deg)';
+        // Scan inbox
+        await bulkScanAllEmails();
+        await loadSidebarToday();
+      });
+    }
+    
+    if (fabPopupBtn) {
+      fabPopupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playClickSound('navigation');
+        chrome.runtime.sendMessage({ action: 'openPopup' });
+      });
+    }
+    
+    if (fabSettingsBtn) {
+      fabSettingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         playClickSound('navigation');
         chrome.runtime.sendMessage({ action: 'openPopup' });
@@ -3313,6 +3392,12 @@
       if (syncedCountEl) syncedCountEl.textContent = syncedCount;
       if (followupsCountEl) followupsCountEl.textContent = followupsCount;
       
+      // Update collapsed stats summary text
+      const statsSummaryText = document.getElementById('sidebar-stats-text');
+      if (statsSummaryText) {
+        statsSummaryText.textContent = `${newCount} new, ${syncedCount} synced`;
+      }
+      
       // Update today's count badge
       const todayBadge = document.getElementById('sidebar-today-badge');
       if (todayBadge) todayBadge.textContent = todayContacts.length;
@@ -3333,18 +3418,7 @@
           emptyStateEl.style.display = 'none';
           
           todayListEl.innerHTML = todayContacts.map(contact => {
-            // Determine source badge
-            const source = contact.source || 'gmail';
-            let sourceBadge = '';
-            if (source === 'hubspot') {
-              sourceBadge = '<span class="source-badge hubspot-badge" title="From HubSpot">🔵H</span>';
-            } else if (source === 'salesforce') {
-              sourceBadge = '<span class="source-badge salesforce-badge" title="From Salesforce">🟠S</span>';
-            } else {
-              sourceBadge = '<span class="source-badge gmail-badge" title="From Gmail">📧</span>';
-            }
-            
-            // Determine sync status badge
+            // Determine sync status badge (ONLY show this - most important)
             const mappings = contact.crmMappings || {};
             let syncBadge = '';
             if (mappings.hubspot) {
@@ -3353,31 +3427,19 @@
               syncBadge = '<span class="sync-badge synced" title="Synced to Salesforce">✓S</span>';
             }
             
-            // Approval status
-            const status = contact.status || 'approved';
-            const statusText = status === 'approved' ? 'Approved, synced' : 
-                              status === 'pending' ? 'New, needs review' : 
-                              'Archived';
-            
             return `
-              <div class="sidebar-contact-card" data-email="${contact.email}">
-                <div class="contact-row-1">
-                  ${sourceBadge}
-                  <span class="contact-name">${getFullName(contact.firstName, contact.lastName) || contact.email}</span>
+              <div class="sidebar-contact-card-compact" data-email="${contact.email}">
+                <div class="contact-row-compact">
+                  <span class="contact-name-compact">${getFullName(contact.firstName, contact.lastName) || contact.email}</span>
                   ${syncBadge}
                 </div>
-                <div class="contact-row-2">
-                  <span class="contact-email">${contact.email}</span>
-                </div>
-                <div class="contact-row-3">
-                  <span class="contact-status">${statusText}</span>
-                </div>
+                <div class="contact-email-compact">${contact.email}</div>
               </div>
             `;
           }).join('');
           
           // Add click handlers
-          todayListEl.querySelectorAll('.sidebar-contact-card').forEach(card => {
+          todayListEl.querySelectorAll('.sidebar-contact-card-compact').forEach(card => {
             card.addEventListener('click', () => {
               const email = card.getAttribute('data-email');
               const contact = todayContacts.find(c => c.email === email);

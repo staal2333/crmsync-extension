@@ -3052,7 +3052,7 @@
       settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         playClickSound('navigation');
-        // Open popup (will open to settings tab if user configures it)
+        // Open popup via background script
         chrome.runtime.sendMessage({ action: 'openPopup' });
       });
     }
@@ -3419,11 +3419,15 @@
           
           todayListEl.innerHTML = todayContacts.map(contact => {
             // Determine sync status badge (ONLY show this - most important)
+            // Filter by connected platforms
+            const connectedPlatforms = window.integrationManager?.getConnectedPlatforms() || { hubspot: true, salesforce: true };
             const mappings = contact.crmMappings || {};
             let syncBadge = '';
-            if (mappings.hubspot) {
+            // Only show HubSpot badge if connected to HubSpot
+            if (mappings.hubspot && connectedPlatforms.hubspot) {
               syncBadge = '<span class="sync-badge synced" title="Synced to HubSpot">✓H</span>';
-            } else if (mappings.salesforce) {
+            // Only show Salesforce badge if connected to Salesforce  
+            } else if (mappings.salesforce && connectedPlatforms.salesforce) {
               syncBadge = '<span class="sync-badge synced" title="Synced to Salesforce">✓S</span>';
             }
             

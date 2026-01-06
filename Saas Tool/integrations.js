@@ -1234,6 +1234,15 @@ class IntegrationManager {
   getLastSync(platform) {
     return this.statusCache[platform]?.lastSync || null;
   }
+  
+  // Get all connected platforms (for UI filtering)
+  getConnectedPlatforms() {
+    return {
+      hubspot: this.isConnected('hubspot'),
+      salesforce: this.isConnected('salesforce'),
+      any: this.isConnected('hubspot') || this.isConnected('salesforce')
+    };
+  }
 }
 
 // Initialize and expose globally

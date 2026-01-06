@@ -152,6 +152,42 @@ setTimeout(() => {
   }
 })();
 
+// Update UI based on connected CRM platforms
+async function updateUIForConnectedPlatforms() {
+  try {
+    // Get connected platforms
+    const platforms = window.integrationManager?.getConnectedPlatforms() || {
+      hubspot: false,
+      salesforce: false,
+      any: false
+    };
+    
+    console.log('🔌 Connected platforms:', platforms);
+    
+    // Update source filter to only show connected platforms
+    const sourceFilter = document.getElementById('sourceFilter');
+    if (sourceFilter) {
+      const currentValue = sourceFilter.value;
+      sourceFilter.innerHTML = `
+        <option value="">All Sources</option>
+        <option value="gmail">📧 Gmail</option>
+        ${platforms.hubspot ? '<option value="hubspot">🔵 HubSpot</option>' : ''}
+        ${platforms.salesforce ? '<option value="salesforce">🟠 Salesforce</option>' : ''}
+      `;
+      // Restore selection if still valid
+      if (sourceFilter.querySelector(`option[value="${currentValue}"]`)) {
+        sourceFilter.value = currentValue;
+      }
+    }
+    
+    // Store connected platforms globally for use in rendering
+    window.connectedPlatforms = platforms;
+    
+  } catch (error) {
+    console.error('Error updating UI for connected platforms:', error);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
   
@@ -227,6 +263,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           new Promise((_, reject) => setTimeout(() => reject(new Error('Contact load timeout')), 3000))
         ]);
         console.log('✓ Contacts loaded');
+        
+        // Update UI based on connected platforms
+        await updateUIForConnectedPlatforms();
       } catch (err) {
         console.error('⚠️ Initial contact load failed:', err);
         // Empty state will be shown
@@ -2514,17 +2553,24 @@ function renderContactsTable() {
       sourceBadge = '<span class="crm-icon" style="background: #667eea; color: white; font-size: 7px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From CRM-Sync">C</span>';
     }
     
-    // CRM Sync Status - Show which platforms have this contact
+    // CRM Sync Status - Show which platforms have this contact (filtered by connected platforms)
+    const connectedPlatforms = window.connectedPlatforms || { hubspot: true, salesforce: true };
     let crmStatus = '';
     if (inHubSpot || inSalesforce) {
       let badges = [];
-      if (inHubSpot) {
+      // Only show HubSpot badge if user is connected to HubSpot
+      if (inHubSpot && connectedPlatforms.hubspot) {
         badges.push('<span class="crm-sync-badge" style="background: #ff7a59; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to HubSpot">✓H</span>');
       }
-      if (inSalesforce) {
+      // Only show Salesforce badge if user is connected to Salesforce
+      if (inSalesforce && connectedPlatforms.salesforce) {
         badges.push('<span class="crm-sync-badge" style="background: #00a1e0; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to Salesforce">✓S</span>');
       }
-      crmStatus = '<div style="display: flex; gap: 2px; justify-content: center;">' + badges.join('') + '</div>';
+      if (badges.length > 0) {
+        crmStatus = '<div style="display: flex; gap: 2px; justify-content: center;">' + badges.join('') + '</div>';
+      } else {
+        crmStatus = '<span style="color: var(--text-secondary); opacity: 0.4; font-size: 10px;" title="Not synced to connected CRM">—</span>';
+      }
     } else {
       crmStatus = '<span style="color: var(--text-secondary); opacity: 0.4; font-size: 10px;" title="Not synced to any CRM">—</span>';
     }

@@ -348,12 +348,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       excludePhones: Array.isArray(settings.excludePhones) ? settings.excludePhones : []
     });
     sendResponse({ success: true });
-  } else   if (request.action === 'authFromWebsite') {
+  } else if (request.action === 'authFromWebsite') {
     // Handle authentication from website
     handleWebsiteAuth(request.data)
       .then((result) => sendResponse(result))
       .catch(error => {
         console.error('Error handling website auth:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep channel open for async response
+  } else if (request.action === 'openPopup') {
+    // Open the popup programmatically
+    chrome.action.openPopup()
+      .then(() => {
+        console.log('✅ Popup opened successfully');
+        sendResponse({ success: true });
+      })
+      .catch((error) => {
+        console.error('❌ Error opening popup:', error);
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep channel open for async response

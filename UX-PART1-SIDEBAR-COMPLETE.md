@@ -138,3 +138,4 @@ Click widget → Sidebar opens
 - **Spacious** - 85% of space is contacts
 
 🎉 **Part 1 Complete!** Moving to popup next...
+

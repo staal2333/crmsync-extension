@@ -84,8 +84,36 @@ class SyncService {
   
   async getContactsSince(client, userId, since) {
     const query = since
-      ? `SELECT * FROM contacts WHERE user_id = $1 AND updated_at > $2 AND deleted_at IS NULL ORDER BY updated_at DESC`
-      : `SELECT * FROM contacts WHERE user_id = $1 AND deleted_at IS NULL ORDER BY updated_at DESC`;
+      ? `SELECT 
+          c.*,
+          json_agg(
+            json_build_object(
+              'platform', m.platform,
+              'crm_contact_id', m.crm_contact_id,
+              'crm_record_type', m.crm_record_type,
+              'last_synced', m.last_synced
+            )
+          ) FILTER (WHERE m.id IS NOT NULL) as crm_status
+        FROM contacts c
+        LEFT JOIN crm_contact_mappings m ON c.id = m.contact_id AND m.user_id = c.user_id
+        WHERE c.user_id = $1 AND c.updated_at > $2 AND c.deleted_at IS NULL
+        GROUP BY c.id
+        ORDER BY c.updated_at DESC`
+      : `SELECT 
+          c.*,
+          json_agg(
+            json_build_object(
+              'platform', m.platform,
+              'crm_contact_id', m.crm_contact_id,
+              'crm_record_type', m.crm_record_type,
+              'last_synced', m.last_synced
+            )
+          ) FILTER (WHERE m.id IS NOT NULL) as crm_status
+        FROM contacts c
+        LEFT JOIN crm_contact_mappings m ON c.id = m.contact_id AND m.user_id = c.user_id
+        WHERE c.user_id = $1 AND c.deleted_at IS NULL
+        GROUP BY c.id
+        ORDER BY c.updated_at DESC`;
     
     const params = since ? [userId, since] : [userId];
     const result = await client.query(query, params);
@@ -352,6 +380,8 @@ class SyncService {
       title: row.title,
       phone: row.phone,
       linkedin: row.linkedin,
+      source: row.source, // Contact source (hubspot, salesforce, gmail)
+      crm_status: row.crm_status, // CRM sync mappings (array)
       firstContactAt: row.first_contact_at,
       lastContactAt: row.last_contact_at,
       outboundCount: row.outbound_count,

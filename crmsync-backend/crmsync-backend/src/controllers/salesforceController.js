@@ -379,21 +379,23 @@ exports.salesforceSyncAll = async (req, res) => {
               email, 
               first_name, 
               last_name,
+              source,
               created_at,
               updated_at
             )
-            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
             RETURNING id
           `, [
             userId, 
             email,
             crmContact.FirstName || '',
-            crmContact.LastName || ''
+            crmContact.LastName || '',
+            'salesforce'
           ]);
           
           ourContactId = insertResult.rows[0].id;
           importedCount++;
-          console.log(`📥 Imported contact: ${email}`);
+          console.log(`📥 Imported contact from Salesforce: ${email}`);
         } catch (error) {
           console.error(`❌ Failed to import contact ${email}:`, error.message);
           continue;

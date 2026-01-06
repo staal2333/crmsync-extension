@@ -633,25 +633,25 @@ button:focus:not(:focus-visible) {
   scroll-behavior: smooth;
 }
 
-.popup-container {
+.tab-content {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.popup-container::-webkit-scrollbar {
+.tab-content::-webkit-scrollbar {
   width: 8px;
 }
 
-.popup-container::-webkit-scrollbar-track {
+.tab-content::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.popup-container::-webkit-scrollbar-thumb {
+.tab-content::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
 }
 
-.popup-container::-webkit-scrollbar-thumb:hover {
+.tab-content::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
 }
 
@@ -764,12 +764,12 @@ body {
   background: var(--bg);
   color: var(--text);
   width: 420px;
-  min-height: 500px;
-  max-height: 600px;
+  height: 600px;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
+  margin: 0;
+  padding: 0;
 }
 
 .popup-container {
@@ -777,6 +777,7 @@ body {
   flex-direction: column;
   height: 100%;
   padding: 0;
+  overflow: hidden;
 }
 
 /* Header */
@@ -788,6 +789,7 @@ body {
   justify-content: center;
   align-items: center;
   position: relative;
+  flex-shrink: 0;
 }
 
 .popup-logo-center {
@@ -869,6 +871,7 @@ body {
   gap: 0;
   border-bottom: 2px solid var(--border);
   background: var(--bg);
+  flex-shrink: 0;
 }
 
 .tab-btn {
@@ -904,7 +907,8 @@ body {
   display: none;
   padding: 20px 24px;
   overflow-y: auto;
-  max-height: 600px;
+  flex: 1;
+  height: 0;
 }
 
 .tab-content.active {
@@ -1007,7 +1011,8 @@ body {
 .contacts-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
+  table-layout: fixed;
 }
 
 .contacts-table thead {
@@ -1018,17 +1023,23 @@ body {
 }
 
 .contacts-table th {
-  padding: 10px 12px;
+  padding: 8px 10px;
   text-align: left;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contacts-table td {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .contacts-table tbody tr {
@@ -1038,6 +1049,17 @@ body {
 .contacts-table tbody tr:hover {
   background: var(--surface);
   cursor: pointer;
+}
+
+/* Bulk mode styling - make it clear rows are for selection */
+.bulk-mode .contacts-table tbody tr:hover {
+  background: #f0f9ff;
+  border-left: 3px solid #667eea;
+}
+
+.bulk-mode .contacts-table tbody tr.row-selected {
+  background: #e0e7ff;
+  border-left: 3px solid #667eea;
 }
 
 .empty-row {
@@ -1096,15 +1118,43 @@ body {
 
 /* Bulk Actions Toolbar */
 .bulk-actions-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background: var(--primary-light);
-  border: 1px solid var(--primary);
-  border-radius: 12px;
-  margin-bottom: 16px;
-  animation: slideDown 0.3s ease;
+  transition: all 0.2s ease;
+}
+
+.bulk-actions-toolbar button {
+  transition: all 0.15s ease;
+}
+
+.bulk-actions-toolbar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.bulk-actions-toolbar button:active {
+  transform: translateY(0);
+}
+
+.bulk-actions-toolbar .btn-text:hover {
+  text-decoration: underline;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-hubspot:hover {
+  background: #ff8a6d !important;
+}
+
+.btn-salesforce:hover {
+  background: #1ab4f5 !important;
+}
+
+#bulkExport:hover {
+  background: var(--primary-light) !important;
+  border-color: var(--primary) !important;
+}
+
+#bulkDelete:hover {
+  background: #fee !important;
 }
 
 @keyframes slideDown {
@@ -1213,14 +1263,14 @@ body {
 }
 
 .checkbox-col {
-  width: 40px;
+  width: 36px;
   text-align: center;
 }
 
 .contact-checkbox {
   cursor: pointer;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--primary);
 }
 

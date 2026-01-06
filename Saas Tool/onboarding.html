@@ -382,16 +382,6 @@
       
       <div class="setting-option">
         <div class="setting-header">
-          <h3>Follow-up Reminders</h3>
-          <div class="toggle-switch active" id="remindersToggle" data-setting="reminders"></div>
-        </div>
-        <p class="setting-description">
-          Get reminders to follow up with contacts you haven't contacted recently (default: 30 days).
-        </p>
-      </div>
-      
-      <div class="setting-option">
-        <div class="setting-header">
           <h3>Email Notifications</h3>
           <div class="toggle-switch" id="notificationsToggle" data-setting="notifications"></div>
         </div>
@@ -517,6 +507,21 @@
       <p class="step-subtitle">
         CRMSYNC is ready to help you manage your contacts
       </p>
+      
+      <!-- Sample Data Option -->
+      <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 16px; padding: 24px; margin-bottom: 32px; border: 2px solid #667eea;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 28px;">📦</span>
+          <h3 style="font-size: 18px; font-weight: 600; color: #1e293b; margin: 0;">Try with Sample Data</h3>
+        </div>
+        <p style="font-size: 14px; color: #64748b; margin-bottom: 16px; line-height: 1.5;">
+          Want to explore features before adding real contacts? We'll add 5 sample contacts so you can test everything!
+        </p>
+        <button id="generateSampleDataBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
+          ✨ Add Sample Data
+        </button>
+        <div id="sampleDataStatus" style="display: none; margin-top: 12px; padding: 12px; background: white; border-radius: 8px; text-align: center; font-size: 13px;"></div>
+      </div>
       
       <ul class="feature-list">
         <li class="feature-item">

@@ -336,6 +336,40 @@ class SyncManager {
    * Normalize contact from server format to local format
    */
   normalizeContact(serverContact) {
+    // Transform crm_status array to crmMappings object
+    let crmMappings = {};
+    const crmStatus = serverContact.crm_status || serverContact.crmMappings;
+    if (Array.isArray(crmStatus)) {
+      crmStatus.forEach(mapping => {
+        if (mapping && mapping.platform) {
+          crmMappings[mapping.platform] = {
+            id: mapping.crm_contact_id,
+            recordType: mapping.crm_record_type,
+            lastSynced: mapping.last_synced
+          };
+        }
+      });
+    } else if (crmStatus && typeof crmStatus === 'object') {
+      crmMappings = crmStatus;
+    }
+    
+    // Determine source (backend uses snake_case, extension uses source)
+    const source = serverContact.source || 
+                   (crmMappings.hubspot ? 'hubspot' : null) ||
+                   (crmMappings.salesforce ? 'salesforce' : null) ||
+                   'gmail';
+    
+    // Debug: Log first contact to verify source
+    if (serverContact.email === 'jo@hotelviking.dk') {
+      console.log('🔍 DEBUG normalizeContact:', {
+        email: serverContact.email,
+        rawSource: serverContact.source,
+        finalSource: source,
+        crmMappings: crmMappings,
+        rawCrmStatus: serverContact.crm_status
+      });
+    }
+    
     return {
       email: serverContact.email,
       firstName: serverContact.firstName || serverContact.first_name,
@@ -344,6 +378,7 @@ class SyncManager {
       title: serverContact.title,
       phone: serverContact.phone,
       linkedin: serverContact.linkedin,
+      source: source, // Contact source (hubspot, salesforce, gmail)
       firstContactAt: serverContact.firstContactAt || serverContact.first_contact_at,
       lastContactAt: serverContact.lastContactAt || serverContact.last_contact_at,
       outboundCount: serverContact.outboundCount || serverContact.outbound_count || 0,
@@ -355,6 +390,7 @@ class SyncManager {
       lastReviewedAt: serverContact.lastReviewedAt || serverContact.last_reviewed_at,
       tags: serverContact.tags || [],
       messages: serverContact.messages || [],
+      crmMappings: crmMappings, // CRM sync status (transformed from array to object)
       createdAt: serverContact.createdAt || serverContact.created_at,
       lastUpdated: serverContact.lastUpdated || serverContact.updated_at || new Date().toISOString()
     };

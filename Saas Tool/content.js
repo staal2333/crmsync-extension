@@ -137,6 +137,7 @@
           setupEmailSentDetector();
           detectUserEmail(); // Detect user's email first
           setupThreadObserver(); // Auto-scan threads when opened (but not whole inbox)
+          setupReminderSystem(); // Setup reminder system after Gmail loads
 
           // Inbound enrichment observer (guarded so a missing function doesn't break setup)
           if (typeof setupInboundEmailObserver === 'function') {
@@ -2361,20 +2362,36 @@
       
       <!-- Header -->
       <div class="sidebar-header">
-        <button class="sidebar-contacts-btn" onclick="document.querySelector('[data-sidebar-tab=\\'contacts\\']')?.click()" title="All Contacts">
-          👥
-        </button>
-        <img src="${chrome.runtime.getURL('icons/header-logo.png')}" alt="CRMSYNC" class="sidebar-logo-center" onerror="this.src='${chrome.runtime.getURL('icons/widget-logo.png.png')}'" />
+        <button class="sidebar-settings-btn" title="Settings">⚙️</button>
+        <img src="${chrome.runtime.getURL('icons/header-logo.png')}" alt="CRMSYNC" class="sidebar-logo-center" onerror="this.src='${chrome.runtime.getURL('icons/widget-logo.png')}'" />
         <button class="toggle-sidebar" title="Close Sidebar">✕</button>
       </div>
 
-      <!-- Quick Status -->
-      <div class="sidebar-status">
-        <div class="status-item">
-          <span class="status-label">Status</span>
-          <span class="status-value scan-status-text">${lastScanStatus}</span>
+      <!-- Session Stats -->
+      <div class="sidebar-session-stats">
+        <div class="stat-card">
+          <div class="stat-icon">🆕</div>
+          <div class="stat-content">
+            <div class="stat-value" id="sidebar-new-count">0</div>
+            <div class="stat-label">New Today</div>
+          </div>
         </div>
-        ${lastScanAt ? `<div class="status-time">${lastScanAt}</div>` : ''}
+        
+        <div class="stat-card">
+          <div class="stat-icon">✓</div>
+          <div class="stat-content">
+            <div class="stat-value" id="sidebar-synced-count">0</div>
+            <div class="stat-label">Synced</div>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">⏰</div>
+          <div class="stat-content">
+            <div class="stat-value" id="sidebar-followups-count">0</div>
+            <div class="stat-label">Follow-ups</div>
+          </div>
+        </div>
       </div>
 
       <!-- Contact Limit Warning Banner -->
@@ -2389,115 +2406,303 @@
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="sidebar-tabs">
-        <button class="sidebar-tab-btn active" data-sidebar-tab="crm">
-          <span>📋</span>
-          <span>CRM</span>
-        </button>
-        <button class="sidebar-tab-btn" data-sidebar-tab="overview">
-          <span>📊</span>
-          <span>Overview</span>
-        </button>
-        <button class="sidebar-tab-btn" data-sidebar-tab="today">
-          <span>📅</span>
-          <span>Today</span>
-        </button>
+      <!-- Single Content Section -->
+      <div class="sidebar-content">
+        <!-- Today's Contacts Section -->
+        <div class="sidebar-today-section">
+          <div class="section-header">
+            <h3>📧 Today's Contacts</h3>
+            <span class="count-badge" id="sidebar-today-badge">0</span>
+          </div>
+          
+          <div id="sidebar-today-contacts-list" class="sidebar-contacts-list">
+            <!-- Today's contacts will be rendered here -->
+          </div>
+          
+          <div class="sidebar-empty-state" id="sidebar-empty-state" style="display: none;">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">No new contacts today</div>
+            <div class="empty-subtext">Open an email to detect contacts</div>
+          </div>
+        </div>
       </div>
 
-      <div class="sidebar-content">
-
-        <!-- CRM Tab -->
-        <div class="sidebar-tab-content active" id="sidebar-crm-tab">
-          <div class="tab-header">
-            <h3>All Contacts</h3>
-            <span id="sidebar-crm-count" class="count-badge">0</span>
-          </div>
-
-          <div class="search-box">
-            <input type="text" id="sidebar-search-input" placeholder="🔍 Search..." class="sidebar-input">
-          </div>
-
-          <div class="filters-row">
-            <select id="sidebar-status-filter" class="sidebar-select">
-              <option value="">All Status</option>
-              <option value="approved">Approved</option>
-              <option value="pending">Pending</option>
-              <option value="archived">Archived</option>
-            </select>
-            <select id="sidebar-sort" class="sidebar-select">
-              <option value="lastContact">Recent</option>
-              <option value="name">Name</option>
-              <option value="company">Company</option>
-            </select>
-          </div>
-
-          <div id="sidebar-all-contacts-list" class="sidebar-list">
-            <!-- Contacts rendered here -->
-          </div>
-
-          <div class="tab-actions">
-            <button class="btn-sidebar btn-primary btn-export-csv">
-              <span>📥</span>
-              <span>Export</span>
-            </button>
-            <button class="btn-sidebar btn-secondary btn-clear-contacts">
-              <span>🗑️</span>
-              <span>Clear</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Overview Tab -->
-        <div class="sidebar-tab-content" id="sidebar-overview-tab">
-          <div class="dashboard-stats"></div>
-
-          <div class="tab-section">
-            <h3 class="section-title">Pending Approvals</h3>
-            <div id="sidebar-pending-list" class="sidebar-list-compact"></div>
-          </div>
-
-          <div class="tab-section">
-            <div class="section-header">
-              <h3 class="section-title">Recent Contacts</h3>
-              <button class="btn-link btn-bulk-approve-small">Bulk</button>
-            </div>
-            <div id="sidebar-recent-contacts-list" class="sidebar-list-compact"></div>
-          </div>
-
-          <div class="tab-actions">
-            <button class="btn-sidebar btn-primary btn-export-csv">
-              <span>📥</span>
-              <span>Export</span>
-            </button>
-            <button class="btn-sidebar btn-secondary btn-scan-all">
-              <span>🔍</span>
-              <span>Scan</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Today Tab -->
-        <div class="sidebar-tab-content" id="sidebar-today-tab">
-          <div class="dashboard-stats" id="sidebar-today-stats"></div>
-
-          <div class="tab-section">
-            <h3 class="section-title">Today's Contacts</h3>
-            <div id="sidebar-today-list" class="sidebar-list"></div>
-          </div>
-
-          <div class="tab-actions">
-            <button class="btn-sidebar btn-primary btn-export-today">
-              <span>📥</span>
-              <span>Export Today</span>
-            </button>
-          </div>
-        </div>
-
+      <!-- Quick Actions -->
+      <div class="sidebar-actions">
+        <button class="btn-sidebar-primary" id="sidebar-scan-inbox-btn">
+          <span>🔍</span>
+          <span>Scan Inbox</span>
+        </button>
+        <button class="btn-sidebar-secondary" id="sidebar-open-popup-btn">
+          <span>📤</span>
+          <span>Open Full View</span>
+        </button>
       </div>
     `;
 
     document.body.appendChild(sidebarContainer);
+    
+    // Inject CSS styles for simplified sidebar
+    if (!document.getElementById('crmsync-sidebar-styles')) {
+      const style = document.createElement('style');
+      style.id = 'crmsync-sidebar-styles';
+      style.textContent = `
+        /* Simplified Sidebar Styles */
+        .sidebar-session-stats {
+          display: flex;
+          gap: 8px;
+          padding: 12px 16px;
+          background: var(--surface, #f8f9fa);
+          border-bottom: 1px solid var(--border, #e5e7eb);
+        }
+        
+        .stat-card {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px;
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          transition: all 0.2s;
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        .stat-icon {
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+        
+        .stat-content {
+          flex: 1;
+          min-width: 0;
+        }
+        
+        .stat-value {
+          font-size: 20px;
+          font-weight: 700;
+          line-height: 1;
+          color: var(--text, #1f2937);
+          margin-bottom: 4px;
+        }
+        
+        .stat-label {
+          font-size: 10px;
+          color: var(--text-secondary, #6b7280);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          font-weight: 600;
+          line-height: 1;
+        }
+        
+        .sidebar-today-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        
+        .sidebar-today-section .section-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 16px;
+          border-bottom: 1px solid var(--border, #e5e7eb);
+        }
+        
+        .sidebar-today-section .section-header h3 {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text, #1f2937);
+        }
+        
+        .sidebar-contacts-list {
+          flex: 1;
+          overflow-y: auto;
+          padding: 12px;
+        }
+        
+        .sidebar-contact-card {
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border, #e5e7eb);
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 8px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .sidebar-contact-card:hover {
+          border-color: var(--primary, #7c3aed);
+          transform: translateX(-2px);
+          box-shadow: 0 2px 8px rgba(124, 58, 237, 0.12);
+        }
+        
+        .contact-row-1 {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 6px;
+        }
+        
+        .contact-name {
+          flex: 1;
+          font-weight: 600;
+          font-size: 13px;
+          color: var(--text, #1f2937);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .source-badge {
+          font-size: 11px;
+          flex-shrink: 0;
+        }
+        
+        .sync-badge {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--success, #10b981);
+          flex-shrink: 0;
+        }
+        
+        .contact-row-2 {
+          font-size: 12px;
+          color: var(--text-secondary, #6b7280);
+          margin-bottom: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        
+        .contact-row-3 {
+          font-size: 11px;
+          color: var(--text-secondary, #9ca3af);
+          font-style: italic;
+        }
+        
+        .sidebar-empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 48px 24px;
+          text-align: center;
+        }
+        
+        .empty-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+          opacity: 0.5;
+        }
+        
+        .empty-text {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text, #1f2937);
+          margin-bottom: 4px;
+        }
+        
+        .empty-subtext {
+          font-size: 12px;
+          color: var(--text-secondary, #6b7280);
+        }
+        
+        .sidebar-actions {
+          display: flex;
+          gap: 8px;
+          padding: 16px;
+          border-top: 1px solid var(--border, #e5e7eb);
+          background: var(--surface, #f8f9fa);
+        }
+        
+        .btn-sidebar-primary,
+        .btn-sidebar-secondary {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: none;
+          outline: none;
+        }
+        
+        .btn-sidebar-primary {
+          background: var(--primary, #7c3aed);
+          color: white;
+        }
+        
+        .btn-sidebar-primary:hover {
+          background: var(--primary-hover, #6d28d9);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+        }
+        
+        .btn-sidebar-secondary {
+          background: var(--surface, #f8f9fa);
+          color: var(--text, #1f2937);
+          border: 1px solid var(--border, #e5e7eb);
+        }
+        
+        .btn-sidebar-secondary:hover {
+          background: var(--card-bg, #ffffff);
+          border-color: var(--primary, #7c3aed);
+          color: var(--primary, #7c3aed);
+        }
+        
+        .sidebar-settings-btn {
+          background: transparent;
+          border: none;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 8px;
+          border-radius: 6px;
+          transition: all 0.2s;
+          line-height: 1;
+        }
+        
+        .sidebar-settings-btn:hover {
+          background: var(--surface, #f8f9fa);
+          transform: scale(1.1);
+        }
+        
+        /* Dark mode adjustments */
+        [data-theme="dark"] .stat-card,
+        [data-theme="dark"] .sidebar-contact-card {
+          background: var(--card-bg, #1e293b);
+          border-color: var(--border, #334155);
+        }
+        
+        [data-theme="dark"] .sidebar-session-stats,
+        [data-theme="dark"] .sidebar-actions {
+          background: var(--surface, #0f172a);
+          border-color: var(--border, #334155);
+        }
+        
+        [data-theme="dark"] .btn-sidebar-secondary {
+          background: var(--surface, #1e293b);
+          color: var(--text, #e2e8f0);
+        }
+        
+        [data-theme="dark"] .btn-sidebar-secondary:hover {
+          background: var(--card-bg, #334155);
+        }
+      `;
+      document.head.appendChild(style);
+    }
     
     // Attach all event listeners with error handling
     try {
@@ -2809,41 +3014,43 @@
     });
   }
 
-  // Sidebar tab management
+  // Setup sidebar button handlers (simplified - no tabs)
   function setupSidebarTabs() {
-    const tabButtons = sidebarContainer.querySelectorAll('.sidebar-tab-btn');
-    const tabContents = sidebarContainer.querySelectorAll('.sidebar-tab-content');
-
-    tabButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
+    // Settings button - opens popup in settings tab
+    const settingsBtn = sidebarContainer.querySelector('.sidebar-settings-btn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
         playClickSound('navigation');
-        const targetTab = btn.getAttribute('data-sidebar-tab');
-        
-        // Update buttons
-        tabButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Update content
-        tabContents.forEach(content => {
-          content.classList.remove('active');
-          if (content.id === `sidebar-${targetTab}-tab`) {
-            content.classList.add('active');
-          }
-        });
-
-        // Load data for active tab
-        if (targetTab === 'crm') {
-          loadSidebarCRM();
-        } else if (targetTab === 'overview') {
-          loadSidebarOverview();
-        } else if (targetTab === 'today') {
-          loadSidebarToday();
-        }
+        // Open popup (will open to settings tab if user configures it)
+        chrome.runtime.sendMessage({ action: 'openPopup' });
       });
-    });
+    }
 
-    // Load initial tab (CRM)
-    loadSidebarCRM();
+    // Scan Inbox button
+    const scanInboxBtn = sidebarContainer.querySelector('#sidebar-scan-inbox-btn');
+    if (scanInboxBtn) {
+      scanInboxBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        playClickSound('action');
+        await bulkScanAllEmails();
+        // Refresh sidebar after scan
+        await loadSidebarToday();
+      });
+    }
+
+    // Open Full View button - opens popup
+    const openPopupBtn = sidebarContainer.querySelector('#sidebar-open-popup-btn');
+    if (openPopupBtn) {
+      openPopupBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playClickSound('navigation');
+        chrome.runtime.sendMessage({ action: 'openPopup' });
+      });
+    }
+
+    // Load today's contacts
+    loadSidebarToday();
   }
 
   // Load CRM tab data
@@ -3066,48 +3273,113 @@
   // Load Today tab data
   async function loadSidebarToday() {
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_DAILY_REVIEW' });
-      const reviewData = (response && response.reviewData) || {
-        contacts: [],
-        stats: { newToday: 0, awaitingReplies: 0, followUpsDue: 0, totalToday: 0 }
-      };
-
-      // Update stats
-      const statsEl = document.getElementById('sidebar-today-stats');
-      if (statsEl) {
-        statsEl.innerHTML = `
-          <div class="stat-item">
-            <div class="stat-value">${reviewData.stats.newToday || 0}</div>
-            <div class="stat-label">New Today</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${reviewData.stats.totalToday || 0}</div>
-            <div class="stat-label">Total Today</div>
-          </div>
-        `;
-      }
-
+      // Get all contacts
+      const response = await chrome.runtime.sendMessage({ action: 'getContacts' });
+      const allContacts = (response && response.contacts) || [];
+      
+      // Get today's date (start of day)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTimestamp = today.getTime();
+      
+      // Filter contacts created today
+      const todayContacts = allContacts.filter(contact => {
+        const createdDate = new Date(contact.createdAt || contact.created_at || 0);
+        createdDate.setHours(0, 0, 0, 0);
+        return createdDate.getTime() === todayTimestamp;
+      });
+      
+      // Sort by most recent first
+      todayContacts.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.created_at || 0);
+        const dateB = new Date(b.createdAt || b.created_at || 0);
+        return dateB - dateA;
+      });
+      
+      // Calculate stats
+      const newCount = todayContacts.filter(c => c.source === 'gmail').length;
+      const syncedCount = todayContacts.filter(c => {
+        const mappings = c.crmMappings || {};
+        return mappings.hubspot || mappings.salesforce;
+      }).length;
+      const followupsCount = todayContacts.filter(c => c.followUpDate).length;
+      
+      // Update stats cards
+      const newCountEl = document.getElementById('sidebar-new-count');
+      const syncedCountEl = document.getElementById('sidebar-synced-count');
+      const followupsCountEl = document.getElementById('sidebar-followups-count');
+      
+      if (newCountEl) newCountEl.textContent = newCount;
+      if (syncedCountEl) syncedCountEl.textContent = syncedCount;
+      if (followupsCountEl) followupsCountEl.textContent = followupsCount;
+      
+      // Update today's count badge
+      const todayBadge = document.getElementById('sidebar-today-badge');
+      if (todayBadge) todayBadge.textContent = todayContacts.length;
+      
+      // Update limit warning banner
+      updateSidebarLimitBanner();
+      
       // Render today's contacts
-      const todayEl = document.getElementById('sidebar-today-list');
-      if (todayEl) {
-        const todayContacts = reviewData.contacts || [];
+      const todayListEl = document.getElementById('sidebar-today-contacts-list');
+      const emptyStateEl = document.getElementById('sidebar-empty-state');
+      
+      if (todayListEl && emptyStateEl) {
         if (todayContacts.length === 0) {
-          todayEl.innerHTML = '<div class="empty-state">No contacts today</div>';
+          todayListEl.style.display = 'none';
+          emptyStateEl.style.display = 'flex';
         } else {
-          todayEl.innerHTML = todayContacts.slice(0, 30).map(contact => `
-            <div class="contact-item" data-email="${contact.email}" style="cursor:pointer;">
-              <div class="contact-info">
-                <strong>${getFullName(contact.firstName, contact.lastName) || contact.email}</strong>
-                ${contact.company ? `<div class="contact-meta">${contact.company}</div>` : ''}
-                ${contact.threadStatus ? `<div class="contact-meta" style="font-size:11px;opacity:0.7;">${contact.threadStatus}</div>` : ''}
-              </div>
-              <div class="contact-status ${(contact.status || 'approved').toLowerCase().replace(/\s+/g, '-')}">${contact.status || 'Approved'}</div>
-            </div>
-          `).join('');
+          todayListEl.style.display = 'block';
+          emptyStateEl.style.display = 'none';
           
-          todayEl.querySelectorAll('.contact-item').forEach(item => {
-            item.addEventListener('click', () => {
-              const email = item.getAttribute('data-email');
+          todayListEl.innerHTML = todayContacts.map(contact => {
+            // Determine source badge
+            const source = contact.source || 'gmail';
+            let sourceBadge = '';
+            if (source === 'hubspot') {
+              sourceBadge = '<span class="source-badge hubspot-badge" title="From HubSpot">🔵H</span>';
+            } else if (source === 'salesforce') {
+              sourceBadge = '<span class="source-badge salesforce-badge" title="From Salesforce">🟠S</span>';
+            } else {
+              sourceBadge = '<span class="source-badge gmail-badge" title="From Gmail">📧</span>';
+            }
+            
+            // Determine sync status badge
+            const mappings = contact.crmMappings || {};
+            let syncBadge = '';
+            if (mappings.hubspot) {
+              syncBadge = '<span class="sync-badge synced" title="Synced to HubSpot">✓H</span>';
+            } else if (mappings.salesforce) {
+              syncBadge = '<span class="sync-badge synced" title="Synced to Salesforce">✓S</span>';
+            }
+            
+            // Approval status
+            const status = contact.status || 'approved';
+            const statusText = status === 'approved' ? 'Approved, synced' : 
+                              status === 'pending' ? 'New, needs review' : 
+                              'Archived';
+            
+            return `
+              <div class="sidebar-contact-card" data-email="${contact.email}">
+                <div class="contact-row-1">
+                  ${sourceBadge}
+                  <span class="contact-name">${getFullName(contact.firstName, contact.lastName) || contact.email}</span>
+                  ${syncBadge}
+                </div>
+                <div class="contact-row-2">
+                  <span class="contact-email">${contact.email}</span>
+                </div>
+                <div class="contact-row-3">
+                  <span class="contact-status">${statusText}</span>
+                </div>
+              </div>
+            `;
+          }).join('');
+          
+          // Add click handlers
+          todayListEl.querySelectorAll('.sidebar-contact-card').forEach(card => {
+            card.addEventListener('click', () => {
+              const email = card.getAttribute('data-email');
               const contact = todayContacts.find(c => c.email === email);
               if (contact) showContactDetails(contact);
             });
@@ -3115,7 +3387,7 @@
         }
       }
     } catch (error) {
-      console.error('Error loading sidebar today:', error);
+      console.error('CRMSYNC: Error loading sidebar today:', error);
     }
   }
 
@@ -3335,7 +3607,7 @@
     widgetContainer.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     widgetContainer.style.userSelect = 'none';
 
-    // Drag functionality
+    // Drag functionality - Enhanced for free movement
     let isDragging = false;
     let dragStartX = 0;
     let dragStartY = 0;
@@ -3360,8 +3632,9 @@
       initialRight = window.innerWidth - rect.right;
       
       widgetContainer.style.cursor = 'grabbing';
-      widgetContainer.style.opacity = '0.8';
+      widgetContainer.style.opacity = '0.9';
       widgetContainer.style.transition = 'none';
+      widgetContainer.style.transform = 'scale(1.05)';
       
       e.preventDefault();
       e.stopPropagation();
@@ -3377,12 +3650,13 @@
       let newRight = initialRight + deltaX;
       let newBottom = initialBottom - deltaY;
       
-      // Keep widget within viewport bounds
-      const maxRight = window.innerWidth - 64;
-      const maxBottom = window.innerHeight - 64;
+      // Keep widget within viewport bounds (with padding)
+      const padding = 10;
+      const maxRight = window.innerWidth - 64 - padding;
+      const maxBottom = window.innerHeight - 64 - padding;
       
-      newRight = Math.max(0, Math.min(newRight, maxRight));
-      newBottom = Math.max(0, Math.min(newBottom, maxBottom));
+      newRight = Math.max(padding, Math.min(newRight, maxRight));
+      newBottom = Math.max(padding, Math.min(newBottom, maxBottom));
       
       widgetContainer.style.right = newRight + 'px';
       widgetContainer.style.bottom = newBottom + 'px';
@@ -3394,7 +3668,8 @@
       isDragging = false;
       widgetContainer.style.cursor = 'grab';
       widgetContainer.style.opacity = '1';
-      widgetContainer.style.transition = 'transform 0.2s ease';
+      widgetContainer.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
+      widgetContainer.style.transform = 'scale(1)';
       
       // Save position if widget was actually dragged
       if (hasDragged) {
@@ -3403,6 +3678,7 @@
           right: parseInt(widgetContainer.style.right)
         };
         await chrome.storage.local.set({ widgetPosition: newPosition });
+        logger.log('📍 Widget position saved:', newPosition);
       }
     });
 
@@ -3568,53 +3844,9 @@
 
   function updateSidebar() {
     if (!sidebarContainer) return;
-
-    const contactsEl = sidebarContainer.querySelector('#sidebar-all-contacts-list');
-    if (!contactsEl) return;
-
-    // Refresh the active tab
-    const activeTab = sidebarContainer.querySelector('.sidebar-tab-btn.active');
-    if (activeTab) {
-      const tabName = activeTab.getAttribute('data-sidebar-tab');
-      if (tabName === 'crm') {
-        loadSidebarCRM();
-      } else if (tabName === 'overview') {
-        loadSidebarOverview();
-      } else if (tabName === 'today') {
-        loadSidebarToday();
-      }
-    }
-
-    const recentContacts = contacts
-      .slice()
-      .sort((a, b) => new Date(b.lastContactAt || b.lastContact || b.createdAt) - new Date(a.lastContactAt || a.lastContact || a.createdAt))
-      .slice(0, 10);
-
-    if (recentContacts.length === 0) {
-      contactsEl.innerHTML = '<div class="empty-state">No contacts yet. Start emailing or scan your emails!</div>';
-    } else {
-      contactsEl.innerHTML = recentContacts.map(contact => `
-        <div class="contact-item" data-email="${contact.email}">
-          <div class="contact-info">
-            <strong>${getFullName(contact.firstName, contact.lastName) || contact.email}</strong>
-            ${contact.jobTitle ? `<div class="contact-meta">${contact.jobTitle}</div>` : ''}
-            ${contact.company ? `<div class="contact-meta">${contact.company}</div>` : ''}
-          </div>
-          <div class="contact-status ${(contact.status || 'new').toLowerCase().replace(/\s+/g, '-')}">${contact.status || 'New'}</div>
-        </div>
-      `).join('');
-
-      // Make sidebar contacts clickable to show details
-      contactsEl.querySelectorAll('.contact-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const email = item.getAttribute('data-email');
-          const contact = contacts.find(c => c.email === email);
-          if (contact) {
-            showContactDetails(contact);
-          }
-        });
-      });
-    }
+    
+    // Simple refresh - just reload today's contacts
+    loadSidebarToday();
   }
 
   /**
@@ -5851,9 +6083,7 @@
     return bodyText.substring(Math.max(0, bodyText.length - 200));
   }
 
-  setupReminderSystem();
-
-  // Check for reminders
+  // Check for reminders (runs every minute)
   setInterval(() => {
     const now = new Date();
     contacts.forEach(contact => {

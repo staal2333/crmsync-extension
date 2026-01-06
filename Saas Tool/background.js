@@ -1,7 +1,13 @@
 // Background service worker for Chrome extension
 
+// Import logger first
+importScripts('logger.js');
+
 // Import subscription service
 importScripts('subscriptionService.js');
+
+// Import sample data generator
+importScripts('sample-data.js');
 
 /**
  * @typedef {'outbound' | 'inbound'} EmailDirection
@@ -93,6 +99,10 @@ const TIER_LIMITS = {
     exports: 10
   },
   pro: {
+    contacts: 1000,
+    exports: -1 // unlimited
+  },
+  business: {
     contacts: 1000,
     exports: -1 // unlimited
   },
@@ -538,6 +548,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.type === 'DELETE_CONTACT' && request.payload && request.payload.email) {
+    deleteContact(request.payload.email)
+      .then(() => sendResponse && sendResponse({ success: true }))
+      .catch(error => {
+        console.error('Error deleting contact:', error);
+        sendResponse && sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
   if (request.type === 'MARK_CONTACT_LOST' && request.payload && request.payload.email) {
     markContactLost(request.payload.email)
       .then(() => sendResponse && sendResponse({ success: true }))
@@ -668,6 +688,9 @@ async function saveContact(contact) {
       firstContactAt: contacts[existingIndex].firstContactAt || contacts[existingIndex].createdAt || now,
       lastUpdated: now
     };
+    
+    // Save updated contact
+    await chrome.storage.local.set({ contacts });
   } else {
     // Check contact limit before adding new contact (soft limit - allows starting operation if under limit)
     const limitCheck = await checkContactLimit(contacts.length);
@@ -691,7 +714,23 @@ async function saveContact(contact) {
     const newContact = {
       ...contact,
       email: normalizedEmail, // Ensure normalized email
-      status: contact.status || 'approved', // Default to approved when saving
+      // Auto-approve based on source and settings
+      status: await (async () => {
+        if (contact.status) return contact.status;
+        
+        const isCRMSource = contact.source === 'hubspot' || contact.source === 'salesforce' || 
+                           contact.crmSource === 'hubspot' || contact.crmSource === 'salesforce';
+        
+        if (isCRMSource) {
+          // Check autoApproveCRM setting (default true)
+          const { autoApproveCRM } = await chrome.storage.sync.get(['autoApproveCRM']);
+          return (autoApproveCRM !== false) ? 'approved' : 'pending';
+        } else {
+          // Gmail contacts: check autoApprove setting
+          const { autoApprove } = await chrome.storage.sync.get(['autoApprove']);
+          return autoApprove ? 'approved' : 'pending';
+        }
+      })(),
       lastContactAt: lastContactAt, // Ensure lastContactAt is set
       firstContactAt: contact.firstContactAt || contact.createdAt || now,
       id: Date.now().toString(),
@@ -700,8 +739,9 @@ async function saveContact(contact) {
       outboundCount: contact.outboundCount || 0,
       inboundCount: contact.inboundCount || 0,
       messages: contact.messages || [],
-      tags: contact.tags || []
-    });
+      tags: contact.tags || [],
+      source: contact.source || contact.crmSource || 'gmail' // Track source
+    };
     contacts.push(newContact);
     
     // Save contacts to storage
@@ -713,11 +753,6 @@ async function saveContact(contact) {
       console.log('🔄 Auto-sync enabled, checking CRM integrations...');
       autoSyncContact(newContact);
     }
-  }
-  
-  // If contact already existed, just save
-  if (!contacts.includes(contact)) {
-    await chrome.storage.local.set({ contacts });
   }
 }
 
@@ -823,6 +858,7 @@ async function autoSyncContact(contact) {
   } catch (error) {
     console.error('❌ Auto-sync error:', error);
   }
+}
 
 /**
  * Legacy updateContact used by older content flows.

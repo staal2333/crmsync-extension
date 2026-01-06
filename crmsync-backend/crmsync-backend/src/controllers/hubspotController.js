@@ -23,6 +23,12 @@ async function getHubSpotIntegration(userId) {
 // Helper: Refresh HubSpot access token
 async function refreshHubSpotToken(userId, refreshToken) {
   try {
+    console.log('🔄 Refreshing HubSpot token for user:', userId);
+    
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
     const tokenResponse = await axios.post(
       'https://api.hubapi.com/oauth/v1/token',
       new URLSearchParams({
@@ -41,14 +47,30 @@ async function refreshHubSpotToken(userId, refreshToken) {
     
     // Update tokens in database
     await db.query(
-      'UPDATE crm_integrations SET access_token = $1, refresh_token = $2, token_expires_at = $3 WHERE user_id = $4 AND platform = $5',
+      `UPDATE crm_integrations 
+       SET access_token = $1, 
+           refresh_token = $2, 
+           token_expires_at = $3,
+           last_synced_at = NOW()
+       WHERE user_id = $4 AND platform = $5`,
       [access_token, newRefreshToken, expiresAt, userId, 'hubspot']
     );
     
-    console.log('✅ HubSpot token refreshed for user:', userId);
+    console.log('✅ HubSpot token refreshed successfully for user:', userId);
     return access_token;
   } catch (error) {
     console.error('❌ Failed to refresh HubSpot token:', error.response?.data || error.message);
+    
+    // If refresh fails with 401/403, mark integration as inactive
+    if (error.response?.status === 401 || error.response?.status === 403 || error.response?.data?.error === 'invalid_grant') {
+      console.warn('⚠️ HubSpot token refresh failed - marking integration as inactive');
+      await db.query(
+        'UPDATE crm_integrations SET is_active = false WHERE user_id = $1 AND platform = $2',
+        [userId, 'hubspot']
+      );
+      throw new Error('HubSpot connection expired. Please reconnect.');
+    }
+    
     throw new Error('Failed to refresh HubSpot token');
   }
 }
@@ -65,8 +87,22 @@ async function getValidAccessToken(userId, integration) {
     
     if (expiresAt < fiveMinutesFromNow) {
       console.log('🔄 HubSpot token expired or expiring soon, refreshing...');
-      accessToken = await refreshHubSpotToken(userId, integration.refresh_token);
+      
+      if (!integration.refresh_token) {
+        console.error('❌ No refresh token available');
+        throw new Error('HubSpot connection expired. Please reconnect.');
+      }
+      
+      try {
+        accessToken = await refreshHubSpotToken(userId, integration.refresh_token);
+      } catch (error) {
+        // If refresh fails, throw error with clear message
+        console.error('❌ Token refresh failed:', error.message);
+        throw new Error('HubSpot connection expired. Please reconnect in the CRM tab.');
+      }
     }
+  } else {
+    console.warn('⚠️ No token expiration time stored - token may be invalid');
   }
   
   return accessToken;
@@ -435,21 +471,23 @@ exports.hubspotSyncAll = async (req, res) => {
               email, 
               first_name, 
               last_name,
+              source,
               created_at,
               updated_at
             )
-            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
             RETURNING id
           `, [
             userId, 
             email,
             crmContact.properties.firstname || '',
-            crmContact.properties.lastname || ''
+            crmContact.properties.lastname || '',
+            'hubspot'
           ]);
           
           ourContactId = insertResult.rows[0].id;
           importedCount++;
-          console.log(`📥 Imported contact: ${email}`);
+          console.log(`📥 Imported contact from HubSpot: ${email}`);
         } catch (error) {
           console.error(`❌ Failed to import contact ${email}:`, error.message);
           continue;
@@ -513,11 +551,47 @@ exports.hubspotStatus = async (req, res) => {
     const userId = req.user.userId;
     
     const integration = await db.query(
-      'SELECT is_active, account_id, account_name, connected_at, last_synced_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
+      'SELECT is_active, access_token, refresh_token, token_expires_at, account_id, account_name, connected_at, last_synced_at FROM crm_integrations WHERE user_id = $1 AND platform = $2',
       [userId, 'hubspot']
     );
     
-    if (integration.rows.length === 0) {
+    if (integration.rows.length === 0 || !integration.rows[0].is_active) {
+      return res.json({ connected: false });
+    }
+    
+    const integrationData = integration.rows[0];
+    
+    // Check if token is expired
+    let tokenValid = true;
+    if (integrationData.token_expires_at) {
+      const expiresAt = new Date(integrationData.token_expires_at);
+      const now = new Date();
+      
+      if (expiresAt < now) {
+        console.warn('⚠️ HubSpot token expired for user:', userId);
+        
+        // Try to refresh token
+        if (integrationData.refresh_token) {
+          try {
+            await refreshHubSpotToken(userId, integrationData.refresh_token);
+            tokenValid = true;
+            console.log('✅ Token refreshed during status check');
+          } catch (error) {
+            tokenValid = false;
+            console.error('❌ Failed to refresh token during status check');
+          }
+        } else {
+          tokenValid = false;
+        }
+      }
+    }
+    
+    // If token is invalid, mark as not connected
+    if (!tokenValid) {
+      await db.query(
+        'UPDATE crm_integrations SET is_active = false WHERE user_id = $1 AND platform = $2',
+        [userId, 'hubspot']
+      );
       return res.json({ connected: false });
     }
     
@@ -534,12 +608,13 @@ exports.hubspotStatus = async (req, res) => {
     );
     
     res.json({ 
-      connected: integration.rows[0].is_active,
-      accountId: integration.rows[0].account_id,
-      accountName: integration.rows[0].account_name,
-      connectedAt: integration.rows[0].connected_at,
-      lastSync: lastSync.rows[0]?.last_sync || integration.rows[0].last_synced_at || null,
-      syncedContactsCount: parseInt(mappingCount.rows[0]?.count || 0)
+      connected: true,
+      accountId: integrationData.account_id,
+      accountName: integrationData.account_name,
+      connectedAt: integrationData.connected_at,
+      lastSync: lastSync.rows[0]?.last_sync || integrationData.last_synced_at || null,
+      syncedContactsCount: parseInt(mappingCount.rows[0]?.count || 0),
+      tokenExpires: integrationData.token_expires_at
     });
   } catch (error) {
     console.error('❌ HubSpot status error:', error.message);

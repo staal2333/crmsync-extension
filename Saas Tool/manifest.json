@@ -20,9 +20,11 @@
     "https://mail.google.com/*",
     "https://outlook.office.com/*",
     "https://www.crm-sync.net/*",
-    "https://crm-sync.net/*"
+    "https://crm-sync.net/*",
+    "https://crmsync-api.onrender.com/*"
   ],
-  "oauth2": {
+  "_oauth2_disabled": {
+    "_comment": "Google OAuth disabled - needs valid Client ID. To enable: rename this to 'oauth2'",
     "client_id": "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
     "scopes": [
       "openid",

@@ -9,14 +9,18 @@
 <body>
   <div class="popup-container">
     <!-- Header -->
-    <div class="popup-header">
-      <button class="popup-contacts-btn" id="leftHeaderBtn" title="All Contacts">
-        <span id="leftHeaderBtnIcon">👥</span>
-        <span id="leftHeaderBtnText" style="display: none; font-size: 13px; font-weight: 600; margin-left: 4px;"></span>
-      </button>
+    <div class="popup-header" style="justify-content: space-between;">
       <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="popup-contacts-btn" id="leftHeaderBtn" title="Settings" style="position: relative; left: auto; padding: 8px 10px;">
+          <span style="font-size: 20px;">⚙️</span>
+        </button>
+        <button class="popup-contacts-btn" id="signInBtn" title="Sign In" style="display: none; padding: 4px 10px; font-size: 11px; font-weight: 600; min-width: auto; position: relative; left: auto;">
+          Sign In
+        </button>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; position: absolute; left: 50%; transform: translateX(-50%);">
         <img src="icons/header-logo.png" alt="CRMSYNC" class="popup-logo-center" onerror="this.src='icons/widget-logo.png'" />
-        <span id="subscriptionTierBadge" class="tier-badge tier-free">FREE</span>
+        <span id="subscriptionTierBadge" class="tier-badge tier-free" style="font-size: 9px; padding: 2px 8px;">FREE</span>
       </div>
       <button class="popup-widget-btn" id="showWidgetBtn" title="Show Widget on Gmail">
         📌
@@ -28,17 +32,8 @@
       <button class="tab-btn active" data-tab="all-contacts">
         <span>Contacts</span>
       </button>
-      <button class="tab-btn" data-tab="overview">
-        <span>Overview</span>
-      </button>
-      <button class="tab-btn" data-tab="daily-review">
-        <span>Today</span>
-      </button>
       <button class="tab-btn" data-tab="integrations">
         <span>🔌 CRM</span>
-      </button>
-      <button class="tab-btn" data-tab="settings">
-        <span>Settings</span>
       </button>
     </div>
 
@@ -64,7 +59,21 @@
         </div>
         <div class="stat-mini">
           <span class="stat-mini-value" id="newTodayMini">0</span>
-          <span class="stat-mini-label">New</span>
+          <span class="stat-mini-label">New 📅</span>
+        </div>
+      </div>
+
+      <!-- Contact Limit Progress Bar -->
+      <div id="contactLimitProgress" style="margin: 12px 0; padding: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 12px; font-weight: 600; color: var(--text);" id="limitProgressText">0 / 50 contacts</span>
+          <span style="font-size: 11px; color: var(--text-secondary);" id="limitProgressPercent">0%</span>
+        </div>
+        <div style="width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+          <div id="limitProgressBar" style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s ease, background 0.3s ease;"></div>
+        </div>
+        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; display: none;" id="limitProgressWarning">
+          ⚠️ <span id="limitProgressWarningText">Approaching limit</span>
         </div>
       </div>
 
@@ -72,13 +81,19 @@
       <div class="search-section">
         <input type="text" id="contactSearchInput" placeholder="Search contacts..." class="search-input">
         <div class="filter-row">
-          <select id="statusFilter" class="select-input">
-            <option value="">All</option>
+          <select id="sourceFilter" class="select-input" style="flex: 1;">
+            <option value="">All Sources</option>
+            <option value="gmail">📧 Gmail</option>
+            <option value="hubspot">H HubSpot</option>
+            <option value="salesforce">S Salesforce</option>
+          </select>
+          <select id="statusFilter" class="select-input" style="flex: 1;">
+            <option value="">All Status</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="archived">Archived</option>
           </select>
-          <select id="sortBy" class="select-input">
+          <select id="sortBy" class="select-input" style="flex: 1;">
             <option value="lastContact">Recent</option>
             <option value="name">Name</option>
             <option value="company">Company</option>
@@ -86,24 +101,26 @@
         </div>
       </div>
 
-      <!-- Bulk Actions Toolbar (hidden by default) -->
-      <div class="bulk-actions-toolbar hidden" id="bulkActionsToolbar">
-        <div class="bulk-actions-left">
-          <span class="bulk-count" id="bulkSelectedCount">0 selected</span>
-          <button class="btn-text" id="bulkSelectAll">Select All</button>
-          <button class="btn-text" id="bulkDeselectAll">Deselect All</button>
+      <!-- Bulk Actions Toolbar - Compact & Subtle -->
+      <div class="bulk-actions-toolbar" id="bulkActionsToolbar" style="padding: 6px 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+        <div class="bulk-actions-left" style="display: flex; gap: 12px; align-items: center;">
+          <span class="bulk-count" id="bulkSelectedCount" style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">0 selected</span>
+          <button class="btn-text" id="bulkSelectAll" style="font-size: 11px; padding: 3px 6px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 500;">Select All</button>
+          <button class="btn-text" id="bulkDeselectAll" style="font-size: 11px; padding: 3px 6px; color: var(--text-secondary); background: none; border: none; cursor: pointer; font-weight: 500;">Clear</button>
         </div>
-        <div class="bulk-actions-right">
-          <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push to HubSpot">
-            <span class="crm-icon">H</span>
-            Push to HubSpot
+        <div class="bulk-actions-right" style="display: flex; gap: 6px; align-items: center;">
+          <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push selected to HubSpot" style="font-size: 11px; padding: 4px 8px; gap: 3px; min-width: auto; background: #FF7A59; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center;">
+            <span style="font-size: 10px;">H</span>
           </button>
-          <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push to Salesforce">
-            <span class="crm-icon">S</span>
-            Push to Salesforce
+          <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push selected to Salesforce" style="font-size: 11px; padding: 4px 8px; gap: 3px; min-width: auto; background: #00A1E0; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center;">
+            <span style="font-size: 10px;">S</span>
           </button>
-          <button class="btn-icon-text btn-danger" id="bulkDelete" title="Delete selected">
-            🗑️ Delete
+          <button class="btn-icon-text" id="bulkExport" title="Export selected to CSV" style="font-size: 11px; padding: 4px 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 3px;">
+            <span style="font-size: 10px;">📥</span>
+            <span>Export</span>
+          </button>
+          <button class="btn-icon-text" id="bulkDelete" title="Delete selected contacts" style="font-size: 11px; padding: 4px 8px; background: transparent; color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 3px;">
+            <span style="font-size: 10px;">🗑️</span>
           </button>
         </div>
       </div>
@@ -117,9 +134,11 @@
                 <input type="checkbox" id="selectAllCheckbox" class="contact-checkbox" title="Select all">
               </th>
               <th>Contact</th>
-              <th>Company</th>
-              <th>Status</th>
-              <th></th>
+              <th>Email</th>
+              <th style="width: 50px; text-align: center;">Status</th>
+              <th style="width: 50px; text-align: center;">Source</th>
+              <th style="width: 60px; text-align: center;">Synced</th>
+              <th style="width: 36px;"></th>
             </tr>
           </thead>
           <tbody id="allContactsTableBody">
@@ -144,83 +163,79 @@
           Refresh
         </button>
       </div>
-    </div>
 
-    <!-- Overview Tab -->
-    <div class="tab-content" id="overview-tab">
-      <!-- Stats Cards -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-value" id="totalContacts">0</div>
-          <div class="stat-label">Total Contacts</div>
+      <!-- Additional Sections (Collapsible) -->
+      <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+        
+        <!-- Today's Contacts -->
+        <div class="section" id="todayContactsSection" style="display: none; margin-bottom: 12px;">
+          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="todayContactsHeader">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">📅 Today (<span id="todayContactsCount">0</span>) <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-left: 4px;">Gmail only</span></h4>
+            <span id="todayContactsToggle" style="font-size: 14px;">▶</span>
+          </div>
+          <div id="todayContactsContent" style="display: none; margin-top: 8px;">
+            <div id="todayContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+              <div class="empty-state">
+                <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No new Gmail contacts today</p>
+                <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">💡 Send an email to automatically detect contacts</p>
+              </div>
+            </div>
+            <button class="btn-secondary" id="exportTodayContacts" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;">
+              📥 Export Today's Contacts
+            </button>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" id="newToday">0</div>
-          <div class="stat-label">New Today</div>
+
+        <!-- Pending Approvals -->
+        <div class="section" id="pendingApprovalsSection" style="display: none; margin-bottom: 12px;">
+          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="pendingApprovalsHeader">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">⏳ Pending (<span id="pendingApprovalsCount">0</span>)</h4>
+            <span id="pendingApprovalsToggle" style="font-size: 14px;">▶</span>
+          </div>
+          <div id="pendingApprovalsContent" style="display: none; margin-top: 8px;">
+            <div id="pendingList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+              <div class="empty-state">
+                <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No contacts pending approval</p>
+                <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">✅ All contacts are approved!</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value" id="pendingApprovals">0</div>
-          <div class="stat-label">Pending</div>
+
+        <!-- Recent Contacts -->
+        <div class="section" id="recentContactsSection" style="display: none; margin-bottom: 12px;">
+          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="recentContactsHeader">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">🕒 Recent (<span id="recentContactsCount">0</span>)</h4>
+            <span id="recentContactsToggle" style="font-size: 14px;">▶</span>
+          </div>
+          <div id="recentContactsContent" style="display: none; margin-top: 8px;">
+            <div id="recentContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+              <div class="empty-state">
+                <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No recent contacts</p>
+                <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">💬 Contacts you've emailed recently will appear here</p>
+              </div>
+            </div>
+            <button class="btn-text" id="clearContacts" style="width: 100%; margin-top: 8px; font-size: 12px;">Clear All</button>
+          </div>
         </div>
+
+        <!-- Rejected Contacts -->
+        <div class="section" id="rejectedContactsSection" style="display: none; margin-bottom: 12px;">
+          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="rejectedContactsHeader">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">🚫 Rejected (<span id="rejectedContactsCount">0</span>)</h4>
+            <span id="rejectedContactsToggle" style="font-size: 14px;">▶</span>
+          </div>
+          <div id="rejectedContactsContent" style="display: none; margin-top: 8px;">
+            <div id="rejectedContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+              <div class="empty-state">
+                <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No rejected contacts</p>
+              </div>
+            </div>
+            <button class="btn-text" id="clearRejected" style="width: 100%; margin-top: 8px; font-size: 12px;">Clear All</button>
+          </div>
+        </div>
+
       </div>
-
-      <!-- Pending Approvals -->
-      <div class="section">
-        <h3 class="section-title">Pending Approvals</h3>
-        <div id="pendingList" class="contacts-list">
-          <div class="empty-state">No pending approvals</div>
-        </div>
-      </div>
-
-      <!-- Recent Contacts -->
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">Recent Contacts</h3>
-          <button class="btn-text" id="clearContacts">Clear All</button>
-        </div>
-        <div id="recentContactsList" class="contacts-list">
-          <div class="empty-state">No recent contacts</div>
-        </div>
-      </div>
-
-      <!-- Rejected Contacts -->
-      <div class="section">
-        <div class="section-header">
-          <h3 class="section-title">🚫 Rejected Contacts</h3>
-          <button class="btn-text" id="clearRejected">Clear All</button>
-        </div>
-        <div id="rejectedContactsList" class="contacts-list">
-          <div class="empty-state">No rejected contacts</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Daily Review Tab -->
-    <div class="tab-content" id="daily-review-tab">
-      <!-- Today's Stats -->
-      <div class="stats-grid-compact">
-        <div class="stat-card-mini">
-          <span class="stat-value-mini" id="reviewNewToday">0</span>
-          <span class="stat-label-mini">New Today</span>
-        </div>
-        <div class="stat-card-mini">
-          <span class="stat-value-mini" id="reviewTotalToday">0</span>
-          <span class="stat-label-mini">Total Today</span>
-        </div>
-      </div>
-
-      <!-- Today's Contacts -->
-      <div class="section">
-        <h3 class="section-title">📅 Today's Contacts</h3>
-        <div id="dailyReviewList" class="contacts-list">
-          <div class="empty-state">No contacts added today</div>
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <button class="btn-primary" id="exportAndMarkReviewed">
-        Export Today's Contacts
-      </button>
     </div>
 
     <!-- Settings Tab -->
@@ -270,11 +285,25 @@
           
           <div class="setting-item">
             <div class="setting-info">
-              <label class="setting-label">Auto-Approve Contacts</label>
-              <span class="setting-description">Skip manual approval</span>
+              <label class="setting-label">Auto-Approve Gmail Contacts</label>
+              <span class="setting-description">Skip manual approval for Gmail contacts</span>
             </div>
             <label class="toggle-switch">
               <input type="checkbox" id="autoApprove">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label class="setting-label">Auto-Approve CRM Imports</label>
+              <span class="setting-description">
+                ✅ Auto-approve HubSpot/Salesforce imports<br>
+                💡 Recommended: Keep enabled (CRM contacts are already vetted)
+              </span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoApproveCRM" checked>
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -363,6 +392,54 @@
         <!-- Data Management -->
         <div class="setting-group">
           <h3 class="group-title">Data</h3>
+          
+          <!-- Sample Data Controls -->
+          <div id="sampleDataControls" style="margin-bottom: 16px; padding: 16px; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border-radius: 12px; border: 2px solid #667eea;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 20px;">📦</span>
+              <h4 style="font-size: 14px; font-weight: 600; color: #1e293b; margin: 0;">Sample Data</h4>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.4;">
+              Load 5 sample contacts to explore features
+            </p>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" id="loadSampleData" style="flex: 1; font-size: 12px; padding: 8px;">
+                ✨ Load Samples
+              </button>
+              <button class="btn-text" id="clearSampleData" style="flex: 1; font-size: 12px; padding: 8px;">
+                🗑️ Clear Samples
+              </button>
+            </div>
+          </div>
+          
+          <!-- Widget Position Reset -->
+          <div style="margin-bottom: 16px; padding: 16px; background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border-radius: 12px; border: 2px solid #ec4899;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 20px;">📍</span>
+              <h4 style="font-size: 14px; font-weight: 600; color: #1e293b; margin: 0;">Widget Position</h4>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.4;">
+              Widget moved somewhere? Reset it to default position
+            </p>
+            <button class="btn-secondary" id="resetWidgetPosition" style="width: 100%; font-size: 12px; padding: 8px;">
+              🔄 Reset Widget Position
+            </button>
+          </div>
+          
+          <!-- Feature Tour -->
+          <div style="margin-bottom: 16px; padding: 16px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; border: 2px solid #f59e0b;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 20px;">🎯</span>
+              <h4 style="font-size: 14px; font-weight: 600; color: #1e293b; margin: 0;">Feature Tour</h4>
+            </div>
+            <p style="font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.4;">
+              Take a guided tour of all features
+            </p>
+            <button class="btn-secondary" id="startFeatureTour" style="width: 100%; font-size: 12px; padding: 8px;">
+              🚀 Start Tour
+            </button>
+          </div>
+          
           <button class="btn-danger" id="clearAllData">
             <span>🗑️</span>
             <span>Clear All Data</span>
@@ -374,25 +451,131 @@
     <!-- Integrations Tab -->
     <div class="tab-content" id="integrations-tab">
       <div class="tab-header">
-        <h2>🔌 CRM Integrations</h2>
-        <p class="tab-subtitle">Connect your CRM to sync contacts automatically</p>
+        <h2>🔌 CRM Platforms</h2>
+        <p class="tab-subtitle">Manage connections and sync settings</p>
       </div>
 
-      <!-- Auto-Sync Settings -->
-      <div class="setting-group" style="background: var(--surface); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border);">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-          <div style="flex: 1;">
-            <label class="setting-label" style="font-size: 14px; font-weight: 600; margin-bottom: 4px; display: block;">⚡ Auto-Sync New Contacts</label>
-            <span class="setting-description" style="font-size: 12px; color: var(--text-secondary);">Automatically push new contacts to CRM when detected</span>
+      <!-- Connected Platforms Overview -->
+      <div class="platforms-overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="platform-card" id="hubspot-overview-card" style="padding: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 20px;">🟠</span>
+            <span style="font-weight: 600; font-size: 13px;">HubSpot</span>
           </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="autoSyncEnabled">
-            <span class="toggle-slider"></span>
-          </label>
+          <div class="platform-status" id="hubspot-overview-status" style="font-size: 11px; color: var(--text-secondary);">
+            Not connected
+          </div>
+          <div class="platform-count" id="hubspot-overview-count" style="font-size: 20px; font-weight: 700; color: var(--text); margin-top: 8px; display: none;">
+            0
+            <span style="font-size: 11px; font-weight: 400; color: var(--text-secondary);">contacts</span>
+          </div>
+        </div>
+        
+        <div class="platform-card" id="salesforce-overview-card" style="padding: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <span style="font-size: 20px;">🔵</span>
+            <span style="font-weight: 600; font-size: 13px;">Salesforce</span>
+          </div>
+          <div class="platform-status" id="salesforce-overview-status" style="font-size: 11px; color: var(--text-secondary);">
+            Not connected
+          </div>
+          <div class="platform-count" id="salesforce-overview-count" style="font-size: 20px; font-weight: 700; color: var(--text); margin-top: 8px; display: none;">
+            0
+            <span style="font-size: 11px; font-weight: 400; color: var(--text-secondary);">contacts</span>
+          </div>
         </div>
       </div>
 
-      <!-- HubSpot Integration Card -->
+      <!-- Sync Rules & Settings -->
+      <div class="sync-rules-section" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #667eea;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+          <span style="font-size: 20px;">⚙️</span>
+          <h3 style="font-size: 14px; font-weight: 600; margin: 0;">Sync Rules</h3>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <!-- Auto-Sync Toggle -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: white; border-radius: 8px;">
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;">⚡ Auto-Push New Contacts</div>
+              <div style="font-size: 10px; color: var(--text-secondary);">Automatically push to CRM when detected</div>
+            </div>
+            <label class="toggle-switch" style="transform: scale(0.8);">
+              <input type="checkbox" id="autoSyncEnabled">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <!-- Auto-Approve Imports -->
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px; background: white; border-radius: 8px;">
+            <div style="flex: 1;">
+              <div style="font-size: 12px; font-weight: 600; margin-bottom: 2px;">✅ Auto-Approve CRM Imports</div>
+              <div style="font-size: 10px; color: var(--text-secondary);">Skip approval for contacts from HubSpot/Salesforce</div>
+            </div>
+            <label class="toggle-switch" style="transform: scale(0.8);">
+              <input type="checkbox" id="autoApproveCRMImports" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sync Status Overview -->
+      <div class="sync-status-section" style="margin-bottom: 20px;">
+        <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text);">📊 Sync Status Overview</h3>
+        
+        <!-- HubSpot Sync Status -->
+        <div class="platform-sync-status" id="hubspot-sync-status-card" style="display: none; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); padding: 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: #ff7a59; color: white; font-size: 10px; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 600;">H</span>
+              <span style="font-weight: 600; font-size: 13px;">HubSpot</span>
+            </div>
+            <button class="btn-text" id="hubspot-view-details" style="font-size: 11px; color: var(--primary);">View Details</button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px;">
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #22c55e;" id="hubspot-synced-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">✓ Synced</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #eab308;" id="hubspot-pending-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">⏳ Pending</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #ef4444;" id="hubspot-not-synced-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">✗ Not Synced</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Salesforce Sync Status -->
+        <div class="platform-sync-status" id="salesforce-sync-status-card" style="display: none; background: var(--surface); border-radius: 8px; border: 1px solid var(--border); padding: 14px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: #00a1e0; color: white; font-size: 10px; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 600;">S</span>
+              <span style="font-weight: 600; font-size: 13px;">Salesforce</span>
+            </div>
+            <button class="btn-text" id="salesforce-view-details" style="font-size: 11px; color: var(--primary);">View Details</button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 11px;">
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #22c55e;" id="salesforce-synced-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">✓ Synced</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #eab308;" id="salesforce-pending-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">⏳ Pending</div>
+            </div>
+            <div style="text-align: center; padding: 8px; background: var(--bg); border-radius: 6px;">
+              <div style="font-size: 16px; font-weight: 700; color: #ef4444;" id="salesforce-not-synced-count">0</div>
+              <div style="color: var(--text-secondary); margin-top: 2px;">✗ Not Synced</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sync Status by Platform -->
       <div class="integration-card">
         <div class="integration-header">
           <div class="integration-logo-container">
@@ -610,10 +793,94 @@
     .data-merge-btn-cancel:hover {
       color: #64748b;
     }
+    
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      backdrop-filter: blur(4px);
+    }
+    
+    .loading-overlay.hidden {
+      display: none;
+    }
+    
+    .loading-spinner-container {
+      background: var(--surface, white);
+      padding: 32px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border, #e2e8f0);
+      border-top-color: var(--primary, #667eea);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    .loading-message {
+      margin: 0;
+      color: var(--text, #1e293b);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Inline Loading */
+    .inline-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 24px;
+      color: var(--text-secondary, #64748b);
+      font-size: 13px;
+    }
+    
+    .loading-spinner-small {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border, #e2e8f0);
+      border-top-color: var(--primary, #667eea);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    
+    /* Button Loading */
+    .button-spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
   </style>
 
   <!-- Core Scripts -->
   <script src="config.js"></script>
+  <script src="logger.js"></script>
+  <script src="error-handler.js"></script>
+  <script src="loading-manager.js"></script>
   <script src="auth.js"></script>
   <script src="sync.js"></script>
   <script src="integrations.js"></script>
@@ -626,8 +893,10 @@
   
   <!-- Feature Scripts -->
   <script src="guest-mode-banner.js"></script>
+  <script src="feature-tour.js"></script>
   <script src="popup-subscription.js"></script>
   <script src="popup.js"></script>
   <script src="popup-enhancements.js"></script>
+
 </body>
 </html>

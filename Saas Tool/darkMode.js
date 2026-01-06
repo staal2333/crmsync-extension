@@ -30,8 +30,7 @@ class DarkModeManager {
       });
     }
 
-    // Create toggle button
-    this.createToggleButton();
+    // Don't create toggle button - it's in settings now
   }
 
   setTheme(theme) {
@@ -64,28 +63,7 @@ class DarkModeManager {
     return newTheme;
   }
 
-  createToggleButton() {
-    // Check if button already exists
-    if (document.getElementById('darkModeToggle')) return;
-
-    const button = document.createElement('button');
-    button.id = 'darkModeToggle';
-    button.className = 'dark-mode-toggle';
-    button.textContent = this.getTheme() === 'dark' ? '☀️' : '🌙';
-    button.title = this.getTheme() === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode';
-    button.setAttribute('aria-label', 'Toggle dark mode');
-    
-    button.onclick = () => this.toggle();
-    
-    // Add to body when DOM is ready
-    if (document.body) {
-      document.body.appendChild(button);
-    } else {
-      document.addEventListener('DOMContentLoaded', () => {
-        document.body.appendChild(button);
-      });
-    }
-  }
+  // createToggleButton() removed - toggle is now in Settings tab only
 }
 
 // Create global instance

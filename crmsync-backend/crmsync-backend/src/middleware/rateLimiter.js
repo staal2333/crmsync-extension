@@ -24,7 +24,7 @@ const authLimiter = rateLimit({
 // Rate limiter for general API endpoints
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 60 : 100, // 60 in prod, 100 in dev
+  max: process.env.NODE_ENV === 'production' ? 300 : 1000, // 300 in prod (20/min), 1000 in dev
   message: {
     error: 'Rate limit exceeded',
     retryAfter: '15 minutes'
@@ -40,11 +40,11 @@ const apiLimiter = rateLimit({
 // Stricter rate limiter for sync endpoints (data-heavy operations)
 const syncLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 10, // 10 sync operations per 5 min
+  max: 50, // 50 sync operations per 5 min (10 per minute)
   message: {
     error: 'Sync rate limit exceeded',
     retryAfter: '5 minutes',
-    tip: 'Automatic sync happens every 5 minutes. Manual sync should be used sparingly.'
+    tip: 'Please wait a moment between pushes. Try pushing smaller batches.'
   },
   standardHeaders: true,
   legacyHeaders: false,

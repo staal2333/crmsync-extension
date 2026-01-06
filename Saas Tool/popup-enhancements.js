@@ -243,41 +243,17 @@ function setupBulkActions() {
     container.insertBefore(bulkBar, container.firstChild);
   }
   
-  // Add "Select Multiple" button to all contacts tab
-  const allContactsTab = document.getElementById('all-contacts-tab');
-  if (allContactsTab && !document.getElementById('bulkModeBtn')) {
-    const searchSection = allContactsTab.querySelector('.search-section');
-    if (searchSection) {
-      const bulkBtn = document.createElement('button');
-      bulkBtn.id = 'bulkModeBtn';
-      bulkBtn.className = 'btn-secondary';
-      bulkBtn.style.cssText = 'margin-top: 12px;';
-      bulkBtn.innerHTML = '☑️ Select Multiple';
-      bulkBtn.onclick = toggleBulkMode;
-      searchSection.appendChild(bulkBtn);
-    }
-  }
+  // Bulk actions are now always visible in the toolbar
+  // No need for a separate "Select Contacts" button
   
   console.log('✅ Bulk actions ready');
 }
 
+// Toggle bulk selection mode
 function toggleBulkMode() {
-  bulkMode = !bulkMode;
-  document.body.classList.toggle('bulk-mode', bulkMode);
-  
-  const bulkBar = document.getElementById('bulkActionsBar');
-  const bulkBtn = document.getElementById('bulkModeBtn');
-  
-  if (bulkMode) {
-    if (bulkBar) bulkBar.style.display = 'flex';
-    if (bulkBtn) bulkBtn.innerHTML = '❌ Cancel Selection';
-    if (window.toast) window.toast.info('Bulk mode active. Click contacts to select.');
-  } else {
-    if (bulkBar) bulkBar.style.display = 'none';
-    if (bulkBtn) bulkBtn.innerHTML = '☑️ Select Multiple';
-    selectedContacts.clear();
-    updateSelectedCount();
-  }
+  // This function is called but the bulk mode is now always active via the toolbar
+  // Just update the UI state if needed
+  console.log('Bulk mode toggled');
 }
 
 window.toggleBulkMode = toggleBulkMode;

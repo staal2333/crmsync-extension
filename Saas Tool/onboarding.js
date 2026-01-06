@@ -5,7 +5,6 @@ const totalSteps = 5; // Updated to include exclude patterns step
 // Settings state
 const settings = {
   autoApprove: false,
-  reminders: true,
   notifications: false
 };
 
@@ -34,7 +33,6 @@ function setupEventListeners() {
   
   // Step 2 - Settings
   document.getElementById('autoApproveToggle')?.addEventListener('click', () => toggleSetting('autoApprove'));
-  document.getElementById('remindersToggle')?.addEventListener('click', () => toggleSetting('reminders'));
   document.getElementById('notificationsToggle')?.addEventListener('click', () => toggleSetting('notifications'));
   document.getElementById('settingsBackBtn')?.addEventListener('click', prevStep);
   document.getElementById('settingsContinueBtn')?.addEventListener('click', saveSettingsAndContinue);
@@ -44,25 +42,20 @@ function setupEventListeners() {
   document.getElementById('guestCard')?.addEventListener('click', chooseGuest);
   document.getElementById('authBackBtn')?.addEventListener('click', prevStep);
   
-  // Step 4 - User Information
+  // Step 4 - User Information (only shown for Guest users)
   document.getElementById('excludeBackBtn')?.addEventListener('click', prevStep);
   document.getElementById('excludeContinueBtn')?.addEventListener('click', saveUserInfoAndContinue);
   document.getElementById('skipExcludeBtn')?.addEventListener('click', async (e) => {
     e.preventDefault();
-    // Check which auth method was chosen
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    
-    if (onboardingAuthChoice === 'signin') {
-      // User chose to sign in - open login page (skip info collection)
-      openLoginPage();
-    } else {
-      // User chose guest mode - go to Step 5 (All Set)
-      nextStep();
-    }
+    // Guest users can skip info collection and go to Step 5
+    nextStep();
   });
   
   // Step 5 - Finish
   document.getElementById('finishBtn')?.addEventListener('click', finishOnboarding);
+  
+  // Sample Data Generator
+  document.getElementById('generateSampleDataBtn')?.addEventListener('click', generateSampleDataHandler);
 }
 
 function updateProgress() {
@@ -115,7 +108,6 @@ async function saveSettingsAndContinue() {
     // Save basic settings to chrome storage
     await chrome.storage.sync.set({
       autoApproveContacts: settings.autoApprove,
-      reminderDays: settings.reminders ? 30 : 0,
       emailNotifications: settings.notifications
     });
     
@@ -132,22 +124,24 @@ let selectedAuthMethod = null;
 
 // New functions for auth choice
 async function chooseSignIn() {
-  // User chose to sign in - save choice and go to Step 4 to collect their info first
+  // User chose to sign in - go directly to login page
   selectedAuthMethod = 'signin';
   await chrome.storage.local.set({ onboardingAuthChoice: 'signin' });
-  console.log('✅ User chose Sign In, moving to info collection');
-  nextStep(); // Go to Step 4
+  console.log('✅ User chose Sign In, redirecting to login page...');
+  
+  // Open login page directly (user will enter info on website)
+  openLoginPage();
 }
 
 async function chooseGuest() {
-  // User chose guest mode - save choice and go to Step 4 to collect their info
+  // User chose guest mode - continue with onboarding to collect info
   selectedAuthMethod = 'guest';
   await chrome.storage.local.set({ 
     isGuest: true,
     onboardingAuthChoice: 'guest'
   });
   console.log('✅ User chose Guest mode, moving to info collection');
-  nextStep(); // Go to Step 4
+  nextStep(); // Go to Step 4 (user info collection)
 }
 
 async function saveUserInfoAndContinue() {
@@ -217,26 +211,13 @@ async function saveUserInfoAndContinue() {
     console.log('✅ User info saved:', { firstName, lastName, company, email, phone });
     console.log('✅ Exclusions set:', { excludeNames, excludeDomains, excludePhones });
     
-    // Check which auth method was chosen
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
+    // Guest users always go to Step 5 (All Set) after entering info
+    console.log('✅ Info collected, moving to final step...');
+    nextStep(); // Go to Step 5
     
-    if (onboardingAuthChoice === 'signin') {
-      // User chose to sign in - open login page now (after collecting their info)
-      console.log('✅ Info collected, opening login page...');
-      openLoginPage();
-    } else {
-      // User chose guest mode - go to Step 5 (All Set)
-      nextStep();
-    }
   } catch (error) {
     console.error('Error saving user info:', error);
-    // Still continue based on auth choice
-    const { onboardingAuthChoice } = await chrome.storage.local.get(['onboardingAuthChoice']);
-    if (onboardingAuthChoice === 'signin') {
-      openLoginPage();
-    } else {
-      nextStep();
-    }
+    alert('Failed to save information. Please try again.');
   }
 }
 
@@ -359,5 +340,44 @@ async function completeOnboarding() {
   });
   
   window.close();
+}
+
+async function generateSampleDataHandler() {
+  const btn = document.getElementById('generateSampleDataBtn');
+  const status = document.getElementById('sampleDataStatus');
+  
+  if (!btn || !status) return;
+  
+  try {
+    // Disable button
+    btn.disabled = true;
+    btn.textContent = '⏳ Generating...';
+    
+    // Generate sample data
+    const response = await chrome.runtime.sendMessage({ action: 'generateSampleData' });
+    
+    if (response && response.success) {
+      status.style.display = 'block';
+      status.style.background = '#dcfce7';
+      status.style.color = '#15803d';
+      status.innerHTML = `✅ <strong>Sample data added!</strong><br>5 sample contacts are ready to explore`;
+      
+      btn.style.background = '#22c55e';
+      btn.textContent = '✓ Sample Data Added';
+      
+    } else {
+      throw new Error(response?.error || 'Failed to generate sample data');
+    }
+    
+  } catch (error) {
+    console.error('Error generating sample data:', error);
+    status.style.display = 'block';
+    status.style.background = '#fee2e2';
+    status.style.color = '#b91c1c';
+    status.textContent = `❌ ${error.message}`;
+    
+    btn.disabled = false;
+    btn.textContent = '✨ Try Again';
+  }
 }
 

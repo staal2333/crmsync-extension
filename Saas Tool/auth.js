@@ -97,9 +97,16 @@ async function registerWithEmail(email, password, displayName) {
 /**
  * Sign in with Google OAuth
  * Uses Chrome Identity API
+ * Note: Currently disabled - requires OAuth Client ID configuration
  * @returns {Promise<{user, accessToken, refreshToken}>}
  */
 async function signInWithGoogle() {
+  // Check if OAuth is configured
+  const manifest = chrome.runtime.getManifest();
+  if (!manifest.oauth2 || manifest.oauth2.client_id.includes('YOUR_GOOGLE_CLIENT_ID')) {
+    throw new Error('Google Sign-In is not configured yet. Please use email/password to sign in.');
+  }
+  
   return new Promise((resolve, reject) => {
     chrome.identity.getAuthToken({ interactive: true }, async (googleToken) => {
       if (chrome.runtime.lastError) {
@@ -243,11 +250,11 @@ async function refreshAccessToken(refreshToken, autoSignOut = false) {
     });
     
     if (!response.ok) {
-      // Check if it's a 401 (invalid refresh token) vs other errors
-      if (response.status === 401) {
+      // Check status codes
+      if (response.status === 401 || response.status === 403) {
         throw new Error('INVALID_REFRESH_TOKEN');
       }
-      throw new Error('Token refresh failed');
+      throw new Error(`Token refresh failed (${response.status})`);
     }
     
     const data = await response.json();
@@ -257,19 +264,42 @@ async function refreshAccessToken(refreshToken, autoSignOut = false) {
       authToken: data.accessToken
     });
     
-    console.log('✅ Token refreshed');
+    if (typeof logger !== 'undefined') {
+      logger.log('✅ Token refreshed');
+    } else {
+      console.log('✅ Token refreshed');
+    }
     return data.accessToken;
   } catch (error) {
-    console.error('❌ Token refresh error:', error.message);
+    // Use logger if available
+    if (typeof logger !== 'undefined') {
+      logger.error('❌ Token refresh error:', error.message);
+    } else {
+      console.error('❌ Token refresh error:', error.message);
+    }
     
     // Only auto-sign out if explicitly requested AND it's an invalid token
     if (autoSignOut && error.message === 'INVALID_REFRESH_TOKEN') {
-      console.log('🚪 Invalid refresh token, signing out');
+      if (typeof logger !== 'undefined') {
+        logger.warn('🚪 Invalid refresh token, signing out');
+      } else {
+        console.log('🚪 Invalid refresh token, signing out');
+      }
       await signOut();
+      
+      // Show user-friendly message if ErrorHandler available
+      if (typeof ErrorHandler !== 'undefined') {
+        ErrorHandler.showError({
+          title: 'Session Expired',
+          message: 'Your session has expired. Please sign in again.',
+          action: 'Sign In'
+        });
+      }
+      
       throw new Error('Session expired, please log in again');
     }
     
-    // Otherwise, just throw the error without signing out
+    // For other errors, fail silently to avoid disrupting user
     // This allows sync to fail gracefully without logging the user out
     throw error;
   }
@@ -318,6 +348,58 @@ async function getCurrentUser() {
   } catch (error) {
     console.error('Get user error:', error);
     return null;
+  }
+}
+
+/**
+ * Sync user tier from backend (checks for subscription changes)
+ * Call this when popup opens or periodically
+ * @returns {Promise<{tier: string, changed: boolean}>}
+ */
+async function syncUserTier() {
+  try {
+    const { user: cachedUser } = await chrome.storage.local.get(['user']);
+    
+    if (!cachedUser) {
+      console.log('⚠️ Not authenticated, skipping tier sync');
+      return { tier: 'free', changed: false };
+    }
+    
+    console.log('🔄 Syncing user tier from backend...');
+    
+    // Use getCurrentUser which already updates storage
+    const freshUser = await getCurrentUser();
+    
+    if (!freshUser) {
+      console.warn('Failed to sync tier, using cached value');
+      return { tier: cachedUser.tier || 'free', changed: false };
+    }
+    
+    // Normalize tier field
+    const backendTier = freshUser.tier || freshUser.subscriptionTier || 'free';
+    const cachedTier = cachedUser.tier || 'free';
+    
+    // Check if tier changed
+    const changed = backendTier !== cachedTier;
+    
+    if (changed) {
+      console.log(`🎉 Tier updated: ${cachedTier} → ${backendTier}`);
+      
+      // Also update sync storage for cross-device sync
+      await chrome.storage.sync.set({ userTier: backendTier });
+      
+      // Return true so UI can reload/update
+      return { tier: backendTier, changed: true };
+    } else {
+      console.log(`✅ Tier unchanged: ${backendTier}`);
+    }
+    
+    return { tier: backendTier, changed: false };
+  } catch (error) {
+    console.error('❌ Tier sync error:', error);
+    // Return cached value on error
+    const { user } = await chrome.storage.local.get(['user']);
+    return { tier: user?.tier || 'free', changed: false };
   }
 }
 
@@ -381,6 +463,7 @@ if (typeof window !== 'undefined') {
     getAuthToken,
     isAuthenticated,
     getCurrentUser,
+    syncUserTier, // NEW: Sync tier from backend
     continueAsGuest,
     isGuestMode,
     shouldShowLoginPrompt,

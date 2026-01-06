@@ -10,6 +10,26 @@ function getFullName(firstName, lastName) {
   return parts.join(' ');
 }
 
+/**
+ * Helper function - Format time ago
+ */
+function formatTime(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  const now = new Date();
+  const diff = now - d;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  } else if (hours < 24) {
+    return `${hours}h ago`;
+  } else {
+    return d.toLocaleDateString();
+  }
+}
+
 // Global error handler
 window.addEventListener('error', (event) => {
   console.error('💥 Global error:', event.error);
@@ -157,6 +177,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         return; // Session expired, will reload
       }
       
+      // Sync user tier from backend (check for subscription changes)
+      console.log('1.5️⃣ Syncing user tier from backend...');
+      if (typeof window.CRMSyncAuth?.syncUserTier === 'function') {
+        try {
+          const { tier, changed } = await window.CRMSyncAuth.syncUserTier();
+          console.log(`✓ Tier sync complete: ${tier}${changed ? ' (UPDATED!)' : ''}`);
+          
+          if (changed) {
+            // Show notification that tier was updated
+            showToast(`🎉 Your subscription has been updated to ${tier.toUpperCase()}!`, false);
+          }
+        } catch (err) {
+          console.warn('⚠️ Tier sync failed:', err);
+          // Not critical, continue
+        }
+      }
+      
       // Check authentication status (with timeout)
       console.log('2️⃣ Checking auth status...');
       Promise.race([
@@ -210,6 +247,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Not critical, continue
       });
       console.log('✓ Subscription status loaded');
+      
+      // Check if user should see feature tour (first time after onboarding)
+      console.log('8️⃣ Checking feature tour status...');
+      const { hasSeenTour, onboardingCompleted } = await chrome.storage.local.get(['hasSeenTour', 'onboardingCompleted']);
+      if (onboardingCompleted && !hasSeenTour && window.featureTour) {
+        // Auto-start tour after 2 seconds
+        setTimeout(() => {
+          logger.log('🎯 Auto-starting feature tour for first-time user...');
+          window.featureTour.start();
+        }, 2000);
+      }
+      console.log('✓ Tour check complete');
       
       // Set up periodic session checks (every 5 minutes)
       setInterval(() => {
@@ -274,6 +323,22 @@ function setupAuthListener() {
           hasToken: !!changes.authToken?.newValue
         });
         
+        // Check if tier changed
+        if (changes.user && changes.user.oldValue && changes.user.newValue) {
+          const oldTier = changes.user.oldValue.tier || 'free';
+          const newTier = changes.user.newValue.tier || 'free';
+          
+          if (oldTier !== newTier) {
+            console.log(`🎉 TIER CHANGED: ${oldTier} → ${newTier}`);
+            showToast(`🎉 Your subscription has been updated to ${newTier.toUpperCase()}!`, false);
+            
+            // Reload subscription status and contact limits
+            displaySubscriptionStatus().catch(err => {
+              console.error('Failed to update subscription display:', err);
+            });
+          }
+        }
+        
         // IMPORTANT: Only update UI if auth state actually changed
         // Don't update if it's just a sync operation
         const authActuallyChanged = 
@@ -318,8 +383,6 @@ function setupAuthListener() {
             loadAllContacts();
           } else if (targetTab === 'overview') {
             loadStatsAndPreview();
-          } else if (targetTab === 'daily-review') {
-            loadDailyReview();
           }
         }
       }
@@ -340,8 +403,6 @@ function setupAuthListener() {
         console.log(`📊 Refreshing data for active tab on visibility change: ${targetTab}`);
         if (targetTab === 'all-contacts') {
           await loadAllContacts();
-        } else if (targetTab === 'daily-review') {
-          await loadDailyReview();
         } else if (targetTab === 'overview') {
           await loadStatsAndPreview();
         }
@@ -361,13 +422,57 @@ function setupAuthListener() {
       console.log(`📊 Refreshing data for active tab on focus: ${targetTab}`);
       if (targetTab === 'all-contacts') {
         await loadAllContacts();
-      } else if (targetTab === 'daily-review') {
-        await loadDailyReview();
       } else if (targetTab === 'overview') {
         await loadStatsAndPreview();
       }
     }
   });
+  
+  // Auto-refresh contacts every 30 seconds when popup is open
+  let autoRefreshInterval = null;
+  
+  function startAutoRefresh() {
+    // Clear any existing interval
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+    }
+    
+    // Refresh every 30 seconds
+    autoRefreshInterval = setInterval(async () => {
+      if (!document.hidden) {
+        const activeTab = document.querySelector('.tab-btn.active');
+        if (activeTab && activeTab.getAttribute('data-tab') === 'all-contacts') {
+          logger.log('🔄 Auto-refreshing contacts...');
+          await loadAllContacts();
+        }
+      }
+    }, 30000); // 30 seconds
+    
+    logger.log('✅ Auto-refresh started (30s interval)');
+  }
+  
+  function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+      clearInterval(autoRefreshInterval);
+      autoRefreshInterval = null;
+      logger.log('⏹️ Auto-refresh stopped');
+    }
+  }
+  
+  // Start auto-refresh when popup opens
+  startAutoRefresh();
+  
+  // Stop when popup closes/hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopAutoRefresh();
+    } else {
+      startAutoRefresh();
+    }
+  });
+  
+  // Cleanup on window unload
+  window.addEventListener('beforeunload', stopAutoRefresh);
 }
 
 /**
@@ -646,67 +751,59 @@ async function updateLeftHeaderButton() {
   try {
     const { isAuthenticated, isGuest, user } = await chrome.storage.local.get(['isAuthenticated', 'isGuest', 'user']);
     
-    const btn = document.getElementById('leftHeaderBtn');
-    const icon = document.getElementById('leftHeaderBtnIcon');
-    const text = document.getElementById('leftHeaderBtnText');
+    const settingsBtn = document.getElementById('leftHeaderBtn');
+    const signInBtn = document.getElementById('signInBtn');
     
-    if (!btn) {
-      console.warn('Left header button not found');
+    if (!settingsBtn) {
+      console.warn('Settings button not found');
       return;
     }
     
-    console.log('🔄 Updating left header button - Auth:', isAuthenticated, 'Guest:', isGuest, 'HasUser:', !!user);
+    console.log('🔄 Updating header buttons - Auth:', isAuthenticated, 'Guest:', isGuest, 'HasUser:', !!user);
     
-    // Priority: isAuthenticated takes precedence over isGuest
-    if (isAuthenticated === true && user) {
-      // Logged in - show All Contacts button
-      console.log('✅ Showing All Contacts button (authenticated)');
-      btn.classList.remove('sign-in-mode');
-      icon.style.display = 'inline';
-      icon.textContent = '👥';
-      icon.style.fontSize = '20px';
-      text.style.display = 'none';
-      btn.title = 'All Contacts';
+    // Settings button - ALWAYS visible, ALWAYS opens settings
+    settingsBtn.onclick = () => {
+      console.log('Settings button clicked - switching to settings tab');
       
-      // Remove old onclick and add new one
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const tabContents = document.querySelectorAll('.tab-content');
       
-      document.getElementById('leftHeaderBtn').addEventListener('click', () => {
-        console.log('All Contacts button clicked');
-        document.querySelector('[data-tab="all-contacts"]')?.click();
-      });
-    } else {
-      // Not authenticated (guest mode or not logged in) - show Sign In button
-      console.log('🔐 Showing Sign In button (not authenticated)');
-      btn.classList.add('sign-in-mode');
-      icon.style.display = 'inline';
-      icon.textContent = '🔐';
-      icon.style.fontSize = '16px';
-      text.style.display = 'inline';
-      text.textContent = 'Sign In';
-      btn.title = 'Sign In to sync your data';
+      tabButtons.forEach(b => b.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
       
-      // Remove old onclick and add new one
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      
-      // Add event listener to the NEW button
-      newBtn.addEventListener('click', () => {
-        console.log('Sign In button clicked');
-        const extensionId = chrome.runtime.id;
-        const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
-        const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
-
-        // For hash routing, put params BEFORE the hash
-        const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
-        console.log('Opening login URL:', loginUrl);
-
-        chrome.tabs.create({ url: loginUrl }).catch(err => {
-          console.error('Failed to open tab:', err);
-          alert('Failed to open login page. Please check the extension permissions.');
-        });
-      });
+      const settingsContent = document.getElementById('settings-tab');
+      if (settingsContent) {
+        settingsContent.classList.add('active');
+        console.log('✅ Settings tab activated');
+      } else {
+        console.error('❌ Settings tab not found');
+      }
+    };
+    
+    // Sign In button - only visible when NOT authenticated
+    if (signInBtn) {
+      if (isAuthenticated === true && user) {
+        // Authenticated - hide sign in button
+        console.log('✅ User authenticated - hiding Sign In button');
+        signInBtn.style.display = 'none';
+      } else {
+        // Not authenticated - show sign in button
+        console.log('🔐 Not authenticated - showing Sign In button');
+        signInBtn.style.display = 'block';
+        
+        signInBtn.onclick = () => {
+          console.log('Sign In button clicked - opening login page');
+          const extensionId = chrome.runtime.id;
+          const websiteUrl = (window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net').replace(/\/$/, '');
+          const loginPath = (window.CONFIG?.AUTH?.LOGIN || '/#/login').replace(/^\//, '');
+          const loginUrl = `${websiteUrl}?source=extension&extensionId=${extensionId}&from=popup#/${loginPath.replace('#/', '')}`;
+          
+          chrome.tabs.create({ url: loginUrl }).catch(err => {
+            console.error('Failed to open login page:', err);
+            alert('Failed to open login page. Please check the extension permissions.');
+          });
+        };
+      }
     }
   } catch (error) {
     console.error('Error updating left header button:', error);
@@ -931,6 +1028,8 @@ function showAccountSettings(user) {
       tierEl.style.background = '#10b981'; // green
     } else if (user.tier === 'pro') {
       tierEl.style.background = '#667eea'; // purple
+    } else if (user.tier === 'business') {
+      tierEl.style.background = '#8b5cf6'; // violet
     } else if (user.tier === 'enterprise') {
       tierEl.style.background = '#f59e0b'; // gold
     }
@@ -998,6 +1097,75 @@ function updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit) 
     });
   } else {
     banner.style.display = 'none';
+  }
+}
+
+/**
+ * Update contact limit progress bar
+ */
+async function updateContactLimitProgress(currentCount) {
+  try {
+    // Get limit info
+    const response = await chrome.runtime.sendMessage({ action: 'getContactLimit' });
+    if (!response || !response.success) return;
+    
+    const { limit, tier } = response;
+    const percentage = limit === -1 ? 0 : Math.min((currentCount / limit) * 100, 100);
+    
+    // Update elements
+    const progressText = document.getElementById('limitProgressText');
+    const progressPercent = document.getElementById('limitProgressPercent');
+    const progressBar = document.getElementById('limitProgressBar');
+    const progressWarning = document.getElementById('limitProgressWarning');
+    const progressWarningText = document.getElementById('limitProgressWarningText');
+    
+    if (progressText) {
+      if (limit === -1) {
+        progressText.textContent = `${currentCount} contacts (Unlimited)`;
+      } else {
+        progressText.textContent = `${currentCount} / ${limit} contacts`;
+      }
+    }
+    
+    if (progressPercent) {
+      if (limit === -1) {
+        progressPercent.textContent = '';
+      } else {
+        progressPercent.textContent = `${Math.round(percentage)}%`;
+      }
+    }
+    
+    if (progressBar) {
+      progressBar.style.width = `${percentage}%`;
+      
+      // Change color based on usage
+      if (percentage >= 100) {
+        progressBar.style.background = 'linear-gradient(90deg, #ef4444 0%, #dc2626 100%)'; // Red
+      } else if (percentage >= 90) {
+        progressBar.style.background = 'linear-gradient(90deg, #f59e0b 0%, #ef4444 100%)'; // Orange to red
+      } else if (percentage >= 75) {
+        progressBar.style.background = 'linear-gradient(90deg, #f59e0b 0%, #f97316 100%)'; // Orange
+      } else {
+        progressBar.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'; // Purple (normal)
+      }
+    }
+    
+    // Show warning if approaching limit
+    if (progressWarning && progressWarningText) {
+      if (limit !== -1 && percentage >= 90) {
+        progressWarning.style.display = 'block';
+        if (percentage >= 100) {
+          progressWarningText.textContent = `You've reached your ${tier} limit. Upgrade to add more!`;
+        } else {
+          const remaining = limit - currentCount;
+          progressWarningText.textContent = `Only ${remaining} contact${remaining === 1 ? '' : 's'} remaining`;
+        }
+      } else {
+        progressWarning.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    logger.error('Error updating contact limit progress:', error);
   }
 }
 
@@ -1071,31 +1239,34 @@ function setupTabs() {
   
   console.log(`Found ${tabButtons.length} tab buttons and ${tabContents.length} tab contents`);
 
+  // Helper function to switch to a specific tab
+  const switchToTab = (targetTab) => {
+    // Update buttons
+    tabButtons.forEach(b => b.classList.remove('active'));
+    const targetButton = document.querySelector(`[data-tab="${targetTab}"]`);
+    if (targetButton) {
+      targetButton.classList.add('active');
+    }
+    
+    // Update content
+    tabContents.forEach(content => {
+      content.classList.remove('active');
+      if (content.id === `${targetTab}-tab`) {
+        content.classList.add('active');
+      }
+    });
+
+    // Always reload data for active tab when switching
+    console.log(`📊 Refreshing data for tab: ${targetTab}`);
+    if (targetTab === 'all-contacts') {
+      loadAllContacts();
+    }
+  };
+
   tabButtons.forEach((btn, index) => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
-      
-      // Update buttons
-      tabButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      
-      // Update content
-      tabContents.forEach(content => {
-        content.classList.remove('active');
-        if (content.id === `${targetTab}-tab`) {
-          content.classList.add('active');
-        }
-      });
-
-      // Always reload data for active tab when switching
-      console.log(`📊 Refreshing data for tab: ${targetTab}`);
-      if (targetTab === 'all-contacts') {
-        loadAllContacts();
-      } else if (targetTab === 'daily-review') {
-        loadDailyReview();
-      } else if (targetTab === 'overview') {
-        loadStatsAndPreview();
-      }
+      switchToTab(targetTab);
     });
   });
 }
@@ -1108,6 +1279,13 @@ async function loadSettings() {
   document.getElementById('autoApprove').checked = settings.autoApprove || false;
   document.getElementById('sidebarEnabled').checked = settings.sidebarEnabled !== false;
   document.getElementById('soundEffects').checked = settings.soundEffects || false;
+  
+  // Auto-approve CRM imports (default: true)
+  const autoApproveCRMInput = document.getElementById('autoApproveCRM');
+  if (autoApproveCRMInput) {
+    autoApproveCRMInput.checked = settings.autoApproveCRM !== false; // Default true
+  }
+  
   const hotkeysInput = document.getElementById('hotkeysEnabled');
   if (hotkeysInput) {
     hotkeysInput.checked = settings.hotkeysEnabled || false;
@@ -1684,6 +1862,9 @@ async function loadStatsAndPreview() {
   renderPendingApprovals(pendingContacts);
   renderRecentContacts(allContacts);
   await loadRejectedContacts();
+  
+  // Populate Today's Contacts section
+  renderTodayContacts(allContacts, stats.newToday || 0);
 }
 
 // Load and render rejected contacts
@@ -1701,6 +1882,235 @@ async function loadRejectedContacts() {
     }
     
     container.innerHTML = rejectedEmails.map(email => `
+      <div class="contact-item">
+        <div class="contact-info">
+          <strong>${email}</strong>
+          <div class="contact-meta">Rejected</div>
+        </div>
+        <button class="btn-restore" data-email="${email}" title="Un-reject this contact">
+          ↺ Restore
+        </button>
+      </div>
+    `).join('');
+  } catch (error) {
+    console.error('Error loading rejected contacts:', error);
+  }
+}
+
+// Render Today's Contacts section in Overview
+function renderTodayContacts(allContacts, newTodayCount) {
+  const section = document.getElementById('todayContactsSection');
+  const countEl = document.getElementById('todayContactsCount');
+  const listEl = document.getElementById('todayContactsList');
+  
+  if (!section || !countEl || !listEl) return;
+  
+  // Filter contacts added today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayContacts = allContacts.filter(contact => {
+    if (!contact.dateAdded) return false;
+    const addedDate = new Date(contact.dateAdded);
+    addedDate.setHours(0, 0, 0, 0);
+    return addedDate.getTime() === today.getTime();
+  });
+  
+  // Update count
+  countEl.textContent = todayContacts.length;
+  
+  // Show/hide section based on count
+  if (todayContacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  // Render contacts list
+  if (todayContacts.length === 0) {
+    listEl.innerHTML = '<div class="empty-state">No contacts added today</div>';
+  } else {
+    listEl.innerHTML = todayContacts
+      .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+      .slice(0, 10) // Show max 10
+      .map(contact => `
+        <div class="contact-item" data-email="${contact.email}">
+          <div class="contact-info">
+            <div class="contact-name">${contact.name || 'Unknown'}</div>
+            <div class="contact-meta">
+              <span class="contact-email">${contact.email}</span>
+              ${contact.company ? `<span class="contact-company"> • ${contact.company}</span>` : ''}
+            </div>
+          </div>
+          <div class="contact-actions">
+            <span class="contact-time">${formatTime(contact.dateAdded)}</span>
+          </div>
+        </div>
+      `).join('');
+  }
+}
+
+// Render Today's Contacts inline in Contacts tab (ONLY Gmail contacts)
+function renderTodayContactsInline(allContacts) {
+  const section = document.getElementById('todayContactsSection');
+  const countEl = document.getElementById('todayContactsCount');
+  const listEl = document.getElementById('todayContactsList');
+  
+  if (!section || !countEl || !listEl) return;
+  
+  // Filter contacts added today FROM GMAIL ONLY (not CRM imports)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const todayContacts = allContacts.filter(contact => {
+    if (!contact.dateAdded && !contact.createdAt) return false;
+    
+    // Check if added today
+    const addedDate = new Date(contact.dateAdded || contact.createdAt);
+    addedDate.setHours(0, 0, 0, 0);
+    const isToday = addedDate.getTime() === today.getTime();
+    
+    // ONLY include Gmail contacts (not HubSpot or Salesforce imports)
+    const source = contact.source || contact.crmSource || 'gmail';
+    const isGmail = source === 'gmail' || source === 'manual';
+    
+    return isToday && isGmail;
+  });
+  
+  // Update count
+  countEl.textContent = todayContacts.length;
+  
+  // Show/hide section based on count
+  if (todayContacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  // Render contacts list
+  listEl.innerHTML = todayContacts
+    .sort((a, b) => new Date(b.dateAdded || b.createdAt) - new Date(a.dateAdded || a.createdAt))
+    .slice(0, 10) // Show max 10
+    .map(contact => `
+      <div class="contact-item" data-email="${contact.email}">
+        <div class="contact-info">
+          <div class="contact-name">
+            ${contact.name || 'Unknown'}
+            <span style="background: #ef4444; color: white; font-size: 9px; padding: 2px 6px; border-radius: 10px; margin-left: 6px; font-weight: 600;">NEW</span>
+          </div>
+          <div class="contact-meta">
+            <span class="contact-email">${contact.email}</span>
+            ${contact.company ? `<span class="contact-company"> • ${contact.company}</span>` : ''}
+          </div>
+        </div>
+        <div class="contact-actions">
+          <span class="contact-time">${formatTime(contact.dateAdded || contact.createdAt)}</span>
+        </div>
+      </div>
+    `).join('');
+}
+
+// Render Pending Approvals inline in Contacts tab
+function renderPendingApprovalsInline(allContacts) {
+  const section = document.getElementById('pendingApprovalsSection');
+  const countEl = document.getElementById('pendingApprovalsCount');
+  const listEl = document.getElementById('pendingList');
+  
+  if (!section || !countEl || !listEl) return;
+  
+  const pendingContacts = allContacts.filter(c => c.status === 'pending');
+  
+  countEl.textContent = pendingContacts.length;
+  
+  if (pendingContacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  listEl.innerHTML = pendingContacts
+    .slice(0, 10)
+    .map(contact => `
+      <div class="contact-item" data-email="${contact.email}">
+        <div class="contact-info">
+          <div class="contact-name">${contact.name || 'Unknown'}</div>
+          <div class="contact-meta">
+            <span class="contact-email">${contact.email}</span>
+            ${contact.company ? `<span class="contact-company"> • ${contact.company}</span>` : ''}
+          </div>
+        </div>
+        <div class="contact-actions">
+          <button class="btn-approve" data-email="${contact.email}">✓ Approve</button>
+          <button class="btn-reject" data-email="${contact.email}">✗ Reject</button>
+        </div>
+      </div>
+    `).join('');
+}
+
+// Render Recent Contacts inline in Contacts tab
+function renderRecentContactsInline(allContacts) {
+  const section = document.getElementById('recentContactsSection');
+  const countEl = document.getElementById('recentContactsCount');
+  const listEl = document.getElementById('recentContactsList');
+  
+  if (!section || !countEl || !listEl) return;
+  
+  const recentContacts = allContacts
+    .filter(c => c.status === 'approved')
+    .sort((a, b) => new Date(b.lastContactAt || b.dateAdded || b.createdAt) - new Date(a.lastContactAt || a.dateAdded || a.createdAt))
+    .slice(0, 10);
+  
+  countEl.textContent = recentContacts.length;
+  
+  if (recentContacts.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  
+  section.style.display = 'block';
+  
+  listEl.innerHTML = recentContacts
+    .map(contact => `
+      <div class="contact-item" data-email="${contact.email}">
+        <div class="contact-info">
+          <div class="contact-name">${contact.name || 'Unknown'}</div>
+          <div class="contact-meta">
+            <span class="contact-email">${contact.email}</span>
+            ${contact.company ? `<span class="contact-company"> • ${contact.company}</span>` : ''}
+          </div>
+        </div>
+        <div class="contact-actions">
+          <span class="contact-time">${formatTime(contact.lastContactAt || contact.dateAdded || contact.createdAt)}</span>
+        </div>
+      </div>
+    `).join('');
+}
+
+// Load and render rejected contacts inline in Contacts tab
+async function loadRejectedContactsInline() {
+  const section = document.getElementById('rejectedContactsSection');
+  const countEl = document.getElementById('rejectedContactsCount');
+  const listEl = document.getElementById('rejectedContactsList');
+  
+  if (!section || !countEl || !listEl) return;
+  
+  try {
+    const result = await chrome.storage.local.get(['rejectedEmails']);
+    const rejectedEmails = result.rejectedEmails || [];
+    
+    countEl.textContent = rejectedEmails.length;
+    
+    if (rejectedEmails.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    
+    section.style.display = 'block';
+    
+    listEl.innerHTML = rejectedEmails.map(email => `
       <div class="contact-item">
         <div class="contact-info">
           <strong>${email}</strong>
@@ -1825,8 +2235,20 @@ async function loadAllContacts() {
       newTodayEl.textContent = newToday;
     }
     
+    // Update contact limit progress bar
+    updateContactLimitProgress(allContactsData.length);
+    
     // Always render, even with 0 contacts
     applyFiltersAndRender();
+    
+    // Render collapsible sections
+    renderTodayContactsInline(allContactsData);
+    renderPendingApprovalsInline(allContactsData);
+    renderRecentContactsInline(allContactsData);
+    await loadRejectedContactsInline();
+    
+    // Update CRM button visibility based on connected platforms
+    await updateCRMButtonVisibility();
     
     // Refresh subscription display to update contact count
     if (typeof refreshSubscriptionDisplay === 'function') {
@@ -1908,6 +2330,7 @@ async function loadAllContacts() {
 function applyFiltersAndRender() {
   const searchTerm = (document.getElementById('contactSearchInput')?.value || '').toLowerCase();
   const statusFilter = document.getElementById('statusFilter')?.value || '';
+  const sourceFilter = document.getElementById('sourceFilter')?.value || '';
   
   // Filter contacts
   filteredContacts = allContactsData.filter(contact => {
@@ -1921,7 +2344,11 @@ function applyFiltersAndRender() {
     // Status filter
     const matchesStatus = !statusFilter || contact.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Source filter
+    const contactSource = contact.source || contact.crmSource || 'gmail';
+    const matchesSource = !sourceFilter || contactSource === sourceFilter;
+    
+    return matchesSearch && matchesStatus && matchesSource;
   });
   
   // Apply sorting
@@ -1942,6 +2369,18 @@ function applySorting() {
   const { field, direction } = currentSort;
   
   filteredContacts.sort((a, b) => {
+    // ALWAYS sort by source first: Gmail contacts at top, then HubSpot, then Salesforce
+    const sourceA = a.source || a.crmSource || 'gmail';
+    const sourceB = b.source || b.crmSource || 'gmail';
+    const sourcePriority = { gmail: 1, hubspot: 2, salesforce: 3 };
+    const priorityA = sourcePriority[sourceA] || 4;
+    const priorityB = sourcePriority[sourceB] || 4;
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB; // Gmail first
+    }
+    
+    // Then sort by selected field
     let aVal, bVal;
     
     switch (field) {
@@ -1990,20 +2429,24 @@ function renderContactsTable() {
           Try adjusting your search or filters to find what you're looking for.
         </p>
         <button class="btn-primary clear-search-btn" style="margin-top: 8px;">
-          Clear Search
+          Clear Filters
         </button>
       </div>
     ` : `
       <div class="empty-state">
         <div class="empty-state-icon">📭</div>
         <h3 class="empty-state-title">No Contacts Yet</h3>
-        <p class="empty-state-description">
-          Open Gmail and start sending emails.<br>
-          We'll automatically track your contacts!
+        <p class="empty-state-description" style="margin-bottom: 12px;">
+          Get started by connecting your CRM or sending emails in Gmail
         </p>
-        <button class="btn-primary open-gmail-btn" style="margin-top: 8px;">
-          Open Gmail
-        </button>
+        <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+          <button class="btn-primary open-crm-btn" style="margin: 0;">
+            🔌 Connect CRM
+          </button>
+          <button class="btn-secondary open-gmail-btn" style="margin: 0;">
+            📧 Open Gmail
+          </button>
+        </div>
       </div>
     `;
     
@@ -2021,6 +2464,8 @@ function renderContactsTable() {
       if (clearSearchBtn) {
         clearSearchBtn.addEventListener('click', () => {
           document.getElementById('contactSearchInput').value = '';
+          document.getElementById('statusFilter').value = '';
+          document.getElementById('sourceFilter').value = '';
           applyFiltersAndRender();
         });
       }
@@ -2029,6 +2474,13 @@ function renderContactsTable() {
       if (openGmailBtn) {
         openGmailBtn.addEventListener('click', () => {
           chrome.tabs.create({ url: 'https://mail.google.com' });
+        });
+      }
+      
+      const openCRMBtn = tbody.querySelector('.open-crm-btn');
+      if (openCRMBtn) {
+        openCRMBtn.addEventListener('click', () => {
+          document.querySelector('[data-tab="integrations"]')?.click();
         });
       }
     }, 0);
@@ -2047,23 +2499,74 @@ function renderContactsTable() {
     const fullName = getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown';
     const isChecked = window.bulkSelectedContacts && window.bulkSelectedContacts.has(contact.email);
     
+    // Check if contact is in CRM platforms
+    const inHubSpot = contact.crmMappings && contact.crmMappings.hubspot;
+    const inSalesforce = contact.crmMappings && contact.crmMappings.salesforce;
+    
+    // Determine source badge
+    const source = contact.source || contact.crmSource || 'crm-sync';
+    let sourceBadge = '';
+    if (source === 'hubspot') {
+      sourceBadge = '<span class="crm-icon" style="background: #ff7a59; color: white; font-size: 8px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From HubSpot">H</span>';
+    } else if (source === 'salesforce') {
+      sourceBadge = '<span class="crm-icon" style="background: #00a1e0; color: white; font-size: 8px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From Salesforce">S</span>';
+    } else {
+      sourceBadge = '<span class="crm-icon" style="background: #667eea; color: white; font-size: 7px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From CRM-Sync">C</span>';
+    }
+    
+    // CRM Sync Status - Show which platforms have this contact
+    let crmStatus = '';
+    if (inHubSpot || inSalesforce) {
+      let badges = [];
+      if (inHubSpot) {
+        badges.push('<span class="crm-sync-badge" style="background: #ff7a59; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to HubSpot">✓H</span>');
+      }
+      if (inSalesforce) {
+        badges.push('<span class="crm-sync-badge" style="background: #00a1e0; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to Salesforce">✓S</span>');
+      }
+      crmStatus = '<div style="display: flex; gap: 2px; justify-content: center;">' + badges.join('') + '</div>';
+    } else {
+      crmStatus = '<span style="color: var(--text-secondary); opacity: 0.4; font-size: 10px;" title="Not synced to any CRM">—</span>';
+    }
+    
+    // Status indicator - green dot for approved, yellow for pending, gray for others
+    let statusDot = '';
+    const status = (contact.status || 'approved').toLowerCase();
+    if (status === 'approved') {
+      statusDot = '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;" title="Approved"></span>';
+    } else if (status === 'pending') {
+      statusDot = '<span style="width: 8px; height: 8px; background: #eab308; border-radius: 50%; display: inline-block;" title="Pending"></span>';
+    } else {
+      statusDot = '<span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 50%; display: inline-block;" title="' + status + '"></span>';
+    }
+    
     return `
       <tr class="contact-row ${isChecked ? 'row-selected' : ''}" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
-        <td class="checkbox-col" style="padding: 10px 12px; text-align: center;">
+        <td class="checkbox-col" style="padding: 8px 6px; text-align: center;">
           <input type="checkbox" class="contact-checkbox" data-email="${contact.email || ''}" ${isChecked ? 'checked' : ''}>
         </td>
-        <td style="padding: 10px 12px;">
-          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px;">${fullName}</div>
-          <div style="font-size: 11px; color: var(--text-secondary);">${contact.email || ''}</div>
+        <td style="padding: 8px 10px; max-width: 200px;">
+          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${fullName}
+          </div>
+          <div style="font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${contact.company || '-'}
+          </div>
         </td>
-        <td style="padding: 10px 12px; color: var(--text);">
-          ${contact.company || '-'}
+        <td style="padding: 8px 10px; color: var(--text-secondary); font-size: 11px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+          ${contact.email || '-'}
         </td>
-        <td style="padding: 10px 12px;">
-          <span class="status-badge ${statusClass}">${contact.status || 'approved'}</span>
+        <td style="padding: 8px 10px; text-align: center; width: 50px;">
+          ${statusDot}
         </td>
-        <td style="padding: 10px 12px; text-align: center; width: 40px;" class="action-cell">
-          <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="Edit" style="background: transparent; border: none; cursor: pointer; font-size: 16px; opacity: 0.6; transition: opacity 0.2s;">
+        <td style="padding: 8px 10px; text-align: center; width: 50px;">
+          ${sourceBadge}
+        </td>
+        <td style="padding: 8px 6px; text-align: center; width: 60px;">
+          ${crmStatus}
+        </td>
+        <td style="padding: 8px 6px; text-align: center; width: 36px;" class="action-cell">
+          <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="View & Edit Details" style="background: transparent; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; transition: opacity 0.2s;">
             ✏️
           </button>
         </td>
@@ -2074,17 +2577,31 @@ function renderContactsTable() {
   // Attach event listeners to rows
   tbody.querySelectorAll('.contact-row').forEach(row => {
     row.addEventListener('click', (e) => {
-      // Don't trigger if clicking on action button
-      if (e.target.closest('.action-cell')) return;
-      const email = row.getAttribute('data-email');
-      const contact = filteredContacts.find(c => c.email === email);
-      if (contact) {
-        showContactDetailsPopup(contact);
+      // Don't trigger if clicking on action button or edit button
+      if (e.target.closest('.action-cell') || e.target.closest('.edit-contact-btn')) return;
+      
+      // If clicking checkbox column, toggle the checkbox
+      const isCheckboxClick = e.target.closest('.checkbox-col') || e.target.classList.contains('contact-checkbox');
+      
+      if (isCheckboxClick) {
+        const checkbox = row.querySelector('.contact-checkbox');
+        if (checkbox) {
+          checkbox.checked = !checkbox.checked;
+          checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        return;
+      }
+      
+      // Clicking row toggles the checkbox for selection
+      const checkbox = row.querySelector('.contact-checkbox');
+      if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
   });
   
-  // Attach event listeners to edit buttons
+  // Attach event listeners to edit buttons - open contact details
   tbody.querySelectorAll('.edit-contact-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2277,6 +2794,18 @@ function setupEventListeners() {
     await chrome.runtime.sendMessage({ action: 'updateSettings', settings });
   });
 
+  // Auto-approve CRM imports toggle
+  const autoApproveCRMInput = document.getElementById('autoApproveCRM');
+  if (autoApproveCRMInput) {
+    autoApproveCRMInput.addEventListener('change', async (e) => {
+      const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
+      const settings = response.settings || {};
+      settings.autoApproveCRM = e.target.checked;
+      await chrome.runtime.sendMessage({ action: 'updateSettings', settings });
+      console.log('✅ Auto-approve CRM setting updated:', e.target.checked);
+    });
+  }
+
   document.getElementById('sidebarEnabled').addEventListener('change', async (e) => {
     const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
     const settings = response.settings || {};
@@ -2340,6 +2869,107 @@ function setupEventListeners() {
         ? labelsText.split(',').map(l => l.trim()).filter(l => l.length > 0)
         : [];
       await chrome.runtime.sendMessage({ action: 'updateSettings', settings });
+    });
+  }
+  
+  // Sample Data Controls
+  const loadSampleDataBtn = document.getElementById('loadSampleData');
+  if (loadSampleDataBtn) {
+    loadSampleDataBtn.addEventListener('click', async () => {
+      const btn = loadSampleDataBtn;
+      const originalText = btn.textContent;
+      
+      try {
+        btn.disabled = true;
+        btn.textContent = '⏳ Loading...';
+        
+        const response = await chrome.runtime.sendMessage({ action: 'generateSampleData' });
+        
+        if (response && response.success) {
+          showToast(`✅ Added ${response.count} sample contacts!`, 'success');
+          btn.textContent = '✓ Samples Loaded';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            loadAllContacts(); // Refresh contacts view
+          }, 2000);
+        } else {
+          throw new Error(response?.error || 'Failed to load sample data');
+        }
+      } catch (error) {
+        logger.error('Error loading sample data:', error);
+        showToast('❌ Failed to load sample data', 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    });
+  }
+  
+  const clearSampleDataBtn = document.getElementById('clearSampleData');
+  if (clearSampleDataBtn) {
+    clearSampleDataBtn.addEventListener('click', async () => {
+      if (!confirm('Clear all sample data? Your real contacts will not be affected.')) return;
+      
+      const btn = clearSampleDataBtn;
+      const originalText = btn.textContent;
+      
+      try {
+        btn.disabled = true;
+        btn.textContent = '⏳ Clearing...';
+        
+        const response = await chrome.runtime.sendMessage({ action: 'clearSampleData' });
+        
+        if (response && response.success) {
+          showToast('✅ Sample data cleared!', 'success');
+          btn.textContent = '✓ Cleared';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            loadAllContacts(); // Refresh contacts view
+          }, 2000);
+        } else {
+          throw new Error(response?.error || 'Failed to clear sample data');
+        }
+      } catch (error) {
+        logger.error('Error clearing sample data:', error);
+        showToast('❌ Failed to clear sample data', 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    });
+  }
+  
+  // Feature Tour Button
+  const startTourBtn = document.getElementById('startFeatureTour');
+  if (startTourBtn) {
+    startTourBtn.addEventListener('click', () => {
+      // Switch to Contacts tab first
+      document.querySelector('[data-tab="all-contacts"]')?.click();
+      
+      // Start tour after a brief delay
+      setTimeout(() => {
+        if (window.featureTour) {
+          window.featureTour.start();
+        }
+      }, 300);
+    });
+  }
+  
+  // Reset Widget Position Button
+  const resetWidgetBtn = document.getElementById('resetWidgetPosition');
+  if (resetWidgetBtn) {
+    resetWidgetBtn.addEventListener('click', async () => {
+      try {
+        // Clear saved position
+        await chrome.storage.local.remove('widgetPosition');
+        
+        showToast('✅ Widget position reset! Reload Gmail to see changes.', 'success');
+        
+        logger.log('📍 Widget position reset to default');
+      } catch (error) {
+        logger.error('Error resetting widget position:', error);
+        showToast('❌ Failed to reset widget position', 'error');
+      }
     });
   }
 
@@ -2414,6 +3044,102 @@ function setupEventListeners() {
         await chrome.storage.local.set({ rejectedEmails: [] });
         await loadRejectedContacts();
         showToast('Rejected contacts cleared');
+      }
+    });
+  }
+
+  // Today's Contacts - Toggle collapse/expand
+  const todayContactsHeader = document.getElementById('todayContactsHeader');
+  const todayContactsContent = document.getElementById('todayContactsContent');
+  const todayContactsToggle = document.getElementById('todayContactsToggle');
+  
+  if (todayContactsHeader && todayContactsContent && todayContactsToggle) {
+    todayContactsHeader.addEventListener('click', () => {
+      const isHidden = todayContactsContent.style.display === 'none';
+      todayContactsContent.style.display = isHidden ? 'block' : 'none';
+      todayContactsToggle.textContent = isHidden ? '▼' : '▶';
+    });
+  }
+  
+  // Pending Approvals - Toggle collapse/expand
+  const pendingApprovalsHeader = document.getElementById('pendingApprovalsHeader');
+  const pendingApprovalsContent = document.getElementById('pendingApprovalsContent');
+  const pendingApprovalsToggle = document.getElementById('pendingApprovalsToggle');
+  
+  if (pendingApprovalsHeader && pendingApprovalsContent && pendingApprovalsToggle) {
+    pendingApprovalsHeader.addEventListener('click', () => {
+      const isHidden = pendingApprovalsContent.style.display === 'none';
+      pendingApprovalsContent.style.display = isHidden ? 'block' : 'none';
+      pendingApprovalsToggle.textContent = isHidden ? '▼' : '▶';
+    });
+  }
+  
+  // Recent Contacts - Toggle collapse/expand
+  const recentContactsHeader = document.getElementById('recentContactsHeader');
+  const recentContactsContent = document.getElementById('recentContactsContent');
+  const recentContactsToggle = document.getElementById('recentContactsToggle');
+  
+  if (recentContactsHeader && recentContactsContent && recentContactsToggle) {
+    recentContactsHeader.addEventListener('click', () => {
+      const isHidden = recentContactsContent.style.display === 'none';
+      recentContactsContent.style.display = isHidden ? 'block' : 'none';
+      recentContactsToggle.textContent = isHidden ? '▼' : '▶';
+    });
+  }
+  
+  // Rejected Contacts - Toggle collapse/expand
+  const rejectedContactsHeader = document.getElementById('rejectedContactsHeader');
+  const rejectedContactsContent = document.getElementById('rejectedContactsContent');
+  const rejectedContactsToggle = document.getElementById('rejectedContactsToggle');
+  
+  if (rejectedContactsHeader && rejectedContactsContent && rejectedContactsToggle) {
+    rejectedContactsHeader.addEventListener('click', () => {
+      const isHidden = rejectedContactsContent.style.display === 'none';
+      rejectedContactsContent.style.display = isHidden ? 'block' : 'none';
+      rejectedContactsToggle.textContent = isHidden ? '▼' : '▶';
+    });
+  }
+  
+  // Export Today's Contacts button
+  const exportTodayBtn = document.getElementById('exportTodayContacts');
+  if (exportTodayBtn) {
+    exportTodayBtn.addEventListener('click', async () => {
+      try {
+        const result = await chrome.runtime.sendMessage({ action: 'getContacts' });
+        const allContacts = (result && result.contacts) || [];
+        
+        // Filter contacts added today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const todayContacts = allContacts.filter(contact => {
+          if (!contact.dateAdded) return false;
+          const addedDate = new Date(contact.dateAdded);
+          addedDate.setHours(0, 0, 0, 0);
+          return addedDate.getTime() === today.getTime();
+        });
+        
+        if (todayContacts.length === 0) {
+          showToast('No contacts to export from today', true);
+          return;
+        }
+        
+        // Export to CSV
+        const csv = convertToCSV(todayContacts);
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const date = new Date().toISOString().split('T')[0];
+        
+        chrome.downloads.download({
+          url: url,
+          filename: `crmsync-today-${date}.csv`,
+          saveAs: true
+        });
+        
+        showToast(`✅ Exported ${todayContacts.length} contacts from today`);
+      } catch (error) {
+        console.error('Error exporting today\'s contacts:', error);
+        showToast('Error exporting contacts', true);
       }
     });
   }
@@ -2655,6 +3381,15 @@ function setupAllContactsListeners() {
     });
   }
 
+  // Source filter
+  const sourceFilter = document.getElementById('sourceFilter');
+  if (sourceFilter) {
+    sourceFilter.addEventListener('change', () => {
+      currentPage = 1;
+      applyFiltersAndRender();
+    });
+  }
+
   // Sort dropdown
   const sortBy = document.getElementById('sortBy');
   if (sortBy) {
@@ -2861,101 +3596,102 @@ function showContactDetailsPopup(contact) {
   overlay.style.alignItems = 'center';
   overlay.style.justifyContent = 'center';
   overlay.style.zIndex = '999';
+  overlay.style.padding = '20px';
 
   const card = document.createElement('div');
   card.style.background = 'var(--bg)';
   card.style.color = 'var(--text)';
-  card.style.borderRadius = '12px';
-  card.style.padding = '24px';
-  card.style.minWidth = '460px';
-  card.style.maxWidth = '500px';
+  card.style.borderRadius = '10px';
+  card.style.padding = '18px';
+  card.style.width = '480px';
+  card.style.maxWidth = '90vw';
+  card.style.maxHeight = '85vh';
+  card.style.overflowY = 'auto';
   card.style.boxShadow = '0 20px 60px rgba(0,0,0,0.4)';
-  card.style.fontSize = '14px';
+  card.style.fontSize = '13px';
   card.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   card.style.border = '1px solid var(--border)';
 
   card.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
       <div style="flex:1;">
-        <div style="font-weight:600;font-size:18px;color:var(--text);margin-bottom:4px;line-height:1.3;">${getFullName(contact.firstName, contact.lastName) || contact.email}</div>
-        <div style="font-size:13px;color:var(--text-secondary,var(--text));opacity:0.7;">${contact.email}</div>
+        <div style="font-weight:600;font-size:16px;color:var(--text);margin-bottom:3px;line-height:1.3;">${getFullName(contact.firstName, contact.lastName) || contact.email}</div>
+        <div style="font-size:12px;color:var(--text-secondary,var(--text));opacity:0.7;">${contact.email}</div>
       </div>
-      <button id="contactDetailsCloseBtn" style="border:none;background:transparent;color:var(--text);font-size:20px;cursor:pointer;opacity:0.5;transition:all 0.2s;line-height:1;padding:4px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;" onmouseover="this.style.opacity='0.8';this.style.background='var(--surface)'" onmouseout="this.style.opacity='0.5';this.style.background='transparent'">×</button>
+      <button id="contactDetailsCloseBtn" style="border:none;background:transparent;color:var(--text);font-size:20px;cursor:pointer;opacity:0.5;transition:all 0.2s;line-height:1;padding:4px;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:4px;flex-shrink:0;" onmouseover="this.style.opacity='0.8';this.style.background='var(--surface)'" onmouseout="this.style.opacity='0.5';this.style.background='transparent'">×</button>
     </div>
-    <form id="contactDetailsForm" style="display:flex;flex-direction:column;gap:20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <form id="contactDetailsForm" style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">First Name</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">First Name</span>
           </label>
-          <input type="text" name="firstName" value="${contact.firstName || ''}" class="text-input" style="width:100%;" placeholder="First name" />
+          <input type="text" name="firstName" value="${contact.firstName || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="First name" />
         </div>
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Last Name</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Last Name</span>
           </label>
-          <input type="text" name="lastName" value="${contact.lastName || ''}" class="text-input" style="width:100%;" placeholder="Last name" />
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr;gap:16px;">
-        <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Email</span>
-          </label>
-          <input type="text" name="email" value="${contact.email || ''}" class="text-input" style="width:100%;opacity:0.7;cursor:not-allowed;" readonly />
+          <input type="text" name="lastName" value="${contact.lastName || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="Last name" />
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <label style="display:block;margin-bottom:4px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Email</span>
+        </label>
+        <input type="text" name="email" value="${contact.email || ''}" class="text-input" style="width:100%;opacity:0.7;cursor:not-allowed;padding:6px 8px;font-size:12px;" readonly />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Job Title</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Job Title</span>
           </label>
-          <input type="text" name="title" value="${contact.title || ''}" class="text-input" style="width:100%;" placeholder="Enter job title" />
+          <input type="text" name="title" value="${contact.title || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="Job title" />
         </div>
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Company</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Company</span>
           </label>
-          <input type="text" name="company" value="${contact.company || ''}" class="text-input" style="width:100%;" placeholder="Enter company" />
+          <input type="text" name="company" value="${contact.company || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="Company" />
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Phone</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Phone</span>
           </label>
-          <input type="text" name="phone" value="${contact.phone || ''}" class="text-input" style="width:100%;" placeholder="Enter phone number" />
+          <input type="text" name="phone" value="${contact.phone || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="Phone" />
         </div>
         <div>
-          <label style="display:block;margin-bottom:6px;">
-            <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">LinkedIn</span>
+          <label style="display:block;margin-bottom:4px;">
+            <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">LinkedIn</span>
           </label>
-          <input type="text" name="linkedin" value="${contact.linkedin || ''}" class="text-input" style="width:100%;" placeholder="LinkedIn URL" />
+          <input type="text" name="linkedin" value="${contact.linkedin || ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" placeholder="LinkedIn URL" />
         </div>
       </div>
-      <div style="padding-top:16px;border-top:1px solid var(--border);">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="padding-top:10px;border-top:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div>
-            <label style="display:block;margin-bottom:6px;">
-              <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Status</span>
+            <label style="display:block;margin-bottom:4px;">
+              <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Status</span>
             </label>
-            <select name="status" class="text-input" style="width:100%;">
+            <select name="status" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;">
               ${['approved','pending','archived','lost','Follow-up Scheduled'].map(s => `
                 <option value="${s}" ${String(contact.status || '').toLowerCase() === s.toLowerCase() ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>
               `).join('')}
             </select>
           </div>
           <div>
-            <label style="display:block;margin-bottom:6px;">
-              <span style="font-size:13px;font-weight:500;color:var(--text);display:block;">Follow-up Date</span>
+            <label style="display:block;margin-bottom:4px;">
+              <span style="font-size:11px;font-weight:500;color:var(--text-secondary);display:block;">Follow-up Date</span>
             </label>
-            <input type="date" name="followUpDate" value="${contact.followUpDate ? new Date(contact.followUpDate).toISOString().split('T')[0] : ''}" class="text-input" style="width:100%;" />
+            <input type="date" name="followUpDate" value="${contact.followUpDate ? new Date(contact.followUpDate).toISOString().split('T')[0] : ''}" class="text-input" style="width:100%;padding:6px 8px;font-size:12px;" />
           </div>
         </div>
       </div>
-      <div style="padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;">
-        <button type="button" id="contactDetailsCancelBtn" class="btn-secondary" style="padding:10px 20px;font-size:14px;font-weight:600;min-width:80px;">Cancel</button>
-        <button type="submit" id="contactDetailsSaveBtn" class="btn-primary" style="padding:10px 20px;font-size:14px;font-weight:600;min-width:80px;">Save</button>
+      <div style="padding-top:12px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;">
+        <button type="button" id="contactDetailsCancelBtn" class="btn-secondary" style="padding:7px 16px;font-size:12px;font-weight:500;min-width:70px;">Cancel</button>
+        <button type="submit" id="contactDetailsSaveBtn" class="btn-primary" style="padding:7px 16px;font-size:12px;font-weight:500;min-width:70px;">Save</button>
       </div>
     </form>
   `;
@@ -3152,8 +3888,32 @@ function initBulkActions() {
       }
       
       window.bulkSelectedContacts.clear();
-      await loadContacts();
+      await loadAllContacts();
       showToast(`Deleted ${emailsToDelete.length} contacts`, false);
+    });
+  }
+  
+  // Bulk export
+  const bulkExportBtn = document.getElementById('bulkExport');
+  if (bulkExportBtn) {
+    bulkExportBtn.addEventListener('click', async () => {
+      if (window.bulkSelectedContacts.size === 0) {
+        showToast('Please select at least one contact to export', false);
+        return;
+      }
+      
+      // Get all contacts and filter by selected
+      const response = await chrome.runtime.sendMessage({ action: 'getContacts' });
+      if (response && response.contacts) {
+        const selectedContacts = response.contacts.filter(c => 
+          window.bulkSelectedContacts.has(c.email)
+        );
+        
+        if (selectedContacts.length > 0) {
+          exportContactsAsCSV(selectedContacts);
+          showToast(`Exported ${selectedContacts.length} contacts`, false);
+        }
+      }
     });
   }
   
@@ -3170,6 +3930,23 @@ async function bulkPushToCRM(platform) {
     return;
   }
   
+  // Check if platform is connected - with better initialization check
+  if (!window.integrationManager && !window.IntegrationManager) {
+    showToast('Integration manager not initialized. Please refresh the page.', true);
+    console.error('❌ Integration manager not found. Trying to initialize...');
+    
+    // Try to initialize
+    if (typeof IntegrationManager !== 'undefined') {
+      window.integrationManager = new IntegrationManager();
+      await window.integrationManager.init();
+    } else {
+      return;
+    }
+  }
+  
+  // Use whichever is available
+  const manager = window.integrationManager || window.IntegrationManager;
+  
   const platformName = platform === 'hubspot' ? 'HubSpot' : 'Salesforce';
   const confirmMsg = `Push ${contacts.length} contact${contacts.length > 1 ? 's' : ''} to ${platformName}?`;
   
@@ -3177,28 +3954,71 @@ async function bulkPushToCRM(platform) {
     return;
   }
   
-  showToast(`Pushing to ${platformName}...`, false);
+  showToast(`Pushing ${contacts.length} contact${contacts.length > 1 ? 's' : ''} to ${platformName}...`, false);
   
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
+  const errors = [];
   
-  for (const contact of contacts) {
+  for (let i = 0; i < contacts.length; i++) {
+    const contact = contacts[i];
     try {
-      if (window.integrationManager) {
-        await window.integrationManager.syncContact(contact, platform);
+      const result = await manager.syncContact(contact, platform);
+      
+      if (result && result.skipped) {
+        skippedCount++;
+      } else {
         successCount++;
+      }
+      
+      // Update progress
+      if ((i + 1) % 5 === 0 || i === contacts.length - 1) {
+        showToast(`Pushing... ${i + 1}/${contacts.length}`, false);
+      }
+      
+      // Add delay between requests to avoid rate limiting (1 second)
+      if (i < contacts.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     } catch (error) {
       console.error(`Failed to push ${contact.email}:`, error);
       errorCount++;
+      errors.push({ email: contact.email, error: error.message });
+      
+      // If rate limited, add extra delay (5 seconds)
+      if (error.message && error.message.includes('Rate limit')) {
+        console.warn('⚠️ Rate limited, waiting 5 seconds before continuing...');
+        showToast('Rate limited, waiting 5 seconds...', false);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
     }
   }
   
-  const resultMsg = `✓ Pushed ${successCount} to ${platformName}${errorCount > 0 ? `, ${errorCount} failed` : ''}`;
+  // Clear selection
+  window.bulkSelectedContacts.clear();
+  
+  // Refresh contact list to show updated CRM badges
+  await loadAllContacts();
+  
+  // Show final result
+  let resultMsg = '';
+  if (successCount > 0) {
+    resultMsg += `✓ Pushed ${successCount} to ${platformName}`;
+  }
+  if (skippedCount > 0) {
+    resultMsg += `, ${skippedCount} skipped (duplicates)`;
+  }
+  if (errorCount > 0) {
+    resultMsg += `, ${errorCount} failed`;
+  }
+  
   showToast(resultMsg, errorCount > 0);
   
-  // Refresh contact list
-  await loadContacts();
+  // Log detailed errors if any
+  if (errors.length > 0) {
+    console.error('Push errors:', errors);
+  }
 }
 
 function updateBulkToolbar() {
@@ -3212,8 +4032,18 @@ function updateBulkToolbar() {
     if (count > 0) {
       bulkToolbar.classList.remove('hidden');
       bulkCountEl.textContent = `${count} selected`;
+      bulkCountEl.style.color = 'var(--primary)';
+      bulkCountEl.style.fontWeight = '600';
+      // Subtle highlight when items are selected
+      bulkToolbar.style.background = 'var(--surface)';
+      bulkToolbar.style.borderColor = 'var(--primary)';
     } else {
-      bulkToolbar.classList.add('hidden');
+      // Don't hide toolbar, just make it more subtle
+      bulkCountEl.textContent = '0 selected';
+      bulkCountEl.style.color = 'var(--text-secondary)';
+      bulkCountEl.style.fontWeight = '500';
+      bulkToolbar.style.background = 'var(--bg)';
+      bulkToolbar.style.borderColor = 'var(--border)';
     }
   }
   
@@ -3237,15 +4067,19 @@ async function updateCRMButtonVisibility() {
   const bulkPushHubSpotBtn = document.getElementById('bulkPushHubSpot');
   const bulkPushSalesforceBtn = document.getElementById('bulkPushSalesforce');
   
-  if (!window.integrationManager) {
+  // Use whichever is available
+  const manager = window.integrationManager || window.IntegrationManager;
+  
+  if (!manager) {
+    console.warn('⚠️ Integration manager not available yet');
     return;
   }
   
   try {
-    await window.integrationManager.checkIntegrationStatus();
+    await manager.checkIntegrationStatus();
     
-    const hubspotConnected = window.integrationManager.statusCache.hubspot?.connected;
-    const salesforceConnected = window.integrationManager.statusCache.salesforce?.connected;
+    const hubspotConnected = manager.statusCache.hubspot?.connected;
+    const salesforceConnected = manager.statusCache.salesforce?.connected;
     
     if (bulkPushHubSpotBtn) {
       if (hubspotConnected) {

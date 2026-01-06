@@ -1,5 +1,8 @@
 // Configuration for CRMSYNC Extension
 const CONFIG = {
+  // Debug mode - set to false for production
+  DEBUG: false, // Toggle console logs - SET TO FALSE FOR PRODUCTION
+  
   // Your website URL
   WEBSITE_URL: 'https://www.crm-sync.net',
   
@@ -35,6 +38,18 @@ const CONFIG = {
         'Unlimited exports',
         'Advanced analytics',
         'Priority support'
+      ]
+    },
+    business: {
+      name: 'Business',
+      contactLimit: 1000,
+      exportLimit: -1, // -1 = unlimited
+      features: [
+        'Extract up to 1,000 contacts',
+        'Unlimited exports',
+        'Advanced analytics',
+        'Priority support',
+        'CRM integrations'
       ]
     },
     enterprise: {

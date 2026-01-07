@@ -1,0 +1,5 @@
+{
+  "name": "CRMSYNC",
+  "description": "AI-powered Chrome extension for automated contact management in Gmail. Capture, organize, and sync contacts automatically.",
+  "requestFramePermissions": []
+}

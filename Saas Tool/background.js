@@ -162,6 +162,8 @@ async function checkContactLimit(currentCount) {
   };
 }
 
+// Legacy onInstalled handler - kept for settings initialization
+// Main onboarding flow is handled by the second onInstalled listener below (line 2186+)
 chrome.runtime.onInstalled.addListener(async () => {
   const defaultSettings = {
       darkMode: false,
@@ -2185,22 +2187,30 @@ chrome.runtime.onStartup.addListener(() => {
 // Also initialize when extension is installed/updated  
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
-    // First time installation - show onboarding
-    console.log('📦 Extension installed - showing onboarding');
+    // First time installation - redirect to website onboarding
+    console.log('📦 Extension installed - redirecting to website onboarding');
     
-    // Check if onboarding was already completed (shouldn't be, but check anyway)
-    const { onboardingCompleted } = await chrome.storage.local.get(['onboardingCompleted']);
+    // Check if user already has an account (they might have installed on another device)
+    const { authToken } = await chrome.storage.local.get(['authToken']);
     
-    if (!onboardingCompleted) {
-      // Open onboarding page
+    if (authToken) {
+      // User is already signed in - they're installing on a second device
+      console.log('✅ User already authenticated, syncing data...');
+      setTimeout(() => {
+        initializeAuthAndSync();
+      }, 500);
+      
+      // Show a welcome back notification
       chrome.tabs.create({
-        url: chrome.runtime.getURL('onboarding.html')
+        url: 'https://crm-sync.net/#/done?returning=true'
+      });
+    } else {
+      // Brand new user - start onboarding flow on website
+      console.log('👋 New user - starting website onboarding');
+      chrome.tabs.create({
+        url: 'https://crm-sync.net/#/register?source=extension'
       });
     }
-    
-    setTimeout(() => {
-      initializeAuthAndSync();
-    }, 500);
   } else if (details.reason === 'update') {
     console.log('📦 Extension updated');
     setTimeout(() => {

@@ -1,8 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const Done: React.FC = () => {
   const { user } = useAuth();
+  const [isReturning, setIsReturning] = useState(false);
+
+  useEffect(() => {
+    // Check if this is a returning user (installing on second device)
+    const params = new URLSearchParams(window.location.hash.split('?')[1]);
+    setIsReturning(params.get('returning') === 'true');
+  }, []);
 
   const handleOpenGmail = () => {
     window.open('https://mail.google.com', '_blank');
@@ -52,7 +59,7 @@ export const Done: React.FC = () => {
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent'
         }}>
-          You're all set!
+          {isReturning ? 'Welcome Back!' : 'You\'re all set!'}
         </h1>
         <p style={{
           fontSize: '18px',
@@ -60,6 +67,11 @@ export const Done: React.FC = () => {
           lineHeight: '1.6',
           marginBottom: '40px'
         }}>
+          {isReturning 
+            ? 'CRM Sync is now installed on this device. Your settings and exclusions have been synced!'
+            : 'CRM Sync is now active in your Gmail. Open Gmail to start detecting contacts automatically!'
+          }
+        </p>
           Let's see CRM-Sync in action in your Gmail inbox.
         </p>
 

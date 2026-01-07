@@ -249,7 +249,7 @@ export const Exclusions: React.FC = () => {
               ℹ️ We loaded your saved exclusions. Changes here will apply on all devices.
             </div>
           )}
-        </p>
+        </div>
         </div>
 
         {error && (

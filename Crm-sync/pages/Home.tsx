@@ -6,7 +6,7 @@ import { SecuritySection } from '../components/SecuritySection';
 import { BeforeAfterComparison } from '../components/BeforeAfterComparison';
 import { StickyHeader } from '../components/StickyHeader';
 import { CompanyLogos } from '../components/CompanyLogos';
-import { ArrowRight, Star, Download, Target, Upload, ShieldCheck, Zap, Chrome, Clock, Users, Shield } from 'lucide-react';
+import { ArrowRight, Star, Download, Target, Upload, ShieldCheck, Zap, Chrome, Clock, Users, Shield, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Home: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavigate }) => {

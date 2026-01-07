@@ -4466,11 +4466,32 @@
               </select>
             </div>
           </div>
-          <div style="padding-top:16px;border-top:1px solid var(--border,#2d3748);display:flex;justify-content:space-between;align-items:center;gap:10px;">
-            <button type="button" class="details-delete" style="padding:10px 20px;font-size:14px;font-weight:600;border:1px solid var(--error,#ef4444);background:transparent;color:var(--error,#ef4444);border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">🗑️ Delete</button>
-            <div style="display:flex;gap:10px;">
-              <button type="button" class="details-cancel" style="padding:10px 20px;font-size:14px;font-weight:600;border:1px solid var(--border,#2d3748);background:transparent;color:var(--text,#e2e8f0);border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">Cancel</button>
-              <button type="submit" class="details-save" style="padding:10px 20px;font-size:14px;font-weight:600;border:none;background:var(--primary,#7c3aed);color:#fff;border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">Save</button>
+          <div style="padding-top:16px;border-top:1px solid var(--border,#2d3748);display:flex;flex-direction:column;gap:12px;">
+            <!-- CRM Push Section -->
+            <div id="sidebar-crm-push-section" style="display:none;">
+              <label style="display:block;margin-bottom:8px;">
+                <span style="font-size:13px;font-weight:500;color:var(--text,#e2e8f0);display:block;">Push to CRM</span>
+              </label>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="sidebar-push-hubspot" data-email="${contact.email}" style="flex:1;padding:10px 16px;font-size:13px;font-weight:600;border:1px solid #ff7a59;background:transparent;color:#ff7a59;border-radius:10px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <span style="font-size:16px;">🔵</span>
+                  <span>HubSpot</span>
+                </button>
+                <button type="button" class="sidebar-push-salesforce" data-email="${contact.email}" style="flex:1;padding:10px 16px;font-size:13px;font-weight:600;border:1px solid #00a1e0;background:transparent;color:#00a1e0;border-radius:10px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                  <span style="font-size:16px;">🟠</span>
+                  <span>Salesforce</span>
+                </button>
+              </div>
+              <div id="sidebar-push-status" style="margin-top:8px;padding:8px;border-radius:8px;font-size:12px;text-align:center;display:none;"></div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <button type="button" class="details-delete" style="padding:10px 20px;font-size:14px;font-weight:600;border:1px solid var(--error,#ef4444);background:transparent;color:var(--error,#ef4444);border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">🗑️ Delete</button>
+              <div style="display:flex;gap:10px;">
+                <button type="button" class="details-cancel" style="padding:10px 20px;font-size:14px;font-weight:600;border:1px solid var(--border,#2d3748);background:transparent;color:var(--text,#e2e8f0);border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">Cancel</button>
+                <button type="submit" class="details-save" style="padding:10px 20px;font-size:14px;font-weight:600;border:none;background:var(--primary,#7c3aed);color:#fff;border-radius:12px;cursor:pointer;transition:all 0.2s;min-width:80px;">Save</button>
+              </div>
             </div>
           </div>
         </form>
@@ -4515,6 +4536,18 @@
           color: white !important;
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+        .crmsync-contact-details-panel .sidebar-push-hubspot:not(:disabled):hover {
+          background: #ff7a59 !important;
+          color: white !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(255, 122, 89, 0.4);
+        }
+        .crmsync-contact-details-panel .sidebar-push-salesforce:not(:disabled):hover {
+          background: #00a1e0 !important;
+          color: white !important;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 161, 224, 0.4);
         }
       `;
       document.head.appendChild(style);
@@ -4615,6 +4648,158 @@
           } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save';
+          }
+        });
+      }
+
+      // CRM Push functionality
+      const pushSection = panel.querySelector('#sidebar-crm-push-section');
+      const pushHubSpotBtn = panel.querySelector('.sidebar-push-hubspot');
+      const pushSalesforceBtn = panel.querySelector('.sidebar-push-salesforce');
+      const pushStatus = panel.querySelector('#sidebar-push-status');
+
+      // Check connected platforms and show/hide push section
+      const connectedPlatforms = window.integrationManager?.getConnectedPlatforms() || { hubspot: false, salesforce: false, any: false };
+      
+      if (pushSection && connectedPlatforms.any) {
+        pushSection.style.display = 'block';
+        
+        // Show/hide individual buttons based on connection
+        if (pushHubSpotBtn) {
+          pushHubSpotBtn.style.display = connectedPlatforms.hubspot ? 'flex' : 'none';
+        }
+        if (pushSalesforceBtn) {
+          pushSalesforceBtn.style.display = connectedPlatforms.salesforce ? 'flex' : 'none';
+        }
+        
+        // Check if already synced and disable buttons accordingly
+        const mappings = contact.crmMappings || {};
+        if (pushHubSpotBtn && mappings.hubspot) {
+          pushHubSpotBtn.innerHTML = '<span style="font-size:16px;">✓</span><span>Synced to HubSpot</span>';
+          pushHubSpotBtn.disabled = true;
+          pushHubSpotBtn.style.opacity = '0.5';
+          pushHubSpotBtn.style.cursor = 'not-allowed';
+        }
+        if (pushSalesforceBtn && mappings.salesforce) {
+          pushSalesforceBtn.innerHTML = '<span style="font-size:16px;">✓</span><span>Synced to Salesforce</span>';
+          pushSalesforceBtn.disabled = true;
+          pushSalesforceBtn.style.opacity = '0.5';
+          pushSalesforceBtn.style.cursor = 'not-allowed';
+        }
+      }
+
+      // HubSpot push handler
+      if (pushHubSpotBtn && !pushHubSpotBtn.disabled) {
+        pushHubSpotBtn.addEventListener('click', async () => {
+          if (!window.integrationManager) {
+            if (pushStatus) {
+              pushStatus.style.display = 'block';
+              pushStatus.style.background = '#fef2f2';
+              pushStatus.style.color = '#991b1b';
+              pushStatus.textContent = '❌ Integration manager not available';
+            }
+            return;
+          }
+
+          pushHubSpotBtn.disabled = true;
+          pushHubSpotBtn.innerHTML = '<span>⏳ Pushing...</span>';
+          
+          if (pushStatus) {
+            pushStatus.style.display = 'block';
+            pushStatus.style.background = '#f0f9ff';
+            pushStatus.style.color = '#075985';
+            pushStatus.textContent = '⏳ Pushing to HubSpot...';
+          }
+
+          try {
+            await window.integrationManager.syncContact('hubspot', contact);
+            
+            // Refresh contacts to get updated sync status
+            await loadContacts();
+            updateSidebar();
+            
+            pushHubSpotBtn.innerHTML = '<span style="font-size:16px;">✓</span><span>Synced!</span>';
+            pushHubSpotBtn.style.opacity = '0.5';
+            
+            if (pushStatus) {
+              pushStatus.style.background = '#f0fdf4';
+              pushStatus.style.color = '#166534';
+              pushStatus.textContent = '✓ Successfully synced to HubSpot!';
+            }
+            
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+              if (pushStatus) pushStatus.style.display = 'none';
+            }, 3000);
+            
+          } catch (error) {
+            console.error('Error pushing to HubSpot:', error);
+            pushHubSpotBtn.disabled = false;
+            pushHubSpotBtn.innerHTML = '<span style="font-size:16px;">🔵</span><span>HubSpot</span>';
+            
+            if (pushStatus) {
+              pushStatus.style.background = '#fef2f2';
+              pushStatus.style.color = '#991b1b';
+              pushStatus.textContent = `❌ Failed: ${error.message || 'Unknown error'}`;
+            }
+          }
+        });
+      }
+
+      // Salesforce push handler
+      if (pushSalesforceBtn && !pushSalesforceBtn.disabled) {
+        pushSalesforceBtn.addEventListener('click', async () => {
+          if (!window.integrationManager) {
+            if (pushStatus) {
+              pushStatus.style.display = 'block';
+              pushStatus.style.background = '#fef2f2';
+              pushStatus.style.color = '#991b1b';
+              pushStatus.textContent = '❌ Integration manager not available';
+            }
+            return;
+          }
+
+          pushSalesforceBtn.disabled = true;
+          pushSalesforceBtn.innerHTML = '<span>⏳ Pushing...</span>';
+          
+          if (pushStatus) {
+            pushStatus.style.display = 'block';
+            pushStatus.style.background = '#f0f9ff';
+            pushStatus.style.color = '#075985';
+            pushStatus.textContent = '⏳ Pushing to Salesforce...';
+          }
+
+          try {
+            await window.integrationManager.syncContact('salesforce', contact);
+            
+            // Refresh contacts to get updated sync status
+            await loadContacts();
+            updateSidebar();
+            
+            pushSalesforceBtn.innerHTML = '<span style="font-size:16px;">✓</span><span>Synced!</span>';
+            pushSalesforceBtn.style.opacity = '0.5';
+            
+            if (pushStatus) {
+              pushStatus.style.background = '#f0fdf4';
+              pushStatus.style.color = '#166534';
+              pushStatus.textContent = '✓ Successfully synced to Salesforce!';
+            }
+            
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+              if (pushStatus) pushStatus.style.display = 'none';
+            }, 3000);
+            
+          } catch (error) {
+            console.error('Error pushing to Salesforce:', error);
+            pushSalesforceBtn.disabled = false;
+            pushSalesforceBtn.innerHTML = '<span style="font-size:16px;">🟠</span><span>Salesforce</span>';
+            
+            if (pushStatus) {
+              pushStatus.style.background = '#fef2f2';
+              pushStatus.style.color = '#991b1b';
+              pushStatus.textContent = `❌ Failed: ${error.message || 'Unknown error'}`;
+            }
           }
         });
       }

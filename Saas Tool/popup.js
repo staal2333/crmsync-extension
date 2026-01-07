@@ -91,19 +91,25 @@ async function checkForWebsiteAuth() {
     
     // Method 2: Check if website is open in another tab and has auth
     try {
-      const tabs = await chrome.tabs.query({ url: '*://crm-sync.net/*' });
+      // Query for crm-sync.net tabs (both www and non-www)
+      const tabs = await chrome.tabs.query({ url: ['*://crm-sync.net/*', '*://*.crm-sync.net/*'] });
+      
+      console.log(`📑 Found ${tabs.length} crm-sync.net tab(s)`);
       
       for (const tab of tabs) {
+        console.log(`  → Checking tab ${tab.id}: ${tab.url}`);
+        
         try {
           // Inject script to check localStorage
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
               const authStr = localStorage.getItem('crmsync_onboarding_complete');
+              console.log('📦 Checking localStorage:', authStr ? 'Found!' : 'Not found');
               if (authStr) {
                 const auth = JSON.parse(authStr);
-                // Clear it so it's only used once
-                localStorage.removeItem('crmsync_onboarding_complete');
+                // DON'T clear it yet - let multiple popups access it
+                // localStorage.removeItem('crmsync_onboarding_complete');
                 return auth;
               }
               return null;
@@ -114,6 +120,8 @@ async function checkForWebsiteAuth() {
             const auth = results[0].result;
             const age = Date.now() - auth.timestamp;
             
+            console.log(`⏰ Auth age: ${Math.floor(age / 1000)}s`);
+            
             if (age < 5 * 60 * 1000) {
               console.log('✅ Found website auth in tab localStorage!', {
                 email: auth.user?.email,
@@ -122,15 +130,27 @@ async function checkForWebsiteAuth() {
               });
               
               await saveWebsiteAuthToExtension(auth);
+              
+              // NOW clear it after successful save
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => {
+                  localStorage.removeItem('crmsync_onboarding_complete');
+                  console.log('🧹 Cleared onboarding auth from localStorage');
+                }
+              });
+              
               return true;
+            } else {
+              console.log('⚠️ Auth too old, ignoring');
             }
           }
         } catch (err) {
-          console.log('Could not access tab:', err.message);
+          console.log(`  ❌ Could not access tab ${tab.id}:`, err.message);
         }
       }
     } catch (err) {
-      console.log('Could not query tabs:', err.message);
+      console.log('❌ Could not query tabs:', err.message);
     }
     
     console.log('ℹ️ No pending website auth found');
@@ -308,7 +328,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
   
   // FIRST: Check if user just completed onboarding on website
-  await checkForWebsiteAuth();
+  // Try multiple times in case the Done page is still loading
+  let authFound = await checkForWebsiteAuth();
+  
+  if (!authFound) {
+    console.log('🔄 No auth found, will retry in 1 second...');
+    // Wait 1 second and try again
+    setTimeout(async () => {
+      authFound = await checkForWebsiteAuth();
+      if (authFound) {
+        console.log('✅ Auth found on retry! Reloading UI...');
+        // Reload the UI to show logged-in state
+        await loadInitialData();
+      }
+    }, 1000);
+  }
   
   // CRITICAL: Set up core UI immediately (non-blocking)
   console.log('🚀 Setting up core UI immediately...');

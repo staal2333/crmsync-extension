@@ -9,12 +9,16 @@ export const ConnectCRM: React.FC = () => {
 
   useEffect(() => {
     // Check if user just returned from OAuth
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
     const success = params.get('success');
     const platform = params.get('platform');
+    const error = params.get('error');
     
     if (success === 'true' && platform) {
       setConnectedPlatform(platform);
+      setError('');
+    } else if (error) {
+      setError(decodeURIComponent(error));
     }
   }, []);
 
@@ -29,8 +33,9 @@ export const ConnectCRM: React.FC = () => {
       return;
     }
 
-    // Redirect to backend OAuth endpoint
-    window.location.href = `${API_URL}/api/integrations/hubspot/connect?redirect_uri=${encodeURIComponent(window.location.origin + '/connect-crm?success=true&platform=hubspot')}`;
+    // Redirect to backend OAuth endpoint with token
+    const redirectUri = encodeURIComponent(window.location.origin + '/#/connect-crm?success=true&platform=hubspot');
+    window.location.href = `${API_URL}/api/integrations/hubspot/connect?token=${encodeURIComponent(token)}&redirect_uri=${redirectUri}`;
   };
 
   const handleSalesforceConnect = () => {
@@ -44,8 +49,9 @@ export const ConnectCRM: React.FC = () => {
       return;
     }
 
-    // Redirect to backend OAuth endpoint
-    window.location.href = `${API_URL}/api/integrations/salesforce/connect?redirect_uri=${encodeURIComponent(window.location.origin + '/connect-crm?success=true&platform=salesforce')}`;
+    // Redirect to backend OAuth endpoint with token
+    const redirectUri = encodeURIComponent(window.location.origin + '/#/connect-crm?success=true&platform=salesforce');
+    window.location.href = `${API_URL}/api/integrations/salesforce/connect?token=${encodeURIComponent(token)}&redirect_uri=${redirectUri}`;
   };
 
   const handleSkip = () => {

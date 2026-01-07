@@ -189,84 +189,15 @@ exports.hubspotCallback = async (req, res) => {
     
     console.log('✅ HubSpot connected successfully for user:', userId, 'Account ID:', accountId);
     
-    // Return success page that closes the popup
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>HubSpot Connected</title>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-            }
-            .container {
-              text-align: center;
-              padding: 40px;
-              background: rgba(255, 255, 255, 0.1);
-              backdrop-filter: blur(10px);
-              border-radius: 20px;
-              box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            }
-            h1 { font-size: 48px; margin: 0 0 20px 0; }
-            p { font-size: 18px; opacity: 0.9; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>✓ HubSpot Connected!</h1>
-            <p>You can close this window now.</p>
-          </div>
-        </body>
-      </html>
-    `);
+    // Redirect back to frontend with success
+    const frontendUrl = process.env.FRONTEND_URL || 'https://crm-sync.net';
+    res.redirect(`${frontendUrl}/#/connect-crm?success=true&platform=hubspot`);
   } catch (error) {
     console.error('❌ HubSpot callback error:', error.response?.data || error.message);
-    res.status(500).send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Connection Failed</title>
-          <style>
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              height: 100vh;
-              margin: 0;
-              background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-              color: white;
-            }
-            .container {
-              text-align: center;
-              padding: 40px;
-              background: rgba(255, 255, 255, 0.1);
-              backdrop-filter: blur(10px);
-              border-radius: 20px;
-            }
-            h1 { font-size: 48px; margin: 0 0 20px 0; }
-            p { font-size: 16px; opacity: 0.9; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <h1>❌ Connection Failed</h1>
-            <p>Failed to connect HubSpot. Please try again.</p>
-            <p style="font-size: 14px; margin-top: 20px;">${error.message}</p>
-          </div>
-          <script>
-            setTimeout(() => window.close(), 5000);
-          </script>
-        </body>
-      </html>
-    `);
+    
+    // Redirect back to frontend with error
+    const frontendUrl = process.env.FRONTEND_URL || 'https://crm-sync.net';
+    res.redirect(`${frontendUrl}/#/connect-crm?error=${encodeURIComponent(error.message || 'Connection failed')}`);
   }
 };
 

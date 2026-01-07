@@ -27,42 +27,27 @@ export const Done: React.FC = () => {
       
       const userData = JSON.parse(userDataStr);
       
-      console.log('🔄 Preparing to sync auth to extension');
-      console.log('- Email:', userData.email);
-      console.log('- Name:', userData.name);
+      console.log('🔄 Auth data ready for extension:');
+      console.log('- Token:', token.substring(0, 20) + '...');
+      console.log('- User:', userData.email);
       
-      // Build callback URL to extension
-      const extensionId = (window as any).chrome?.runtime?.id || 'EXTENSION_ID';
-      const callbackUrl = `chrome-extension://${extensionId}/auth-callback.html?` +
-        `token=${encodeURIComponent(token)}` +
-        `&email=${encodeURIComponent(userData.email)}` +
-        `&name=${encodeURIComponent(userData.name || '')}` +
-        `&tier=${encodeURIComponent(userData.tier || 'free')}`;
+      // Store in localStorage with a specific key the extension can check
+      localStorage.setItem('crmsync_onboarding_complete', JSON.stringify({
+        token: token,
+        user: userData,
+        timestamp: Date.now()
+      }));
       
-      console.log('✅ Auth callback URL ready');
-      
-      // Store URL for the button to use
-      (window as any).authCallbackUrl = callbackUrl;
+      console.log('✅ Auth stored - extension will pick it up on next open');
       setExtensionSynced(true);
     } catch (error) {
-      console.error('Failed to prepare auth sync:', error);
+      console.error('Failed to prepare auth for extension:', error);
     }
   };
 
   const handleOpenExtension = () => {
-    const callbackUrl = (window as any).authCallbackUrl;
-    if (callbackUrl) {
-      // Open the extension auth callback page
-      window.open(callbackUrl, '_blank');
-      
-      // Show a brief message
-      setTimeout(() => {
-        handleOpenGmail();
-      }, 1000);
-    } else {
-      // Fallback: just open Gmail
-      handleOpenGmail();
-    }
+    // Just open Gmail - the popup will check localStorage automatically
+    handleOpenGmail();
   };
 
   const handleOpenGmail = () => {

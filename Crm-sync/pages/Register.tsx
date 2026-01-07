@@ -75,8 +75,19 @@ export const Register: React.FC<{ onNavigate: (page: string) => void }> = ({ onN
       } else {
         onNavigate('account');
       }
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (err: any) {
+      // Better error messages
+      const errorMessage = err.message || 'Registration failed';
+      
+      if (err.message?.includes('already exists') || err.message?.includes('409')) {
+        setError('This email is already registered. Please sign in instead.');
+      } else if (err.message?.includes('password')) {
+        setError('Password must be at least 8 characters long.');
+      } else {
+        setError(errorMessage);
+      }
+      
+      console.error('Registration error:', err);
     } finally {
       setIsLoading(false);
     }

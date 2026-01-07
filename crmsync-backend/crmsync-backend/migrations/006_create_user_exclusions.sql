@@ -6,7 +6,7 @@
 -- Create user_exclusions table
 CREATE TABLE IF NOT EXISTS user_exclusions (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   
   -- Section 1: User's own identity (to avoid self-tracking)
   exclude_name VARCHAR(255),

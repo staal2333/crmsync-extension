@@ -30,10 +30,13 @@ export const Register: React.FC<{ onNavigate: (page: string) => void }> = ({ onN
     
     console.log('🔍 Register - Source:', source, 'Extension ID:', extId);
     
-    if (source === 'extension' && extId) {
+    // Check if coming from extension install
+    if (source === 'extension') {
       setIsExtensionRegister(true);
-      setExtensionId(extId);
-      console.log('✅ Extension registration detected, ID:', extId);
+      if (extId) {
+        setExtensionId(extId);
+        console.log('✅ Extension registration detected, ID:', extId);
+      }
     }
   }, []);
 
@@ -69,10 +72,13 @@ export const Register: React.FC<{ onNavigate: (page: string) => void }> = ({ onN
       const data = await authService.register(name, email, password);
       login(data.token, data.user);
       
-      // If coming from extension, redirect back
-      if (isExtensionRegister && extensionId) {
-        redirectToExtension(data.token, data.user);
+      // If coming from extension, start onboarding flow
+      if (isExtensionRegister) {
+        console.log('🎯 Extension registration complete, starting onboarding flow');
+        // Start with Connect CRM page
+        onNavigate('connect-crm');
       } else {
+        // Regular website registration, go to account page
         onNavigate('account');
       }
     } catch (err: any) {

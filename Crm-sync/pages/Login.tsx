@@ -58,11 +58,13 @@ export const Login: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
       const data = await authService.login(email, password);
       login(data.token, data.user);
       
-      // If logging in from extension, redirect back to extension
-      if (isExtensionLogin && extensionId) {
-        redirectToExtension(data);
+      // If logging in from extension, they're likely a returning user
+      // Send them to Done page (skip onboarding)
+      if (isExtensionLogin) {
+        console.log('🎯 Extension login complete, skipping onboarding');
+        onNavigate('done');
       } else {
-        // Normal redirect to account page
+        // Normal website login, go to account page
         onNavigate('account');
       }
     } catch (err) {

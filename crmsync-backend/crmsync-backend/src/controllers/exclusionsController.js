@@ -11,7 +11,7 @@ const db = require('../config/database');
  */
 exports.getExclusions = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     const result = await db.query(
       `SELECT 
@@ -62,7 +62,19 @@ exports.getExclusions = async (req, res) => {
  */
 exports.saveExclusions = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
+    
+    console.log('💾 Saving exclusions for user:', userId);
+    console.log('🔐 Auth token payload:', req.user);
+    
+    if (!userId) {
+      console.error('❌ No userId found in token!');
+      return res.status(400).json({ 
+        error: 'User ID not found in authentication token',
+        debug: { user: req.user }
+      });
+    }
+    
     const {
       exclude_name,
       exclude_email,
@@ -142,7 +154,7 @@ exports.saveExclusions = async (req, res) => {
       );
     }
 
-    logger.info(`Exclusions saved for user ${userId}`);
+    console.log(`✅ Exclusions saved for user ${userId}`);
     res.json({
       success: true,
       message: 'Exclusions saved successfully',
@@ -163,7 +175,7 @@ exports.saveExclusions = async (req, res) => {
  */
 exports.updateExclusions = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
     const updates = req.body;
 
     // Build dynamic UPDATE query
@@ -213,7 +225,7 @@ exports.updateExclusions = async (req, res) => {
       exclusions: result.rows[0]
     });
   } catch (error) {
-    logger.error('Error updating exclusions:', error);
+    console.error('Error updating exclusions:', error);
     res.status(500).json({ 
       error: 'Failed to update exclusions',
       message: error.message 
@@ -227,7 +239,7 @@ exports.updateExclusions = async (req, res) => {
  */
 exports.deleteExclusions = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId || req.user.id;
 
     await db.query(
       'DELETE FROM user_exclusions WHERE user_id = $1',

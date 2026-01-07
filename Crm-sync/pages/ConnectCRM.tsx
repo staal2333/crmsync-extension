@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://crmsync-api.onrender.com';
 
 export const ConnectCRM: React.FC = () => {
-  const navigate = useNavigate();
   const [connectedPlatform, setConnectedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,11 +49,11 @@ export const ConnectCRM: React.FC = () => {
   };
 
   const handleSkip = () => {
-    navigate('/exclusions');
+    window.location.hash = '/exclusions';
   };
 
   const handleContinue = () => {
-    navigate('/exclusions');
+    window.location.hash = '/exclusions';
   };
 
   return (

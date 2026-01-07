@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 
@@ -95,7 +94,6 @@ const ChipInput: React.FC<ChipInputProps> = ({ value, onChange, placeholder }) =
 };
 
 export const Exclusions: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   
   // Form state
@@ -175,7 +173,7 @@ export const Exclusions: React.FC = () => {
       });
 
       // Navigate to install extension page
-      navigate('/install');
+      window.location.hash = '/install';
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save exclusions');
     } finally {
@@ -184,7 +182,7 @@ export const Exclusions: React.FC = () => {
   };
 
   const handleSkip = () => {
-    navigate('/install');
+    window.location.hash = '/install';
   };
 
   return (

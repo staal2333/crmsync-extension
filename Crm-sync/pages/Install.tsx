@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 const CHROME_WEB_STORE_URL = 'https://chrome.google.com/webstore/detail/crmsync/YOUR_EXTENSION_ID';
 
 export const Install: React.FC = () => {
-  const navigate = useNavigate();
   const [installed, setInstalled] = useState(false);
 
   const handleInstallClick = () => {
@@ -14,7 +12,7 @@ export const Install: React.FC = () => {
   };
 
   const handleContinue = () => {
-    navigate('/done');
+    window.location.hash = '/done';
   };
 
   return (

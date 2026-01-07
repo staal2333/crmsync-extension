@@ -4,12 +4,46 @@ import { useAuth } from '../context/AuthContext';
 export const Done: React.FC = () => {
   const { user } = useAuth();
   const [isReturning, setIsReturning] = useState(false);
+  const [extensionSynced, setExtensionSynced] = useState(false);
 
   useEffect(() => {
     // Check if this is a returning user (installing on second device)
     const params = new URLSearchParams(window.location.hash.split('?')[1]);
     setIsReturning(params.get('returning') === 'true');
+    
+    // Sync auth token to extension (if extension is installed)
+    syncToExtension();
   }, []);
+
+  const syncToExtension = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userDataStr = localStorage.getItem('user');
+      
+      if (!token || !userDataStr) {
+        console.log('⚠️ No auth data to sync to extension');
+        return;
+      }
+      
+      const userData = JSON.parse(userDataStr);
+      
+      console.log('🔄 Auth data ready for extension:');
+      console.log('- Token:', token.substring(0, 20) + '...');
+      console.log('- User:', userData.email);
+      
+      // Store in localStorage with a specific key the extension can check
+      localStorage.setItem('crmsync_onboarding_complete', JSON.stringify({
+        token: token,
+        user: userData,
+        timestamp: Date.now()
+      }));
+      
+      console.log('✅ Auth stored - extension will pick it up on next open');
+      setExtensionSynced(true);
+    } catch (error) {
+      console.error('Failed to prepare auth for extension:', error);
+    }
+  };
 
   const handleOpenGmail = () => {
     window.open('https://mail.google.com', '_blank');

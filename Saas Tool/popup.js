@@ -60,6 +60,122 @@ window.addEventListener('offline', () => {
   showToast('⚠️ You are offline. Changes will sync when reconnected.', false);
 });
 
+/**
+ * Check if user just completed onboarding on website
+ * Looks for auth token and syncs to extension
+ */
+async function checkForWebsiteAuth() {
+  try {
+    console.log('🔍 Checking for website auth completion...');
+    
+    // Method 1: Check chrome.storage for pending auth
+    const { pendingWebsiteAuth } = await chrome.storage.local.get(['pendingWebsiteAuth']);
+    
+    if (pendingWebsiteAuth && pendingWebsiteAuth.timestamp) {
+      const age = Date.now() - pendingWebsiteAuth.timestamp;
+      
+      // Only use if less than 5 minutes old
+      if (age < 5 * 60 * 1000) {
+        console.log('✅ Found website auth in chrome.storage!', {
+          email: pendingWebsiteAuth.user?.email,
+          age: `${Math.floor(age / 1000)}s ago`
+        });
+        
+        await saveWebsiteAuthToExtension(pendingWebsiteAuth);
+        return true;
+      } else {
+        console.log('⚠️ Website auth token expired (>5min old), clearing...');
+        await chrome.storage.local.remove(['pendingWebsiteAuth']);
+      }
+    }
+    
+    // Method 2: Check if website is open in another tab and has auth
+    try {
+      const tabs = await chrome.tabs.query({ url: '*://crm-sync.net/*' });
+      
+      for (const tab of tabs) {
+        try {
+          // Inject script to check localStorage
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const authStr = localStorage.getItem('crmsync_onboarding_complete');
+              if (authStr) {
+                const auth = JSON.parse(authStr);
+                // Clear it so it's only used once
+                localStorage.removeItem('crmsync_onboarding_complete');
+                return auth;
+              }
+              return null;
+            }
+          });
+          
+          if (results && results[0] && results[0].result) {
+            const auth = results[0].result;
+            const age = Date.now() - auth.timestamp;
+            
+            if (age < 5 * 60 * 1000) {
+              console.log('✅ Found website auth in tab localStorage!', {
+                email: auth.user?.email,
+                age: `${Math.floor(age / 1000)}s ago`,
+                tabId: tab.id
+              });
+              
+              await saveWebsiteAuthToExtension(auth);
+              return true;
+            }
+          }
+        } catch (err) {
+          console.log('Could not access tab:', err.message);
+        }
+      }
+    } catch (err) {
+      console.log('Could not query tabs:', err.message);
+    }
+    
+    console.log('ℹ️ No pending website auth found');
+    return false;
+  } catch (error) {
+    console.error('❌ Failed to check website auth:', error);
+    return false;
+  }
+}
+
+/**
+ * Save website auth to extension storage and fetch exclusions
+ */
+async function saveWebsiteAuthToExtension(authData) {
+  try {
+    // Save to extension storage
+    await chrome.storage.local.set({
+      authToken: authData.token,
+      user: authData.user,
+      isAuthenticated: true
+    });
+    
+    console.log('💾 Auth synced to extension storage!');
+    
+    // Fetch exclusions from backend
+    console.log('📥 Fetching user exclusions...');
+    chrome.runtime.sendMessage({ type: 'refreshExclusions' }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn('⚠️ Could not send message to background:', chrome.runtime.lastError.message);
+      } else if (response?.success) {
+        console.log('✅ Exclusions fetched and cached!');
+      } else {
+        console.warn('⚠️ Could not fetch exclusions:', response?.error);
+      }
+    });
+    
+    // Show success message
+    if (typeof showToast === 'function') {
+      showToast('✅ Logged in! Exclusions synced.', false);
+    }
+  } catch (error) {
+    console.error('❌ Failed to save auth:', error);
+  }
+}
+
 // Session timeout configuration
 const SESSION_TIMEOUT = 30 * 24 * 60 * 60 * 1000; // 30 days in milliseconds
 
@@ -190,6 +306,9 @@ async function updateUIForConnectedPlatforms() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
+  
+  // FIRST: Check if user just completed onboarding on website
+  await checkForWebsiteAuth();
   
   // CRITICAL: Set up core UI immediately (non-blocking)
   console.log('🚀 Setting up core UI immediately...');

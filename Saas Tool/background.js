@@ -394,6 +394,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: error.message });
       });
     return true;
+  } else if (request.action === 'refreshExclusions') {
+    // Refresh exclusions from backend
+    chrome.storage.local.get(['authToken']).then(({ authToken }) => {
+      if (authToken) {
+        fetchUserExclusions(authToken)
+          .then((exclusions) => {
+            sendResponse({ success: true, exclusions });
+          })
+          .catch((error) => {
+            sendResponse({ success: false, error: error.message });
+          });
+      } else {
+        sendResponse({ success: false, error: 'Not authenticated' });
+      }
+    });
+    return true; // Keep channel open for async response
   } else if (request.action === 'updateContactMetadata') {
     updateContactMetadata(request.contact)
       .then(() => sendResponse({ success: true }))
@@ -2104,6 +2120,9 @@ async function initializeAuthAndSync() {
     
     if (isAuthenticated && authToken) {
       console.log('✅ User authenticated');
+      
+      // Fetch user exclusions from backend
+      await fetchUserExclusions(authToken);
     } else if (isGuest) {
       console.log('👤 Guest mode active');
     } else {
@@ -2111,6 +2130,49 @@ async function initializeAuthAndSync() {
     }
   } catch (error) {
     console.error('Auth check error:', error);
+  }
+}
+
+/**
+ * Fetch user exclusions from backend
+ * Called on extension startup and after user signs in
+ */
+async function fetchUserExclusions(authToken) {
+  try {
+    console.log('🛡️ Fetching user exclusions from backend...');
+    
+    const response = await fetch(`${API_URL}/api/users/exclusions`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch exclusions: ${response.status}`);
+    }
+
+    const exclusions = await response.json();
+    console.log('✅ Exclusions fetched:', exclusions);
+
+    // Store in local storage for quick access
+    await chrome.storage.local.set({ userExclusions: exclusions });
+    
+    // Also update the old settings format for backward compatibility
+    await chrome.storage.local.set({
+      excludeNames: exclusions.exclude_name ? [exclusions.exclude_name] : [],
+      excludeDomains: exclusions.exclude_domains || [],
+      excludePhones: exclusions.exclude_phone ? [exclusions.exclude_phone] : []
+    });
+
+    console.log('💾 Exclusions saved to local storage');
+    
+    return exclusions;
+  } catch (error) {
+    console.error('❌ Error fetching exclusions:', error);
+    // Don't throw - use default exclusions if fetch fails
+    return null;
   }
 }
 

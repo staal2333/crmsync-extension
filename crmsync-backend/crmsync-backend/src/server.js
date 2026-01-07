@@ -72,6 +72,7 @@ const settingsRoutes = require('./routes/settings');
 const userRoutes = require('./routes/user');
 const subscriptionRoutes = require('./routes/subscription');
 const integrationRoutes = require('./routes/integrations');
+const exclusionsRoutes = require('./routes/exclusions');
 
 const app = express();
 
@@ -201,6 +202,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/user', userRoutes); // GDPR compliance endpoints
 app.use('/api/subscription', subscriptionRoutes); // Subscription & billing endpoints
 app.use('/api/integrations', integrationRoutes); // CRM integrations (HubSpot, Salesforce)
+app.use('/api/users/exclusions', exclusionsRoutes); // User exclusion rules
 
 // Root route
 app.get('/', (req, res) => {

@@ -4,7 +4,6 @@
  */
 
 const db = require('../config/database');
-const logger = require('../utils/logger');
 
 /**
  * Get user's exclusions
@@ -49,7 +48,7 @@ exports.getExclusions = async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    logger.error('Error fetching exclusions:', error);
+    console.error('Error fetching exclusions:', error);
     res.status(500).json({ 
       error: 'Failed to fetch exclusions',
       message: error.message 
@@ -150,7 +149,7 @@ exports.saveExclusions = async (req, res) => {
       exclusions: result.rows[0]
     });
   } catch (error) {
-    logger.error('Error saving exclusions:', error);
+    console.error('Error saving exclusions:', error);
     res.status(500).json({ 
       error: 'Failed to save exclusions',
       message: error.message 
@@ -240,7 +239,7 @@ exports.deleteExclusions = async (req, res) => {
       message: 'Exclusions deleted successfully'
     });
   } catch (error) {
-    logger.error('Error deleting exclusions:', error);
+    console.error('Error deleting exclusions:', error);
     res.status(500).json({ 
       error: 'Failed to delete exclusions',
       message: error.message 

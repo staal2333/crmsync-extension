@@ -27,21 +27,41 @@ export const Done: React.FC = () => {
       
       const userData = JSON.parse(userDataStr);
       
-      console.log('🔄 Auth data ready for extension:');
-      console.log('- Token:', token.substring(0, 20) + '...');
-      console.log('- User:', userData.email);
+      console.log('🔄 Preparing to sync auth to extension');
+      console.log('- Email:', userData.email);
+      console.log('- Name:', userData.name);
       
-      // Store in localStorage with a specific key the extension can check
-      localStorage.setItem('crmsync_onboarding_complete', JSON.stringify({
-        token: token,
-        user: userData,
-        timestamp: Date.now()
-      }));
+      // Build callback URL to extension
+      const extensionId = (window as any).chrome?.runtime?.id || 'EXTENSION_ID';
+      const callbackUrl = `chrome-extension://${extensionId}/auth-callback.html?` +
+        `token=${encodeURIComponent(token)}` +
+        `&email=${encodeURIComponent(userData.email)}` +
+        `&name=${encodeURIComponent(userData.name || '')}` +
+        `&tier=${encodeURIComponent(userData.tier || 'free')}`;
       
-      console.log('✅ Auth stored - extension will pick it up on next open');
+      console.log('✅ Auth callback URL ready');
+      
+      // Store URL for the button to use
+      (window as any).authCallbackUrl = callbackUrl;
       setExtensionSynced(true);
     } catch (error) {
-      console.error('Failed to prepare auth for extension:', error);
+      console.error('Failed to prepare auth sync:', error);
+    }
+  };
+
+  const handleOpenExtension = () => {
+    const callbackUrl = (window as any).authCallbackUrl;
+    if (callbackUrl) {
+      // Open the extension auth callback page
+      window.open(callbackUrl, '_blank');
+      
+      // Show a brief message
+      setTimeout(() => {
+        handleOpenGmail();
+      }, 1000);
+    } else {
+      // Fallback: just open Gmail
+      handleOpenGmail();
     }
   };
 
@@ -230,7 +250,7 @@ export const Done: React.FC = () => {
 
         {/* CTA Button */}
         <button
-          onClick={handleOpenGmail}
+          onClick={handleOpenExtension}
           style={{
             width: '100%',
             padding: '20px 32px',

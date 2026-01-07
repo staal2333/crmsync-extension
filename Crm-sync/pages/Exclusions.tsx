@@ -250,7 +250,6 @@ export const Exclusions: React.FC = () => {
             </div>
           )}
         </div>
-        </div>
 
         {error && (
           <div style={{

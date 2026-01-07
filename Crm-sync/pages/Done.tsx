@@ -72,8 +72,6 @@ export const Done: React.FC = () => {
             : 'CRM Sync is now active in your Gmail. Open Gmail to start detecting contacts automatically!'
           }
         </p>
-          Let's see CRM-Sync in action in your Gmail inbox.
-        </p>
 
         {/* Summary Box */}
         <div style={{

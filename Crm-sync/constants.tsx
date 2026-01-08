@@ -129,24 +129,24 @@ export const FEATURES: Feature[] = [
 
 export const TESTIMONIALS: Testimonial[] = [
   {
-    quote: "I've saved hours every week. CRMSYNC finds contacts I would have missed manually.",
+    quote: "I used to spend 6 hours a week copy-pasting contacts into HubSpot. Now it's completely automatic. I get my Fridays back.",
     author: "Sarah Chen",
-    role: "Sales Manager",
+    role: "Sales Director",
     company: "TechCorp",
     image: "https://picsum.photos/100/100?random=1"
   },
   {
-    quote: "Finally, a contact manager that actually works with my Gmail workflow. Game changer.",
-    author: "Michael Rodriguez",
-    role: "Freelance Consultant",
-    company: "Independent",
+    quote: "Added 47 contacts last week without touching a form once. This is exactly what I needed—no bloat, just works.",
+    author: "Michael Torres",
+    role: "Founder",
+    company: "DesignCo",
     image: "https://picsum.photos/100/100?random=2"
   },
   {
-    quote: "We've tracked 500+ leads this quarter. The team feature is perfect for our sales team.",
-    author: "Jennifer Park",
-    role: "Head of Growth",
-    company: "StartupXYZ",
+    quote: "My team synced 340 contacts in December with zero manual work. The ROI was immediate—we're closing deals instead of updating spreadsheets.",
+    author: "Jennifer Wu",
+    role: "RevOps Manager",
+    company: "CloudScale",
     image: "https://picsum.photos/100/100?random=3"
   }
 ];

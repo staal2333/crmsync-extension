@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const winston = require('winston');
 const Sentry = require('@sentry/node');
 require('dotenv').config();
@@ -114,6 +115,17 @@ app.use((req, res, next) => {
 
 // Security middleware
 app.use(helmet());
+
+// Enable gzip compression for all responses
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6  // Balance between speed and compression
+}));
 
 // CORS configuration
 app.use(cors({

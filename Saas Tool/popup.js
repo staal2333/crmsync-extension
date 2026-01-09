@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('❌ Initialization error:', error);
       console.error('Error stack:', error.stack);
     }
-  })();
+  }, 100); // Small delay to ensure DOM is ready
 });
 
 /**

@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "CRMSYNC",
-  "version": "2.0.0",
-  "description": "Sleek automated email contact extractor with smart data enrichment, CRM integration, and cloud sync",
+  "name": "CRMSYNC - Gmail Contact Sync",
+  "version": "1.0.0",
+  "description": "Automatically sync Gmail contacts to HubSpot & Salesforce. AI-powered detection, zero manual entry. Free forever plan.",
   "author": "CRMSYNC",
+  "homepage_url": "https://crm-sync.net",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

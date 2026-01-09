@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CRMSYNC - Gmail Contact Sync",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Automatically sync Gmail contacts to HubSpot & Salesforce. AI-powered detection, zero manual entry. Free forever plan.",
   "author": "CRMSYNC",
   "homepage_url": "https://crm-sync.net",

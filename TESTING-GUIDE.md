@@ -1,286 +1,254 @@
-# 📦 Testing CRMSYNC on Another Device
+# Testing Guide - HubSpot Auto-Sync & Subscription Update
 
-## **Quick Setup Guide**
-
-### **Step 1: Prepare the Extension**
-
-1. **Zip the "Saas Tool" folder:**
-   ```
-   Right-click "Saas Tool" folder
-   → Send to → Compressed (zipped) folder
-   → Name it: CRMSYNC-v2.0.0.zip
-   ```
-
-2. **Transfer to other device:**
-   - Email to yourself
-   - USB drive
-   - Cloud storage (Google Drive, Dropbox)
-   - Or clone from Git
+## Pre-Testing Checklist
+- [ ] Backend deployed with latest code (commit: ea8cc62)
+- [ ] Database migration `008_add_subscription_columns.sql` executed
+- [ ] Extension loaded in Chrome (unpacked or from .zip)
+- [ ] Test HubSpot account with at least 10 contacts
 
 ---
 
-### **Step 2: Load on Chrome (Other Device)**
+## Test 1: HubSpot Auto-Sync (Pull Feature)
 
-1. **Extract the ZIP file:**
-   - Right-click CRMSYNC-v2.0.0.zip
-   - Extract All → Choose destination
+### Setup
+1. Open Chrome extension popup
+2. Go to "Settings" tab → "CRM Integrations"
+3. Click "Connect to HubSpot"
+4. Authorize with your HubSpot test account
+5. Verify connection shows "Connected ✓"
 
-2. **Open Chrome Extensions:**
-   ```
-   chrome://extensions
-   ```
+### Test Steps
+1. **Manual Pull Test**
+   - Click the purple "⬇️ Pull from HubSpot" button
+   - Verify button shows "⏳ Syncing..." state
+   - Wait for completion (should take 5-15 seconds)
+   - Expected: Toast notification with sync stats appears
+   - Expected: Contacts tab shows new contacts with "H" badges
 
-3. **Enable Developer Mode:**
-   - Toggle switch in top-right corner
+2. **Verify Contact Data**
+   - Go to "Contacts" tab
+   - Check that contacts from HubSpot have:
+     - Correct email addresses
+     - First and last names populated
+     - Company names (if in HubSpot)
+     - Small orange "H" badge next to their name
 
-4. **Load Unpacked Extension:**
-   - Click "Load unpacked"
-   - Select the extracted "Saas Tool" folder
-   - Click "Select Folder"
+3. **Check Sync Status**
+   - In Settings → CRM Integrations
+   - Verify "Last synced: X seconds ago" appears
+   - Verify sync stats card shows:
+     - "X contacts synced"
+     - "X new contacts"
+     - "X updated contacts"
 
-5. **Done! Extension is now loaded** ✅
+4. **Test Update Detection**
+   - In HubSpot, edit a contact (change name or company)
+   - Wait 1 minute for cache to clear
+   - Click "Pull from HubSpot" again
+   - Expected: Contact updates with new data
+   - Expected: Toast shows "0 new, 1 updated"
 
----
+### Expected Results ✅
+- Contacts appear within 15 seconds
+- No duplicate contacts created
+- Updates replace old data correctly
+- Console logs show: `✅ HubSpot sync complete: X total, Y new, Z updated`
 
-### **Step 3: Test Everything**
-
-#### **1. First Launch:**
-- [ ] Click extension icon
-- [ ] Onboarding should appear
-- [ ] Go through 5 steps
-- [ ] Try "Add Sample Data"
-- [ ] Feature tour should auto-start
-
-#### **2. Widget Test:**
-- [ ] Open Gmail
-- [ ] Look for floating widget (bottom-right)
-- [ ] Try dragging it around
-- [ ] Reload Gmail
-- [ ] Widget should remember position
-
-#### **3. Contact Management:**
-- [ ] Open any email thread
-- [ ] Widget should show contact info
-- [ ] Click widget to extract contact
-- [ ] Check popup → Contacts tab
-- [ ] Test filters, search, sorting
-
-#### **4. CRM Integration:**
-- [ ] Go to CRM tab
-- [ ] Try connecting HubSpot/Salesforce
-- [ ] Test sync
-
-#### **5. Settings:**
-- [ ] Click ⚙️ button
-- [ ] Test "Load Sample Data"
-- [ ] Test "Start Feature Tour"
-- [ ] Test "Reset Widget Position"
-
----
-
-## **Troubleshooting**
-
-### **Issue: Extension won't load**
-**Solution:**
-1. Make sure you selected the "Saas Tool" folder (not parent)
-2. Check Developer Mode is enabled
-3. Look for errors in console
-4. Try refreshing the extension page
-
-### **Issue: Widget doesn't appear in Gmail**
-**Solution:**
-1. Refresh Gmail completely (Ctrl+Shift+R)
-2. Check if extension is enabled
-3. Check console for errors (F12)
-4. Make sure you're on mail.google.com (not outlook)
-
-### **Issue: API calls fail**
-**Solution:**
-1. Check internet connection
-2. Backend might be asleep (Render free tier)
-3. Wait 30-60 seconds and try again
-4. Check browser console for specific errors
-
-### **Issue: Onboarding doesn't appear**
-**Solution:**
-1. Clear extension storage:
-   ```javascript
-   // In extension popup console (F12)
-   chrome.storage.local.clear()
-   ```
-2. Reload extension
-3. Onboarding should appear
+### Troubleshooting
+- **Error: "HubSpot not connected"**
+  - Re-connect HubSpot in settings
+  - Check backend logs for OAuth errors
+  
+- **No contacts appear**
+  - Open Developer Tools → Console
+  - Look for `❌ HubSpot sync error:` messages
+  - Check network tab for failed API calls to `/api/integrations/hubspot/fetch-contacts`
 
 ---
 
-## **Files Included in ZIP:**
+## Test 2: Automatic HubSpot Sync (Background)
 
-```
-Saas Tool/
-├── manifest.json          ✅ Extension config
-├── background.js          ✅ Service worker
-├── content.js             ✅ Gmail integration
-├── popup.html             ✅ Main UI
-├── popup.js               ✅ UI logic
-├── styles.css             ✅ Styles
-├── config.js              ✅ Configuration
-├── auth.js                ✅ Authentication
-├── integrations.js        ✅ CRM integrations
-├── sync.js                ✅ Sync logic
-├── logger.js              ✅ Logging utility
-├── error-handler.js       ✅ Error handling
-├── loading-manager.js     ✅ Loading states
-├── sample-data.js         ✅ Sample contacts
-├── feature-tour.js        ✅ Interactive tour
-├── onboarding.html        ✅ Onboarding wizard
-├── onboarding.js          ✅ Onboarding logic
-├── login.html             ✅ Login page
-├── subscriptionService.js ✅ Subscription logic
-├── guest-mode-banner.js   ✅ Guest mode UI
-├── popup-subscription.js  ✅ Subscription display
-├── popup-enhancements.js  ✅ UX enhancements
-└── icons/                 ✅ Extension icons
-    ├── icon16.png
-    ├── icon48.png
-    ├── icon128.png
-    ├── widget-logo.png.png
-    └── widget-logo-animated.gif
-```
+### Setup
+1. Connect HubSpot (as in Test 1)
+2. Close popup
+3. Wait 30 minutes (or modify alarm timing in code for faster testing)
 
----
+### Test Steps
+1. **Check Alarm Creation**
+   - Open `chrome://extensions` → Find CRMSYNC → "Service worker (inactive)"
+   - Click "service worker" to open background console
+   - Look for: `✅ HubSpot connected, starting auto-sync`
+   - Look for: `⏰ Running scheduled HubSpot sync...` (after 30 min)
 
-## **Testing Checklist:**
+2. **Verify Automatic Sync**
+   - After 30 minutes, open popup
+   - Check "Last synced" timestamp
+   - Should be ~30 minutes after previous sync
+   - Contacts tab should have any new HubSpot contacts
 
-### **Core Features:**
-- [ ] Extension loads without errors
-- [ ] Onboarding completes successfully
-- [ ] Sample data generates correctly
-- [ ] Feature tour works
-- [ ] Widget appears in Gmail
-- [ ] Widget is draggable
-- [ ] Widget position saves
-- [ ] Contact detection works
-- [ ] Contact list displays
-- [ ] Filters work (source, status, search)
-- [ ] Sorting works
-- [ ] Auto-refresh works (30s)
-- [ ] Progress bar displays correctly
+3. **Test After Extension Restart**
+   - Go to `chrome://extensions`
+   - Click "Reload" on CRMSYNC
+   - Open popup immediately
+   - Expected: Auto-sync runs within 1 minute
+   - Expected: Alarm is re-created for next 30-min cycle
 
-### **Settings:**
-- [ ] Settings page opens
-- [ ] All toggles work
-- [ ] Load/Clear sample data works
-- [ ] Reset widget position works
-- [ ] Start feature tour works
-- [ ] Exclusions save correctly
+### Expected Results ✅
+- Sync runs automatically every 30 minutes
+- Continues running even when popup is closed
+- Survives browser restarts (Chrome alarms persist)
+- Console shows: `⏰ Running scheduled HubSpot sync...`
 
-### **CRM Integration:**
-- [ ] HubSpot connection works
-- [ ] Salesforce connection works
-- [ ] Sync to CRM works
-- [ ] Sync status updates
+### Troubleshooting
+- **Alarm not firing**
+  - Check `chrome.alarms` in background console: `chrome.alarms.getAll(console.log)`
+  - Should show: `{ name: 'hubspot-auto-sync', periodInMinutes: 30 }`
+  
+- **Sync runs but fails**
+  - Check token expiration (OAuth tokens last 24h)
+  - Re-connect HubSpot if needed
 
 ---
 
-## **Known Limitations on Test Device:**
+## Test 3: Subscription Auto-Update
 
-1. **Backend Cold Start:**
-   - Free Render tier sleeps after inactivity
-   - First API call may take 30-60 seconds
-   - Subsequent calls are instant
+### Setup
+1. Create a test account on crm-sync.net (or use existing free account)
+2. Install extension and login
+3. Verify popup shows "FREE" tier badge
 
-2. **OAuth (Google):**
-   - Currently disabled (no valid Client ID)
-   - Email/password login works
-   - Guest mode works
-
-3. **Demo Data:**
-   - Use "Add Sample Data" to test features
-   - Or create account and import from CRM
-
----
-
-## **Advanced: Update Extension**
-
-If you make changes and want to test updates:
-
-1. **Make code changes**
-2. **Reload extension:**
-   ```
-   chrome://extensions
-   → Find CRMSYNC
-   → Click reload icon 🔄
-   ```
-3. **Refresh Gmail** (Ctrl+Shift+R)
-4. **Test changes**
-
----
-
-## **Production Deployment:**
-
-When ready to publish:
-
-1. **Update manifest.json:**
-   - Set final version number
-   - Add production API URL
-   - Add OAuth client ID (if using)
-
-2. **Create Chrome Web Store listing:**
-   - Developer account ($5 one-time)
-   - Upload ZIP file
-   - Add screenshots
-   - Write description
-   - Submit for review
-
-3. **Review time:** 1-3 business days
-
----
-
-## **Support:**
-
-If you encounter issues:
-
-1. **Check browser console:**
-   - Right-click extension popup → Inspect
-   - Look for red errors
-
-2. **Check service worker logs:**
-   ```
-   chrome://extensions
-   → CRMSYNC → Service Worker → Inspect
+### Test Steps
+1. **Manual Tier Update (Database)**
+   ```sql
+   -- SSH into Render, run:
+   psql $DATABASE_URL
+   UPDATE users SET subscription_tier = 'pro' WHERE email = 'YOUR_TEST_EMAIL@example.com';
+   \q
    ```
 
-3. **Check content script logs:**
-   - Open Gmail
-   - F12 → Console tab
-   - Look for CRMSYNC logs
+2. **Wait for Auto-Detection**
+   - Keep popup open (or close and reopen every minute)
+   - Wait up to 5 minutes
+   - Expected: Toast notification appears: "🎉 Subscription upgraded to PRO!"
+   - Expected: Popup reloads automatically after 1 second
+   - Expected: "PRO" badge now shows in header
 
-4. **Clear storage and retry:**
-   ```javascript
-   chrome.storage.local.clear()
-   chrome.storage.sync.clear()
+3. **Verify Pro Features Unlocked**
+   - Go to Settings → CRM Integrations
+   - Click "Connect to HubSpot" or "Connect to Salesforce"
+   - Expected: OAuth flow starts immediately (no upgrade modal)
+   - Previous behavior: Would show "Requires Pro" modal
+
+4. **Check Background Logs**
+   - Open background service worker console
+   - Look for: `🔄 Checking for subscription updates...`
+   - Look for: `🎉 Subscription tier changed: free → pro`
+   - Look for: `SUBSCRIPTION_TIER_UPDATED` message sent to popup
+
+### Expected Results ✅
+- Tier update detected within 5 minutes
+- Popup shows upgrade notification
+- Pro features immediately available
+- No manual refresh needed
+- Console shows: `🎉 Subscription tier changed: free → pro`
+
+### Troubleshooting
+- **Update not detected after 5 minutes**
+  - Check backend logs for `/api/user/me` calls (should happen every 5 min)
+  - Verify database was actually updated: `SELECT email, subscription_tier FROM users WHERE email = '...'`
+  
+- **Notification shows but features still locked**
+  - Hard refresh popup: Close and reopen
+  - Check `chrome.storage.local` for `user.tier` value
+  - Should show `"pro"` not `"free"`
+
+---
+
+## Test 4: Webhook Subscription Update (Optional)
+
+### Setup
+1. Install cURL or Postman
+2. Get a valid JWT token from extension (inspect `chrome.storage.local.authToken`)
+
+### Test Steps
+1. **Trigger Manual Webhook**
+   ```bash
+   curl -X POST https://crmsync-api.onrender.com/api/webhooks/subscription-update \
+     -H "Content-Type: application/json" \
+     -d '{
+       "userId": "YOUR_USER_UUID",
+       "tier": "pro",
+       "event": "manual_test"
+     }'
    ```
 
----
+2. **Check Database**
+   ```sql
+   SELECT email, subscription_tier, updated_at FROM users WHERE id = 'YOUR_USER_UUID';
+   ```
+   - Expected: `subscription_tier` is now `'pro'`
+   - Expected: `updated_at` is current timestamp
 
-## **Tips for Testing:**
+3. **Check Extension**
+   - Wait up to 5 minutes (or manually trigger check in background console)
+   - Expected: Extension detects tier change and notifies user
 
-1. **Use Incognito Mode:**
-   - Tests fresh user experience
-   - No cached data
-   - Enable extension in incognito
-
-2. **Test Multiple Accounts:**
-   - Different Gmail accounts
-   - Different CRM accounts
-   - Guest mode vs authenticated
-
-3. **Test Edge Cases:**
-   - No internet connection
-   - Slow connection
-   - Large contact lists (100+)
-   - Empty states
+### Expected Results ✅
+- Webhook returns: `{ "success": true, "message": "Subscription updated successfully" }`
+- Database updates immediately
+- Extension detects change within 5 minutes
 
 ---
 
-**Ready to test? Just zip the "Saas Tool" folder and transfer it!** 📦✨
+## Performance Benchmarks
+
+### HubSpot Sync Speed
+- 100 contacts: < 10 seconds
+- 500 contacts: < 30 seconds
+- 1000 contacts: < 60 seconds
+
+### Subscription Check Overhead
+- Background check: < 500ms
+- Network request: < 1s
+- Zero impact on browsing
+
+### Resource Usage
+- Background sync: ~5MB memory
+- Popup open: ~15MB memory
+- Alarm timers: < 1KB storage
+
+---
+
+## Known Issues & Limitations
+
+### HubSpot Sync
+- Maximum 1000 contacts per sync (10 pages × 100)
+- 30-minute sync interval (not configurable yet)
+- Requires active HubSpot connection (tokens expire after 24h)
+
+### Subscription Check
+- 5-minute detection delay (not instant without webhook)
+- Requires internet connection
+- Tier changes only detected when extension is running
+
+---
+
+## Success Criteria
+
+All tests pass when:
+- ✅ Contacts sync from HubSpot in < 15 seconds
+- ✅ No duplicate contacts created
+- ✅ Updates overwrite old data correctly
+- ✅ Automatic sync runs every 30 minutes
+- ✅ Subscription upgrades detected within 5 minutes
+- ✅ Pro features unlock automatically
+- ✅ No console errors or warnings
+- ✅ UI updates reflect changes immediately
+
+---
+
+**Tester**: _______________  
+**Date**: _______________  
+**Result**: ⬜ PASS  ⬜ FAIL  ⬜ NEEDS FIXES
+
+**Notes**:

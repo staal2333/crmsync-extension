@@ -2142,8 +2142,9 @@ async function initializeAuthAndSync() {
 async function fetchUserExclusions(authToken) {
   try {
     console.log('🛡️ Fetching user exclusions from backend...');
-    
-    const response = await fetch(`${API_URL}/api/users/exclusions`, {
+
+    const API_URL = 'https://crmsync-api.onrender.com/api';
+    const response = await fetch(`${API_URL}/users/exclusions`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authToken}`,

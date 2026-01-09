@@ -57,7 +57,7 @@ class InboxSyncService {
       
       const gmailToken = await this.getGmailToken(userId);
       if (!gmailToken) {
-        throw new Error('Gmail not connected. Please connect Gmail first.');
+        throw new Error('Gmail not connected. Please sign in with Google on the website first: Settings → Connect Gmail');
       }
 
       // Phase 2: Fetch all message IDs

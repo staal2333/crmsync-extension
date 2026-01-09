@@ -7,6 +7,11 @@ class LoadingManager {
   constructor() {
     this.loadingOverlay = null;
     this.init();
+    
+    // CRITICAL FIX: Hide overlay immediately on init
+    setTimeout(() => {
+      this.hide();
+    }, 0);
   }
   
   init() {
@@ -14,7 +19,19 @@ class LoadingManager {
     if (!document.getElementById('globalLoadingOverlay')) {
       const overlay = document.createElement('div');
       overlay.id = 'globalLoadingOverlay';
-      overlay.className = 'loading-overlay hidden';
+      overlay.className = 'loading-overlay hidden'; // Start hidden!
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+      `;
       overlay.innerHTML = `
         <div class="loading-spinner-container">
           <div class="loading-spinner"></div>
@@ -26,6 +43,9 @@ class LoadingManager {
     } else {
       this.loadingOverlay = document.getElementById('globalLoadingOverlay');
     }
+    
+    // Force hide it
+    this.hide();
   }
   
   /**
@@ -49,6 +69,7 @@ class LoadingManager {
   hide() {
     if (this.loadingOverlay) {
       this.loadingOverlay.classList.add('hidden');
+      this.loadingOverlay.style.display = 'none'; // Force hide with inline style
     }
   }
   

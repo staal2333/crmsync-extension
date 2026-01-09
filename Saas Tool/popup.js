@@ -60,6 +60,80 @@ window.addEventListener('offline', () => {
   showToast('⚠️ You are offline. Changes will sync when reconnected.', false);
 });
 
+// AUTO-REFRESH SYSTEM
+// Listen for storage changes to auto-refresh popup when data changes
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local') {
+    let shouldRefresh = false;
+    
+    // Check if important data changed
+    if (changes.contacts || changes.user || changes.token) {
+      console.log('🔄 Data changed, refreshing popup...', Object.keys(changes));
+      shouldRefresh = true;
+    }
+    
+    if (shouldRefresh) {
+      // Delay slightly to ensure data is fully written
+      setTimeout(() => {
+        console.log('♻️ Auto-refreshing popup UI...');
+        
+        // Reload contacts list if available
+        if (typeof loadAllContacts === 'function') {
+          loadAllContacts().catch(err => console.error('Failed to reload contacts:', err));
+        }
+        
+        // Re-initialize auth if user data changed
+        if (changes.user && typeof window.CRMSyncAuth !== 'undefined') {
+          window.CRMSyncAuth.checkAuth().catch(err => console.error('Failed to check auth:', err));
+        }
+        
+        // Update integration status if available
+        if (typeof window.integrationManager !== 'undefined') {
+          window.integrationManager.checkIntegrationStatus(true).catch(err => console.error('Failed to check integrations:', err));
+        }
+      }, 500);
+    }
+  }
+});
+
+// Listen for when popup window regains focus (user clicks extension icon)
+window.addEventListener('focus', () => {
+  console.log('👀 Popup gained focus, checking for updates...');
+  
+  // Check for website auth completion
+  if (typeof checkForWebsiteAuth === 'function') {
+    checkForWebsiteAuth().catch(err => console.error('Failed to check website auth:', err));
+  }
+  
+  // Refresh contacts list
+  if (typeof loadAllContacts === 'function') {
+    loadAllContacts().catch(err => console.error('Failed to reload contacts:', err));
+  }
+  
+  // Update integration status
+  if (typeof window.integrationManager !== 'undefined') {
+    window.integrationManager.checkIntegrationStatus(true).catch(err => console.error('Failed to check integrations:', err));
+  }
+});
+
+// Periodic refresh every 30 seconds (when popup is open)
+setInterval(() => {
+  console.log('⏱️ Periodic refresh check...');
+  
+  // Only refresh if popup is visible (not in background)
+  if (document.visibilityState === 'visible') {
+    // Reload contacts list
+    if (typeof loadAllContacts === 'function') {
+      loadAllContacts().catch(err => console.error('Periodic reload failed:', err));
+    }
+    
+    // Update integration status
+    if (typeof window.integrationManager !== 'undefined') {
+      window.integrationManager.checkIntegrationStatus().catch(err => console.error('Failed to check integrations:', err));
+    }
+  }
+}, 30000); // Every 30 seconds
+
 /**
  * Check if user just completed onboarding on website
  * Looks for auth token and syncs to extension

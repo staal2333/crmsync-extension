@@ -2520,4 +2520,16 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       await checkSubscriptionUpdate(authToken);
     }
   }
+  
+  if (alarm.name === 'keep-alive') {
+    // This keeps the service worker active
+    console.log('💓 Service worker keep-alive ping');
+  }
 });
+
+// Create keep-alive alarm to prevent service worker from sleeping
+chrome.alarms.create('keep-alive', {
+  periodInMinutes: 1 // Ping every minute
+});
+
+console.log('✅ Background script initialized with keep-alive');

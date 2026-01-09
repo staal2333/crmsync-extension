@@ -211,6 +211,12 @@ async function getAuthToken() {
     return null;
   }
   
+  // Skip expiration check if no refresh token available
+  if (!refreshToken) {
+    console.log('📋 No refresh token, using existing token');
+    return authToken;
+  }
+  
   // Check if token is expired (simple check - JWT decode would be better)
   try {
     const tokenParts = authToken.split('.');
@@ -222,8 +228,8 @@ async function getAuthToken() {
     const expiresAt = payload.exp * 1000; // Convert to milliseconds
     const now = Date.now();
     
-    // Refresh if token expires in less than 1 minute
-    if (expiresAt - now < 60000) {
+    // Only refresh if token expires in less than 5 minutes
+    if (expiresAt - now < 300000) { // Changed from 60000 to 300000
       console.log('🔄 Token expiring soon, refreshing...');
       return await refreshAccessToken(refreshToken);
     }

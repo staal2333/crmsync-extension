@@ -10,6 +10,41 @@ const db = require('../config/database');
  */
 
 /**
+ * GET /api/user/me
+ * Get current user information
+ */
+router.get('/me', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user.userId || req.user.id;
+    
+    const userResult = await db.query(
+      'SELECT id, email, display_name, avatar_url, subscription_tier, created_at, last_login_at FROM users WHERE id = $1',
+      [userId]
+    );
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = userResult.rows[0];
+    
+    res.json({
+      id: user.id,
+      email: user.email,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url,
+      subscriptionTier: user.subscription_tier || 'free',
+      tier: user.subscription_tier || 'free',
+      createdAt: user.created_at,
+      lastLoginAt: user.last_login_at
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /api/user/export
  * Export all user data (GDPR compliance)
  */

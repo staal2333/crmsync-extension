@@ -178,41 +178,61 @@ async function checkForWebsiteAuth() {
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
-              const authStr = localStorage.getItem('crmsync_onboarding_complete');
-              console.log('📦 Checking localStorage:', authStr ? 'Found!' : 'Not found');
-              if (authStr) {
-                const auth = JSON.parse(authStr);
-                // DON'T clear it yet - let multiple popups access it
-                // localStorage.removeItem('crmsync_onboarding_complete');
-                return auth;
+              // Check for onboarding completion auth
+              const onboardingAuth = localStorage.getItem('crmsync_onboarding_complete');
+              if (onboardingAuth) {
+                console.log('📦 Found onboarding auth in localStorage');
+                const auth = JSON.parse(onboardingAuth);
+                return { type: 'onboarding', ...auth };
               }
+              
+              // Check for regular login auth (token + user)
+              const token = localStorage.getItem('token');
+              const userStr = localStorage.getItem('user');
+              
+              if (token && userStr) {
+                console.log('📦 Found regular login auth in localStorage');
+                const user = JSON.parse(userStr);
+                return {
+                  type: 'login',
+                  token,
+                  user,
+                  timestamp: Date.now()
+                };
+              }
+              
+              console.log('📦 No auth found in localStorage');
               return null;
             }
           });
           
           if (results && results[0] && results[0].result) {
             const auth = results[0].result;
-            const age = Date.now() - auth.timestamp;
+            const age = auth.timestamp ? (Date.now() - auth.timestamp) : 0;
             
-            console.log(`⏰ Auth age: ${Math.floor(age / 1000)}s`);
+            console.log(`⏰ Auth age: ${Math.floor(age / 1000)}s, type: ${auth.type || 'unknown'}`);
             
-            if (age < 5 * 60 * 1000) {
+            // For onboarding auth, check age. For direct login, always accept if found
+            if (auth.type === 'login' || age < 5 * 60 * 1000) {
               console.log('✅ Found website auth in tab localStorage!', {
+                type: auth.type,
                 email: auth.user?.email,
-                age: `${Math.floor(age / 1000)}s ago`,
+                age: auth.timestamp ? `${Math.floor(age / 1000)}s ago` : 'N/A',
                 tabId: tab.id
               });
               
               await saveWebsiteAuthToExtension(auth);
               
-              // NOW clear it after successful save
-              await chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: () => {
-                  localStorage.removeItem('crmsync_onboarding_complete');
-                  console.log('🧹 Cleared onboarding auth from localStorage');
-                }
-              });
+              // Clear onboarding auth after successful save (but keep regular login auth)
+              if (auth.type === 'onboarding') {
+                await chrome.scripting.executeScript({
+                  target: { tabId: tab.id },
+                  func: () => {
+                    localStorage.removeItem('crmsync_onboarding_complete');
+                    console.log('🧹 Cleared onboarding auth from localStorage');
+                  }
+                });
+              }
               
               return true;
             } else {

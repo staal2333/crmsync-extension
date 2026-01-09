@@ -421,6 +421,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
     return true;
   }
+  
+  // HubSpot auto-sync trigger
+  if (request.action === 'TRIGGER_HUBSPOT_SYNC') {
+    (async () => {
+      try {
+        console.log('⬇️ Triggering HubSpot sync from popup...');
+        const authToken = request.token;
+        
+        if (!authToken) {
+          sendResponse({ success: false, error: 'No auth token provided' });
+          return;
+        }
+        
+        // Call the sync function
+        await syncFromHubSpot(authToken);
+        
+        sendResponse({ success: true, message: 'HubSpot sync completed' });
+      } catch (error) {
+        console.error('❌ HubSpot sync trigger error:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true; // Keep channel open for async response
+  }
 
   // New type-based messages (structured events)
   if (request.type === 'INBOUND_EMAIL' && request.payload) {
@@ -2125,6 +2149,14 @@ async function initializeAuthAndSync() {
       
       // Fetch user exclusions from backend
       await fetchUserExclusions(authToken);
+      
+      // Check for HubSpot connection and start auto-sync
+      await checkAndStartHubSpotSync(authToken);
+      
+      // Set up periodic subscription check (every 5 minutes)
+      chrome.alarms.create('subscription-check', {
+        periodInMinutes: 5
+      });
     } else if (isGuest) {
       console.log('👤 Guest mode active');
     } else {
@@ -2179,6 +2211,253 @@ async function fetchUserExclusions(authToken) {
   }
 }
 
+/**
+ * Sync contacts from HubSpot CRM to extension
+ * Called periodically when user is connected to HubSpot
+ */
+async function syncFromHubSpot(authToken) {
+  const API_URL = 'https://crmsync-api.onrender.com/api';
+  
+  try {
+    console.log('🔵 Starting HubSpot auto-sync...');
+    
+    // Get current contacts from local storage
+    const { contacts: localContacts = [] } = await chrome.storage.local.get(['contacts']);
+    const localEmailMap = new Map(localContacts.map(c => [c.email?.toLowerCase(), c]));
+    
+    let allFetchedContacts = [];
+    let after = undefined;
+    let hasMore = true;
+    let pageCount = 0;
+    
+    // Fetch all pages of contacts
+    while (hasMore && pageCount < 10) { // Limit to 10 pages (1000 contacts) per sync
+      const url = after 
+        ? `${API_URL}/integrations/hubspot/fetch-contacts?limit=100&after=${after}`
+        : `${API_URL}/integrations/hubspot/fetch-contacts?limit=100`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch HubSpot contacts: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      allFetchedContacts = [...allFetchedContacts, ...data.contacts];
+      
+      hasMore = data.pagination?.hasMore;
+      after = data.pagination?.after;
+      pageCount++;
+      
+      console.log(`📥 Fetched page ${pageCount}: ${data.contacts.length} contacts (total: ${allFetchedContacts.length})`);
+    }
+    
+    // Merge contacts with local contacts
+    let newCount = 0;
+    let updatedCount = 0;
+    
+    for (const crmContact of allFetchedContacts) {
+      if (!crmContact.email) continue;
+      
+      const email = crmContact.email.toLowerCase();
+      const existing = localEmailMap.get(email);
+      
+      if (existing) {
+        // Update existing contact if CRM version is newer
+        const crmUpdated = new Date(crmContact.updatedAt || 0).getTime();
+        const localUpdated = new Date(existing.lastUpdated || 0).getTime();
+        
+        if (crmUpdated > localUpdated) {
+          existing.firstName = crmContact.firstName || existing.firstName;
+          existing.lastName = crmContact.lastName || existing.lastName;
+          existing.company = crmContact.company || existing.company;
+          existing.title = crmContact.title || existing.title;
+          existing.phone = crmContact.phone || existing.phone;
+          existing.lastUpdated = new Date().toISOString();
+          existing.source = 'hubspot';
+          updatedCount++;
+        }
+      } else {
+        // Add new contact from CRM
+        const newContact = {
+          id: `hubspot_${crmContact.crmId}`,
+          email: crmContact.email,
+          firstName: crmContact.firstName,
+          lastName: crmContact.lastName,
+          company: crmContact.company,
+          title: crmContact.title,
+          phone: crmContact.phone,
+          source: 'hubspot',
+          status: 'approved',
+          outboundCount: 0,
+          inboundCount: 0,
+          messages: [],
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        };
+        localContacts.push(newContact);
+        newCount++;
+      }
+    }
+    
+    // Save updated contacts
+    await chrome.storage.local.set({ contacts: localContacts });
+    
+    // Update last sync time
+    await chrome.storage.local.set({
+      lastHubSpotSync: new Date().toISOString(),
+      hubSpotSyncStats: {
+        totalSynced: allFetchedContacts.length,
+        newContacts: newCount,
+        updatedContacts: updatedCount,
+        lastSync: new Date().toISOString()
+      }
+    });
+    
+    console.log(`✅ HubSpot sync complete: ${allFetchedContacts.length} total, ${newCount} new, ${updatedCount} updated`);
+    
+    // Send message to popup if it's open
+    try {
+      chrome.runtime.sendMessage({
+        type: 'HUBSPOT_SYNC_COMPLETE',
+        stats: {
+          totalSynced: allFetchedContacts.length,
+          newContacts: newCount,
+          updatedContacts: updatedCount
+        }
+      });
+    } catch (e) {
+      // Popup might not be open, that's okay
+    }
+    
+  } catch (error) {
+    console.error('❌ HubSpot sync error:', error);
+    
+    // Update error state
+    await chrome.storage.local.set({
+      hubSpotSyncError: error.message,
+      lastHubSpotSyncAttempt: new Date().toISOString()
+    });
+  }
+}
+
+/**
+ * Check if user has HubSpot connected and start periodic sync
+ */
+async function checkAndStartHubSpotSync(authToken) {
+  const API_URL = 'https://crmsync-api.onrender.com/api';
+  
+  try {
+    // Check HubSpot connection status
+    const response = await fetch(`${API_URL}/integrations/hubspot/status`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) return;
+    
+    const data = await response.json();
+    
+    if (data.connected) {
+      console.log('✅ HubSpot connected, starting auto-sync');
+      
+      // Store connection status
+      await chrome.storage.local.set({
+        hubspotConnected: true,
+        hubspotAccountName: data.accountName
+      });
+      
+      // Run initial sync
+      await syncFromHubSpot(authToken);
+      
+      // Set up periodic sync every 30 minutes
+      chrome.alarms.create('hubspot-auto-sync', {
+        periodInMinutes: 30
+      });
+    }
+  } catch (error) {
+    console.error('❌ HubSpot check error:', error);
+  }
+}
+
+/**
+ * Check for subscription tier updates
+ * Called periodically to detect when user upgrades on website
+ */
+async function checkSubscriptionUpdate(authToken) {
+  const API_URL = 'https://crmsync-api.onrender.com/api';
+  
+  try {
+    console.log('🔄 Checking for subscription updates...');
+    
+    // Get current cached tier
+    const { user: cachedUser } = await chrome.storage.local.get(['user']);
+    const cachedTier = cachedUser?.tier || cachedUser?.subscriptionTier || 'free';
+    
+    // Fetch latest user data from backend
+    const response = await fetch(`${API_URL}/user/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.warn('Failed to fetch user data for subscription check');
+      return;
+    }
+    
+    const userData = await response.json();
+    const backendTier = userData.tier || userData.subscriptionTier || 'free';
+    
+    // Check if tier changed
+    if (backendTier !== cachedTier) {
+      console.log(`🎉 Subscription tier changed: ${cachedTier} → ${backendTier}`);
+      
+      // Update stored user data
+      const updatedUser = {
+        ...cachedUser,
+        tier: backendTier,
+        subscriptionTier: backendTier
+      };
+      
+      await chrome.storage.local.set({ user: updatedUser });
+      await chrome.storage.sync.set({ userTier: backendTier });
+      
+      // Notify popup if it's open
+      try {
+        chrome.runtime.sendMessage({
+          type: 'SUBSCRIPTION_TIER_UPDATED',
+          tier: backendTier,
+          previousTier: cachedTier
+        });
+      } catch (e) {
+        // Popup might not be open
+        console.log('Popup not open, tier update stored for next open');
+      }
+      
+      // If upgraded to Pro, check for HubSpot/Salesforce connections
+      if (backendTier !== 'free') {
+        await checkAndStartHubSpotSync(authToken);
+      }
+    } else {
+      console.log(`✅ Subscription tier unchanged: ${backendTier}`);
+    }
+  } catch (error) {
+    console.error('❌ Subscription check error:', error);
+  }
+}
+
 // Initialize on extension startup
 chrome.runtime.onStartup.addListener(() => {
   console.log('🚀 CRMSYNC starting up...');
@@ -2217,5 +2496,28 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     setTimeout(() => {
       initializeAuthAndSync();
     }, 500);
+  }
+});
+
+// Handle alarms (for periodic HubSpot sync and subscription check)
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === 'hubspot-auto-sync') {
+    console.log('⏰ Running scheduled HubSpot sync...');
+    
+    const { isAuthenticated, authToken } = await chrome.storage.local.get(['isAuthenticated', 'authToken']);
+    
+    if (isAuthenticated && authToken) {
+      await syncFromHubSpot(authToken);
+    }
+  }
+  
+  if (alarm.name === 'subscription-check') {
+    console.log('⏰ Checking subscription status...');
+    
+    const { isAuthenticated, authToken } = await chrome.storage.local.get(['isAuthenticated', 'authToken']);
+    
+    if (isAuthenticated && authToken) {
+      await checkSubscriptionUpdate(authToken);
+    }
   }
 });

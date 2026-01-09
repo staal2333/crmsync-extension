@@ -592,8 +592,51 @@ function setupAuthListener() {
       sendResponse({ received: true });
     }
     
-    return true; // Keep message channel open
-  });
+  // Handle HubSpot sync completion
+  if (message.type === 'HUBSPOT_SYNC_COMPLETE') {
+    console.log('✅ HubSpot sync completed!', message.stats);
+    
+    // Show toast notification
+    if (window.showToast) {
+      window.showToast(
+        `HubSpot synced: ${message.stats.newContacts} new, ${message.stats.updatedContacts} updated`,
+        'success',
+        3000
+      );
+    }
+    
+    // Reload contacts to show new/updated ones
+    loadAllContacts();
+    
+    // Update HubSpot sync status display
+    updateHubSpotSyncDisplay();
+    
+    sendResponse({ received: true });
+  }
+  
+  // Handle subscription tier update from background
+  if (message.type === 'SUBSCRIPTION_TIER_UPDATED') {
+    console.log('🎉 Subscription tier updated:', message.tier);
+    
+    // Show toast notification
+    if (window.showToast) {
+      window.showToast(
+        `🎉 Subscription upgraded to ${message.tier.toUpperCase()}!`,
+        'success',
+        5000
+      );
+    }
+    
+    // Reload the entire UI to reflect new permissions
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+    
+    sendResponse({ received: true });
+  }
+  
+  return true; // Keep message channel open
+});
   
   // Listen for storage changes
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -3031,6 +3074,73 @@ function renderRecentContacts(contacts) {
       }
     });
   });
+}
+
+/**
+ * Update HubSpot sync status display in UI
+ */
+async function updateHubSpotSyncDisplay() {
+  try {
+    const { hubSpotSyncStats, hubspotConnected, hubspotAccountName, lastHubSpotSync, contacts = [] } = 
+      await chrome.storage.local.get(['hubSpotSyncStats', 'hubspotConnected', 'hubspotAccountName', 'lastHubSpotSync', 'contacts']);
+    
+    // Update overview card
+    const overviewCard = document.getElementById('hubspot-overview-card');
+    const overviewStatus = document.getElementById('hubspot-overview-status');
+    const overviewCount = document.getElementById('hubspot-overview-count');
+    
+    if (hubspotConnected && hubSpotSyncStats) {
+      if (overviewStatus) {
+        overviewStatus.textContent = `Last synced: ${formatTimeAgo(lastHubSpotSync)}`;
+        overviewStatus.style.color = 'var(--success)';
+      }
+      
+      if (overviewCount) {
+        overviewCount.style.display = 'block';
+        overviewCount.querySelector('span').previousSibling.textContent = hubSpotSyncStats.totalSynced;
+      }
+      
+      if (overviewCard) {
+        overviewCard.style.borderColor = 'var(--success)';
+        overviewCard.style.background = 'rgba(34, 197, 94, 0.05)';
+      }
+    }
+    
+    // Update sync status card in CRM tab
+    const syncCard = document.getElementById('hubspot-sync-status-card');
+    if (syncCard && hubspotConnected && hubSpotSyncStats) {
+      syncCard.style.display = 'block';
+      
+      const syncedCount = document.getElementById('hubspot-synced-count');
+      const pendingCount = document.getElementById('hubspot-pending-count');
+      const notSyncedCount = document.getElementById('hubspot-not-synced-count');
+      
+      // Count contacts by source
+      const hubspotContacts = contacts.filter(c => c.source === 'hubspot').length;
+      const pendingContacts = contacts.filter(c => c.status === 'pending').length;
+      const notSynced = contacts.filter(c => c.source !== 'hubspot' && c.status === 'approved').length;
+      
+      if (syncedCount) syncedCount.textContent = hubspotContacts;
+      if (pendingCount) pendingCount.textContent = pendingContacts;
+      if (notSyncedCount) notSyncedCount.textContent = notSynced;
+    }
+    
+    // Add HubSpot badge to contacts from HubSpot
+    document.querySelectorAll('[data-source="hubspot"]').forEach(el => {
+      if (!el.querySelector('.hubspot-badge')) {
+        const badge = document.createElement('span');
+        badge.className = 'hubspot-badge';
+        badge.style.cssText = 'background: #ff7a59; color: white; font-size: 9px; padding: 2px 6px; border-radius: 3px; margin-left: 6px; font-weight: 600;';
+        badge.textContent = 'H';
+        badge.title = 'Synced from HubSpot';
+        el.querySelector('.contact-info').appendChild(badge);
+      }
+    });
+    
+    console.log('✅ HubSpot sync display updated');
+  } catch (error) {
+    console.error('❌ Error updating HubSpot sync display:', error);
+  }
 }
 
 function setupEventListeners() {

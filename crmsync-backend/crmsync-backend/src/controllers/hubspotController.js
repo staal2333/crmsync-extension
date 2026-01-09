@@ -647,3 +647,56 @@ exports.hubspotDisconnect = async (req, res) => {
     res.status(500).json({ error: 'Failed to disconnect HubSpot' });
   }
 };
+
+// Fetch contacts from HubSpot (for background sync)
+exports.hubspotFetchContacts = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { limit = 100, after } = req.query;
+    
+    console.log('🔵 Fetching HubSpot contacts for user:', userId);
+    
+    // Get user's HubSpot integration
+    const integration = await getHubSpotIntegration(userId);
+    const accessToken = await getValidAccessToken(userId, integration);
+    
+    // Build URL with pagination
+    const url = after 
+      ? `https://api.hubapi.com/crm/v3/objects/contacts?limit=${limit}&after=${after}&properties=email,firstname,lastname,company,jobtitle,phone,createdate,lastmodifieddate`
+      : `https://api.hubapi.com/crm/v3/objects/contacts?limit=${limit}&properties=email,firstname,lastname,company,jobtitle,phone,createdate,lastmodifieddate`;
+    
+    const response = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    
+    // Transform contacts to our format
+    const contacts = response.data.results.map(crmContact => ({
+      crmId: crmContact.id,
+      email: crmContact.properties.email,
+      firstName: crmContact.properties.firstname || '',
+      lastName: crmContact.properties.lastname || '',
+      company: crmContact.properties.company || '',
+      title: crmContact.properties.jobtitle || '',
+      phone: crmContact.properties.phone || '',
+      createdAt: crmContact.properties.createdate,
+      updatedAt: crmContact.properties.lastmodifieddate,
+      source: 'hubspot'
+    }));
+    
+    console.log(`✅ Fetched ${contacts.length} contacts from HubSpot`);
+    
+    res.json({
+      success: true,
+      contacts,
+      pagination: {
+        hasMore: !!response.data.paging?.next?.after,
+        after: response.data.paging?.next?.after
+      }
+    });
+  } catch (error) {
+    console.error('❌ HubSpot fetch contacts error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      error: error.response?.data?.message || error.message || 'Failed to fetch contacts from HubSpot' 
+    });
+  }
+};

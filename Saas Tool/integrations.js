@@ -58,6 +58,7 @@ class IntegrationManager {
     const hubspotConnectBtn = document.getElementById('hubspot-connect-btn');
     const hubspotDisconnectBtn = document.getElementById('hubspot-disconnect-btn');
     const hubspotSyncBtn = document.getElementById('hubspot-sync-all-btn');
+    const hubspotPullBtn = document.getElementById('hubspot-pull-contacts-btn');
     const hubspotViewDetails = document.getElementById('hubspot-view-details');
     
     if (hubspotConnectBtn) {
@@ -70,6 +71,10 @@ class IntegrationManager {
     
     if (hubspotSyncBtn) {
       hubspotSyncBtn.addEventListener('click', () => this.syncAllContacts('hubspot'));
+    }
+    
+    if (hubspotPullBtn) {
+      hubspotPullBtn.addEventListener('click', () => this.pullFromHubSpot());
     }
     
     if (hubspotViewDetails) {
@@ -439,6 +444,7 @@ class IntegrationManager {
     const connectBtn = document.getElementById(`${platform}-connect-btn`);
     const disconnectBtn = document.getElementById(`${platform}-disconnect-btn`);
     const syncBtn = document.getElementById(`${platform}-sync-all-btn`);
+    const pullBtn = document.getElementById(`${platform}-pull-contacts-btn`);
     const statsContainer = document.getElementById(`${platform}-stats`);
     const lastSyncEl = document.getElementById(`${platform}-last-sync`);
     const countEl = document.getElementById(`${platform}-count`);
@@ -462,6 +468,7 @@ class IntegrationManager {
       if (connectBtn) connectBtn.classList.add('hidden');
       if (disconnectBtn) disconnectBtn.classList.remove('hidden');
       if (syncBtn) syncBtn.classList.remove('hidden');
+      if (pullBtn) pullBtn.classList.remove('hidden');
       if (statsContainer) statsContainer.classList.remove('hidden');
       
       // Update last sync time
@@ -506,6 +513,7 @@ class IntegrationManager {
       if (connectBtn) connectBtn.classList.remove('hidden');
       if (disconnectBtn) disconnectBtn.classList.add('hidden');
       if (syncBtn) syncBtn.classList.add('hidden');
+      if (pullBtn) pullBtn.classList.add('hidden');
       if (statsContainer) statsContainer.classList.add('hidden');
     }
   }
@@ -831,6 +839,75 @@ class IntegrationManager {
       if (syncBtn) {
         syncBtn.disabled = false;
         syncBtn.textContent = '🔄 Sync All Contacts';
+      }
+    }
+  }
+  
+  /**
+   * Pull contacts FROM HubSpot (auto-sync)
+   * Triggers the background service worker to fetch and merge contacts
+   */
+  async pullFromHubSpot() {
+    try {
+      console.log('⬇️ Pulling contacts from HubSpot...');
+      
+      const token = await window.CRMSyncAuth.getAuthToken();
+      if (!token) {
+        this.showNotification('Please sign in first', 'error');
+        return;
+      }
+      
+      // Show loading notification
+      this.showNotification('🔄 Fetching contacts from HubSpot...', 'info');
+      
+      // Get pull button
+      const pullBtn = document.getElementById('hubspot-pull-contacts-btn');
+      const originalText = pullBtn ? pullBtn.innerHTML : '';
+      
+      if (pullBtn) {
+        pullBtn.disabled = true;
+        pullBtn.innerHTML = '<span>⏳ Syncing...</span>';
+      }
+      
+      // Send message to background script to trigger sync
+      chrome.runtime.sendMessage({
+        action: 'TRIGGER_HUBSPOT_SYNC',
+        token
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error triggering sync:', chrome.runtime.lastError);
+          this.showNotification('Failed to start sync', 'error');
+          
+          if (pullBtn) {
+            pullBtn.disabled = false;
+            pullBtn.innerHTML = originalText;
+          }
+          return;
+        }
+        
+        console.log('✅ HubSpot sync triggered:', response);
+        
+        // The background script will send a completion message
+        // when sync is done, which will be handled by popup.js
+        
+        // Re-enable button after a short delay
+        setTimeout(() => {
+          if (pullBtn) {
+            pullBtn.disabled = false;
+            pullBtn.innerHTML = originalText;
+          }
+        }, 3000);
+      });
+      
+    } catch (error) {
+      console.error('❌ Pull from HubSpot error:', error);
+      this.showNotification(`Error: ${error.message}`, 'error');
+      
+      // Restore button
+      const pullBtn = document.getElementById('hubspot-pull-contacts-btn');
+      if (pullBtn) {
+        pullBtn.disabled = false;
+        pullBtn.innerHTML = '<span>⬇️ Pull from HubSpot</span>';
       }
     }
   }

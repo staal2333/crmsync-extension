@@ -15,6 +15,7 @@ router.get('/hubspot/callback', hubspotController.hubspotCallback);
 // Sync operations
 router.post('/hubspot/sync-contact', authenticateToken, hubspotController.hubspotSyncContact);
 router.post('/hubspot/sync-all', authenticateToken, hubspotController.hubspotSyncAll);
+router.get('/hubspot/fetch-contacts', authenticateToken, hubspotController.hubspotFetchContacts);
 router.post('/hubspot/check-duplicate', authenticateToken, hubspotController.hubspotCheckDuplicate);
 
 // Status & management

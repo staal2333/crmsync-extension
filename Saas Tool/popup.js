@@ -2560,19 +2560,12 @@ async function loadAllContacts() {
   }
   
   try {
-    // Add timeout to prevent infinite loading (increased to 10 seconds)
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Loading contacts timed out')), 10000)
-    );
+    // Read contacts DIRECTLY from storage (bypass background script)
+    console.log('📦 Reading contacts from chrome.storage.local...');
+    const result = await chrome.storage.local.get(['contacts']);
+    allContactsData = result.contacts || [];
     
-    console.log('📤 Sending getContacts message...');
-    const messagePromise = chrome.runtime.sendMessage({ action: 'getContacts' });
-    
-    const response = await Promise.race([messagePromise, timeoutPromise]);
-    console.log('📥 Received contacts response:', response);
-    allContactsData = (response && response.contacts) || [];
-    
-    console.log(`✅ Loaded ${allContactsData.length} contacts`);
+    console.log(`✅ Loaded ${allContactsData.length} contacts from storage`);
     
     // If no contacts, show empty state immediately
     if (allContactsData.length === 0) {

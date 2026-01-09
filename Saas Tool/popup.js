@@ -2666,19 +2666,12 @@ async function loadAllContacts() {
     // Set empty array to show empty state
     allContactsData = [];
     
+    // Show proper empty state instead of error message
+    showEmptyContactsState();
+    
     // Update counts immediately
     const allCountEl = document.getElementById('contactLimitInfo');
-    if (allCountEl) {
-      // Also update with limit when showing 0
-      chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
-        if (response && response.success) {
-          const { limit } = response;
-          allCountEl.textContent = limit === -1 ? '0' : `0/${limit}`;
-        } else {
-          allCountEl.textContent = '0';
-        }
-      });
-    }
+    if (allCountEl) allCountEl.textContent = '0';
     
     const pendingCountEl = document.getElementById('pendingCount');
     if (pendingCountEl) pendingCountEl.textContent = '0';
@@ -2686,49 +2679,9 @@ async function loadAllContacts() {
     const newTodayEl = document.getElementById('newTodayMini');
     if (newTodayEl) newTodayEl.textContent = '0';
     
-    const tbody = document.getElementById('allContactsTableBody');
-    if (tbody) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="8" style="padding: 0; border: none;">
-            <div class="empty-state">
-              <div class="empty-state-icon">⚠️</div>
-              <h3 class="empty-state-title">Failed to Load Contacts</h3>
-              <p class="empty-state-description">
-                ${error.message || 'Something went wrong'}<br>
-                This might be a temporary issue.
-              </p>
-              <button class="btn-primary reload-contacts-btn" style="margin-top: 8px;">
-                Try Again
-              </button>
-            </div>
-          </td>
-        </tr>
-      `;
-      
-      // Add reload button listener
-      setTimeout(() => {
-        const reloadBtn = tbody.querySelector('.reload-contacts-btn');
-        if (reloadBtn) {
-          reloadBtn.addEventListener('click', () => {
-            loadAllContacts();
-          });
-        }
-      }, 0);
-    }
-    
     // Refresh subscription display even on error
     if (typeof refreshSubscriptionDisplay === 'function') {
       await refreshSubscriptionDisplay().catch(err => console.error('Subscription display error:', err));
-    }
-  } finally {
-    // Ensure we always render something, even on error
-    if (!allContactsData || allContactsData.length === 0) {
-      const tbody = document.getElementById('allContactsTableBody');
-      if (tbody && (!tbody.innerHTML || tbody.innerHTML.includes('Loading'))) {
-        // Force render empty state
-        applyFiltersAndRender();
-      }
     }
   }
 }

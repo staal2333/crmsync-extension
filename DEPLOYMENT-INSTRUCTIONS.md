@@ -1,245 +1,267 @@
-# 🚀 DEPLOYMENT CHECKLIST
+# Backend Deployment - Step by Step
 
-**Status:** Ready to Deploy  
-**All changes pushed to GitHub:** ✅
+## 🚀 Deploy to Render.com
 
----
-
-## ✅ **What's Already Deployed:**
-
-### **1. Frontend (Vercel) - AUTO-DEPLOYED** ✅
-- Website changes (onboarding pages)
-- OAuth redirect fixes
-- Auto-login improvements
-
-**Check:** https://crm-sync.net
-
----
-
-## ⏳ **What You Need to Deploy Manually:**
-
-### **1. Backend (Render) - MANUAL DEPLOY REQUIRED**
-
-#### **Step 1: Trigger Deployment**
-```
-1. Go to: https://dashboard.render.com/
-2. Click your service: "crmsync-api"
-3. Click "Manual Deploy" button (top right)
-4. Select "Deploy latest commit"
-5. Click "Deploy"
-6. Wait ~2-3 minutes for deployment
-```
-
-#### **Step 2: Install Compression Package**
-After deployment completes, the `npm install` will automatically install `compression` package from `package.json`.
-
-**Verify:**
+### Step 1: Push Code to GitHub
 ```bash
-# Check logs on Render
-# Should see: "npm install" running
-# Should see: "compression@1.7.4" installed
+cd "c:\Users\sebas\Downloads\Saas Tool-20251202T124049Z-3-001"
+git push origin main
 ```
+
+**If git push fails (network issue)**: Try again in a few minutes. The code is committed locally (commit: 36e51d6).
 
 ---
 
-### **2. Database Indexes - CRITICAL!**
+### Step 2: Render Auto-Deploy (or Manual Trigger)
 
-After backend deploys, apply the performance indexes:
+Render should automatically deploy when you push to main. If not:
 
-#### **Step 1: Open Render Shell**
-```
-1. On Render dashboard
-2. Click your service → "Shell" tab
-3. Wait for shell to connect
-```
+1. Go to: https://dashboard.render.com
+2. Find your service: **crmsync-api**
+3. Click "Manual Deploy" → "Deploy latest commit"
+4. Wait for build (usually 2-3 minutes)
 
-#### **Step 2: Apply Indexes**
+---
+
+### Step 3: Run Database Migration
+
+Once deployed, you need to run the new migration:
+
+#### Option A: Via Render Shell (Recommended)
+1. Go to Render dashboard → crmsync-api
+2. Click "Shell" button (top right)
+3. Run these commands:
+
 ```bash
-# In Render shell, run:
-psql $DATABASE_URL << 'EOF'
--- Contacts indexes
-CREATE INDEX IF NOT EXISTS idx_contacts_user_id ON contacts(user_id);
-CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email);
-CREATE INDEX IF NOT EXISTS idx_contacts_updated_at ON contacts(updated_at);
-CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
+cd ~/project/src/crmsync-backend/crmsync-backend
 
--- Composite index for sync queries
-CREATE INDEX IF NOT EXISTS idx_contacts_user_updated 
-  ON contacts(user_id, updated_at) 
-  WHERE deleted_at IS NULL;
+# Run the migration
+psql $DATABASE_URL < migrations/008_add_subscription_columns.sql
 
--- CRM integrations indexes
-CREATE INDEX IF NOT EXISTS idx_crm_integrations_user_id ON crm_integrations(user_id);
-CREATE INDEX IF NOT EXISTS idx_crm_integrations_user_platform ON crm_integrations(user_id, platform);
-
--- CRM contact mappings indexes
-CREATE INDEX IF NOT EXISTS idx_crm_mappings_contact_id ON crm_contact_mappings(contact_id);
-CREATE INDEX IF NOT EXISTS idx_crm_mappings_user_platform ON crm_contact_mappings(user_id, platform);
-
--- User exclusions indexes
-CREATE INDEX IF NOT EXISTS idx_user_exclusions_user_id ON user_exclusions(user_id);
-
--- Users table indexes
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_customer_id);
-EOF
+# Verify it worked
+psql $DATABASE_URL -c "\d users" | grep subscription
 ```
 
-#### **Step 3: Verify Indexes**
+**Expected output**:
+```
+subscription_tier        | character varying(50)  | | | 'free'::character varying
+subscription_status      | character varying(50)  | | | 'inactive'::character varying
+subscription_started_at  | timestamp without time zone
+subscription_ends_at     | timestamp without time zone
+stripe_customer_id       | character varying(255)
+trial_ends_at           | timestamp without time zone
+```
+
+#### Option B: Manual SQL (if Shell doesn't work)
+
+Copy this SQL and run it directly in your database client (TablePlus, pgAdmin, etc.):
+
+```sql
+-- Add Stripe integration columns to users table
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255) UNIQUE;
+
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) DEFAULT 'inactive';
+
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS subscription_started_at TIMESTAMP;
+
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP;
+
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP;
+
+-- Indexes for faster lookups
+CREATE INDEX IF NOT EXISTS idx_users_stripe_customer_id 
+ON users(stripe_customer_id);
+
+CREATE INDEX IF NOT EXISTS idx_users_subscription_status 
+ON users(subscription_status);
+
+-- Comments
+COMMENT ON COLUMN users.stripe_customer_id IS 'Stripe customer ID for webhook identification';
+COMMENT ON COLUMN users.subscription_status IS 'Current subscription status: active, canceled, past_due, trialing, inactive';
+COMMENT ON COLUMN users.subscription_started_at IS 'When current subscription period started';
+COMMENT ON COLUMN users.subscription_ends_at IS 'When current subscription period ends';
+COMMENT ON COLUMN users.trial_ends_at IS 'When free trial ends';
+```
+
+---
+
+### Step 4: Verify Deployment
+
+Test the new endpoints:
+
+#### Test 1: Health Check
 ```bash
-# Check that indexes were created:
-psql $DATABASE_URL -c "
-SELECT tablename, indexname 
-FROM pg_indexes 
-WHERE tablename IN ('contacts', 'crm_integrations', 'user_exclusions')
-ORDER BY tablename, indexname;
-"
+curl https://crmsync-api.onrender.com/health
 ```
 
-**Expected output:**
-```
-contacts     | idx_contacts_user_id
-contacts     | idx_contacts_email
-contacts     | idx_contacts_updated_at
-...
-```
+**Expected**: `{"status":"healthy","timestamp":"..."}`
 
----
-
-### **3. Extension - RELOAD IN BROWSER**
-
-#### **After backend is deployed:**
-```
-1. Chrome → chrome://extensions
-2. Find "CRMSYNC"
-3. Click Reload button 🔄
-4. Close and reopen popup
-```
-
----
-
-## 🧪 **POST-DEPLOYMENT TESTING:**
-
-### **Test 1: Verify Backend is Live**
+#### Test 2: User Me Endpoint (with your JWT token)
 ```bash
-# Should return: {"status":"ok","message":"CRMSYNC Backend API","version":"1.0.0"}
-curl https://crmsync-api.onrender.com/
+curl https://crmsync-api.onrender.com/api/user/me \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-### **Test 2: Verify Compression Works**
+**Expected**: User object with `tier` and `subscriptionTier` fields
+
+#### Test 3: HubSpot Fetch Endpoint (after connecting HubSpot)
 ```bash
-# Should see: content-encoding: gzip
-curl -I -H "Accept-Encoding: gzip" https://crmsync-api.onrender.com/api/auth/me
+curl "https://crmsync-api.onrender.com/api/integrations/hubspot/fetch-contacts?limit=10" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
-### **Test 3: Test Complete Onboarding Flow**
-```
-1. Clear extension data
-2. Complete full onboarding
-3. Connect HubSpot → Should work ✅
-4. Set exclusions → Should save ✅
-5. Open popup → Should be logged in ✅
-6. Settings → Should show exclusions ✅
-```
+**Expected**: Array of contacts with `crmId`, `email`, `firstName`, etc.
 
----
-
-## ⏱️ **DEPLOYMENT TIMELINE:**
-
-```
-[0:00] Push to GitHub                          ✅ DONE
-  ↓
-[0:30] Vercel auto-deploys website             ⏳ In progress
-  ↓
-[1:00] Manual deploy backend on Render         ⏳ You do this
-  ↓
-[3:00] Backend deployment completes            ⏳ Wait
-  ↓
-[3:30] Apply database indexes                  ⏳ You do this
-  ↓
-[4:00] Reload extension in Chrome              ⏳ You do this
-  ↓
-[4:05] Test complete flow                      ⏳ You do this
-  ↓
-[4:10] 🎉 FULLY DEPLOYED!
-```
-
----
-
-## 📊 **WHAT'S NEW AFTER DEPLOYMENT:**
-
-### **Performance:**
-- ✅ 10-100x faster database queries (with indexes)
-- ✅ 60-80% smaller API responses (compression)
-- ✅ Faster popup loading
-
-### **Functionality:**
-- ✅ HubSpot OAuth redirects back to website
-- ✅ Auto-login after onboarding
-- ✅ Exclusions save correctly
-- ✅ Better error handling
-
----
-
-## 🚨 **TROUBLESHOOTING:**
-
-### **If Backend Deploy Fails:**
-Check Render logs for errors:
-```
-1. Render Dashboard → Your service
-2. Click "Logs" tab
-3. Look for red error messages
-4. Common issues:
-   - npm install fails → Check package.json
-   - Module not found → Check imports
-   - Port already in use → Render will handle this
-```
-
-### **If Indexes Fail:**
+#### Test 4: Webhook Endpoint
 ```bash
-# Check if tables exist:
-psql $DATABASE_URL -c "\dt"
-
-# Should show: contacts, users, crm_integrations, etc.
+curl -X POST https://crmsync-api.onrender.com/api/webhooks/subscription-update \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"test-uuid","tier":"pro","event":"test"}'
 ```
 
-### **If Compression Not Working:**
+**Expected**: `{"success":true,"message":"Subscription updated successfully"}`
+
+---
+
+### Step 5: Check Logs
+
+Monitor for errors:
+
+1. Go to Render dashboard → crmsync-api → Logs
+2. Look for these success messages:
+   - `✅ Database connected successfully`
+   - `🚀 Server running on port ...`
+   - `✅ Sentry error tracking initialized` (if production)
+3. Check for error messages (lines starting with `❌`)
+
+---
+
+## 🔧 Troubleshooting
+
+### Migration Fails with "column already exists"
+
+This is OK! It means the column was added before. Skip to verification step.
+
+### "Module not found: webhooks"
+
+**Fix**: Make sure all files were pushed to GitHub:
 ```bash
-# Check if compression module loaded:
-# In Render logs, should see:
-# ✅ Sentry error tracking initialized (or similar)
-# No errors about 'compression' module
+git status
+git add -A
+git commit -m "Add webhooks routes"
+git push origin main
+```
+
+Then trigger a new deploy on Render.
+
+### "Cannot connect to database"
+
+**Check**:
+1. Render dashboard → crmsync-api → Environment
+2. Verify `DATABASE_URL` is set
+3. Test database health: `curl https://crmsync-api.onrender.com/health/db`
+
+### 404 on /api/webhooks/...
+
+**Cause**: Server.js didn't mount the routes correctly.
+
+**Fix**: Check that `server.js` has this line:
+```javascript
+app.use('/api/webhooks', webhooksRoutes);
 ```
 
 ---
 
-## ✅ **DEPLOYMENT CHECKLIST:**
+## ✅ Deployment Complete Checklist
 
-- [ ] **Vercel:** Website auto-deployed
-- [ ] **Render:** Click "Manual Deploy"
-- [ ] **Render:** Wait for deployment (2-3 min)
-- [ ] **Render:** Open Shell tab
-- [ ] **Render:** Run database index SQL
-- [ ] **Render:** Verify indexes created
-- [ ] **Chrome:** Reload extension
-- [ ] **Test:** Complete onboarding flow
-- [ ] **Test:** Verify auto-login works
-- [ ] **Test:** Verify exclusions save
-- [ ] **Test:** Check Settings shows exclusions
+- [ ] Code pushed to GitHub (commit: 36e51d6 or later)
+- [ ] Render deployed successfully (green checkmark)
+- [ ] Migration `008_add_subscription_columns.sql` executed
+- [ ] Health check returns `{"status":"healthy"}`
+- [ ] `/api/user/me` endpoint works with JWT token
+- [ ] `/api/integrations/hubspot/fetch-contacts` endpoint exists (test after connecting HubSpot)
+- [ ] `/api/webhooks/subscription-update` endpoint responds
+- [ ] No errors in Render logs
+- [ ] Database has new subscription columns
 
 ---
 
-## 🎉 **DEPLOYMENT COMPLETE WHEN:**
+## 🎯 What Happens After Deployment
 
-✅ Backend responds at: `https://crmsync-api.onrender.com/`  
-✅ Website loads at: `https://crm-sync.net`  
-✅ Extension popup opens without errors  
-✅ Can complete full onboarding flow  
-✅ Auto-login works after onboarding  
-✅ Exclusions appear in Settings  
+### For HubSpot Auto-Sync
+1. Users connect HubSpot in extension settings
+2. Extension calls `GET /api/integrations/hubspot/status` to verify connection
+3. Background script starts calling `GET /api/integrations/hubspot/fetch-contacts` every 30 minutes
+4. Contacts merge into local storage automatically
+
+### For Subscription Auto-Update
+1. User upgrades on website → Database updates `subscription_tier = 'pro'`
+2. Extension polls `GET /api/user/me` every 5 minutes
+3. When tier changes, extension shows notification and reloads
+4. Pro features (CRM integrations) unlock immediately
 
 ---
 
-**Start with Step 1: Deploy Backend on Render!** 🚀
+## 📊 Monitoring After Launch
 
-Then come back and tell me if you hit any issues!
+### Key Metrics to Watch
+1. **API Response Times**
+   - `/api/user/me`: Should be < 200ms
+   - `/api/integrations/hubspot/fetch-contacts`: Should be < 3s for 100 contacts
+
+2. **Error Rates**
+   - Watch Render logs for `❌` error messages
+   - Set up Sentry alerts if configured
+
+3. **Database Performance**
+   - Monitor connection pool usage
+   - Check for slow queries (> 1s)
+
+4. **Webhook Success Rate**
+   - When Stripe integration goes live, monitor webhook failures
+   - Check `/api/webhooks/stripe` logs
+
+---
+
+## 🚨 Rollback Plan (If Needed)
+
+If something breaks:
+
+### Quick Rollback
+```bash
+# In Render dashboard
+1. Go to crmsync-api → Deploys
+2. Find previous successful deploy
+3. Click "Rollback to this version"
+```
+
+### Revert Database Migration
+```sql
+-- Only if migration causes issues
+ALTER TABLE users DROP COLUMN IF EXISTS stripe_customer_id;
+ALTER TABLE users DROP COLUMN IF EXISTS subscription_status;
+ALTER TABLE users DROP COLUMN IF EXISTS subscription_started_at;
+ALTER TABLE users DROP COLUMN IF EXISTS subscription_ends_at;
+ALTER TABLE users DROP COLUMN IF EXISTS trial_ends_at;
+
+DROP INDEX IF EXISTS idx_users_stripe_customer_id;
+DROP INDEX IF EXISTS idx_users_subscription_status;
+```
+
+---
+
+**Status**: Ready to deploy ✅  
+**Time Estimate**: 10-15 minutes  
+**Risk Level**: Low (additive changes, no breaking changes)
+
+---
+
+Need help? Check logs first:
+- Backend: https://dashboard.render.com → Logs
+- Database: `psql $DATABASE_URL` in Render shell
+- Extension: Chrome DevTools → Console

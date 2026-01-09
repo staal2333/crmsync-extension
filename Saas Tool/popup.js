@@ -421,32 +421,54 @@ async function updateUIForConnectedPlatforms() {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
   
-  // FIRST: Check if user just completed onboarding on website
-  // Try multiple times in case the Done page is still loading
-  let authFound = await checkForWebsiteAuth();
-  
-  if (!authFound) {
-    console.log('🔄 No auth found, will retry in 1 second...');
-    // Wait 1 second and try again
-    setTimeout(async () => {
-      authFound = await checkForWebsiteAuth();
-      if (authFound) {
-        console.log('✅ Auth found on retry! Reloading UI...');
-        // Reload the UI to show logged-in state
-        await loadInitialData();
-      }
-    }, 1000);
+  // STEP 1: Make sure UI is visible immediately (synchronous)
+  try {
+    // Show the popup container right away
+    const container = document.querySelector('.popup-container');
+    if (container) {
+      container.style.display = 'block';
+      container.style.opacity = '1';
+    }
+    
+    // Make sure sign in button is visible
+    const signInBtn = document.getElementById('leftHeaderBtn');
+    if (signInBtn) {
+      signInBtn.style.display = 'block';
+      signInBtn.style.visibility = 'visible';
+    }
+  } catch (err) {
+    console.error('Error showing UI:', err);
   }
   
-  // CRITICAL: Set up core UI immediately (non-blocking)
+  // STEP 2: Set up core UI immediately (non-blocking, synchronous)
   console.log('🚀 Setting up core UI immediately...');
-  setupTabs();
-  setupEventListeners();
-  setupAuthListener();
-  console.log('✅ Core UI ready - buttons are now clickable!');
+  try {
+    setupTabs();
+    setupEventListeners();
+    setupAuthListener();
+    console.log('✅ Core UI ready - buttons are now clickable!');
+  } catch (err) {
+    console.error('❌ Error setting up UI:', err);
+  }
   
-  // Then do async initialization in background
-  (async () => {
+  // STEP 3: Check for website auth (async, non-blocking)
+  checkForWebsiteAuth().then(authFound => {
+    if (!authFound) {
+      console.log('🔄 No auth found, will retry in 1 second...');
+      setTimeout(async () => {
+        const retryFound = await checkForWebsiteAuth();
+        if (retryFound) {
+          console.log('✅ Auth found on retry! Reloading UI...');
+          await loadInitialData();
+        }
+      }, 1000);
+    }
+  }).catch(err => {
+    console.error('Error checking website auth:', err);
+  });
+  
+  // STEP 4: Async initialization in background (don't block UI)
+  setTimeout(async () => {
     try {
       // Check session timeout first
       console.log('1️⃣ Checking session...');
@@ -479,14 +501,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       // Check authentication status (with timeout)
       console.log('2️⃣ Checking auth status...');
-      Promise.race([
+      await Promise.race([
         checkAuthStatus(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 500))
-      ]).then(() => {
-        console.log('✓ Auth check complete');
-      }).catch(err => {
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Auth timeout')), 1000))
+      ]).catch(err => {
         console.error('⚠️ Auth check failed or timed out:', err.message);
       });
+      console.log('✓ Auth check complete');
       
       // Update left header button based on auth status (force fresh check)
       console.log('3️⃣ Updating left header button...');

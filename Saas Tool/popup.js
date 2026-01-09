@@ -2499,6 +2499,50 @@ async function restoreRejectedContact(email) {
   }
 }
 
+/**
+ * Show empty state when user has no contacts yet
+ */
+function showEmptyContactsState() {
+  console.log('📭 Showing empty contacts state');
+  
+  const tbody = document.getElementById('allContactsTableBody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="7" style="text-align: center; padding: 60px 20px;">
+        <div style="max-width: 400px; margin: 0 auto;">
+          <div style="font-size: 48px; margin-bottom: 16px;">📭</div>
+          <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text);">
+            No Contacts Yet
+          </h3>
+          <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+            Open Gmail and CRM-Sync will automatically detect contacts from your emails.
+            Click the CRM-Sync widget next to emails to add contacts.
+          </p>
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <a href="https://mail.google.com" target="_blank" 
+               style="padding: 10px 20px; background: var(--primary); color: white; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 500;">
+              📧 Open Gmail
+            </a>
+            <button onclick="window.location.reload()" 
+                    style="padding: 10px 20px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer;">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;
+  
+  // Also update the stats to show 0
+  const statsEls = ['contactLimitInfo', 'pendingCount', 'newTodayMini'];
+  statsEls.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '0';
+  });
+}
+
 // All Contacts CRM functionality
 let allContactsData = [];
 let filteredContacts = [];
@@ -2529,6 +2573,12 @@ async function loadAllContacts() {
     allContactsData = (response && response.contacts) || [];
     
     console.log(`✅ Loaded ${allContactsData.length} contacts`);
+    
+    // If no contacts, show empty state immediately
+    if (allContactsData.length === 0) {
+      showEmptyContactsState();
+      return;
+    }
     
     // Sort by lastContact descending by default
     allContactsData.sort((a, b) => {

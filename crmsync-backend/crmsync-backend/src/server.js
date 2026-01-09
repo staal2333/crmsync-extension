@@ -74,6 +74,7 @@ const userRoutes = require('./routes/user');
 const subscriptionRoutes = require('./routes/subscription');
 const integrationRoutes = require('./routes/integrations');
 const exclusionsRoutes = require('./routes/exclusions');
+const inboxSyncRoutes = require('./routes/inboxSync');
 
 const app = express();
 
@@ -215,6 +216,7 @@ app.use('/api/user', userRoutes); // GDPR compliance endpoints
 app.use('/api/subscription', subscriptionRoutes); // Subscription & billing endpoints
 app.use('/api/integrations', integrationRoutes); // CRM integrations (HubSpot, Salesforce)
 app.use('/api/users/exclusions', exclusionsRoutes); // User exclusion rules
+app.use('/api/inbox-sync', syncLimiter, inboxSyncRoutes); // Inbox scanning & sync (Pro feature)
 
 // Root route
 app.get('/', (req, res) => {

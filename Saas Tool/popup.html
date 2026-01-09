@@ -389,6 +389,96 @@
           </div>
         </div>
 
+        <!-- Inbox Sync (Pro Feature) -->
+        <div class="setting-group" id="inboxSyncSection">
+          <h3 class="group-title">📬 Inbox Sync</h3>
+          <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+            Scan your entire Gmail inbox and sync thousands of contacts to your CRM automatically.
+            <span class="pro-badge-inline">PRO</span>
+          </p>
+          
+          <!-- Sync Status Card -->
+          <div style="background: var(--surface); padding: 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;" id="inboxSyncStatusIndicator"></div>
+                <span style="font-size: 13px; font-weight: 600; color: var(--text);" id="inboxSyncStatusText">Ready to sync</span>
+              </div>
+              <button class="btn-secondary" id="viewSyncHistoryBtn" style="font-size: 11px; padding: 6px 12px;">
+                📊 History
+              </button>
+            </div>
+            
+            <div id="lastSyncInfo" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px; display: none;">
+              <strong>Last sync:</strong> <span id="lastSyncTime">Never</span><br>
+              <strong>Results:</strong> <span id="lastSyncResults">-</span>
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-primary" id="startInboxSyncBtn" style="flex: 1; font-size: 13px; padding: 10px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 8px; font-weight: 600;">
+                🚀 Start Inbox Sync
+              </button>
+              <button class="btn-secondary" id="inboxSyncSettingsBtn" style="padding: 10px 16px; font-size: 13px;">
+                ⚙️
+              </button>
+            </div>
+          </div>
+          
+          <!-- Sync Options (Hidden by default, shown when settings clicked) -->
+          <div id="inboxSyncOptions" style="display: none; background: var(--surface); padding: 16px; border-radius: 12px; border: 1px solid var(--border);">
+            <h4 style="font-size: 13px; font-weight: 600; margin: 0 0 12px 0; color: var(--text);">Sync Options</h4>
+            
+            <div class="setting-item-full" style="margin-bottom: 12px;">
+              <label class="setting-label">Scan Range</label>
+              <select id="inboxSyncDateRange" class="select-input">
+                <option value="30d">Last 30 days</option>
+                <option value="90d" selected>Last 90 days (recommended)</option>
+                <option value="180d">Last 6 months</option>
+                <option value="365d">Last year</option>
+                <option value="all">Entire inbox</option>
+              </select>
+              <span class="setting-description">How far back to scan</span>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <label class="setting-label">Update Existing Contacts</label>
+                <span class="setting-description">Refresh data for contacts already in CRM</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="inboxSyncUpdateExisting" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            
+            <div class="setting-item">
+              <div class="setting-info">
+                <label class="setting-label">Create New Contacts</label>
+                <span class="setting-description">Add contacts not yet in CRM</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="inboxSyncCreateNew" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            
+            <button class="btn-secondary" id="saveInboxSyncOptions" style="width: 100%; margin-top: 12px; font-size: 12px; padding: 8px;">
+              ✅ Save Options
+            </button>
+          </div>
+          
+          <!-- What Gets Synced Info -->
+          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%); padding: 12px; border-radius: 8px; margin-top: 12px; border: 1px solid #3b82f6;">
+            <div style="font-size: 12px; color: #1e3a8a; line-height: 1.5;">
+              <strong>✨ What gets synced:</strong><br>
+              • Contact names & emails<br>
+              • Last contact date<br>
+              • Updates existing contacts with latest info<br>
+              • Smart duplicate detection
+            </div>
+          </div>
+        </div>
+
         <!-- Data Management -->
         <div class="setting-group">
           <h3 class="group-title">Data</h3>
@@ -884,6 +974,8 @@
   <script src="auth.js"></script>
   <script src="sync.js"></script>
   <script src="integrations.js"></script>
+  <script src="inboxSyncManager.js"></script>
+  <script src="popup-inbox-sync.js"></script>
   
   <!-- UX Enhancement Scripts -->
   <script src="toast.js"></script>

@@ -6,6 +6,7 @@ export const ConnectCRM: React.FC = () => {
   const [connectedPlatform, setConnectedPlatform] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showTrialModal, setShowTrialModal] = useState(false);
 
   useEffect(() => {
     // Check if user just returned from OAuth
@@ -23,6 +24,19 @@ export const ConnectCRM: React.FC = () => {
   }, []);
 
   const handleHubSpotConnect = () => {
+    // Check if user has Pro tier
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      const tier = user.subscriptionTier || user.tier || 'free';
+      
+      if (tier.toLowerCase() === 'free') {
+        // Show trial modal for free users
+        setShowTrialModal(true);
+        return;
+      }
+    }
+    
     setLoading(true);
     setError('');
     
@@ -39,6 +53,19 @@ export const ConnectCRM: React.FC = () => {
   };
 
   const handleSalesforceConnect = () => {
+    // Check if user has Pro tier
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      const tier = user.subscriptionTier || user.tier || 'free';
+      
+      if (tier.toLowerCase() === 'free') {
+        // Show trial modal for free users
+        setShowTrialModal(true);
+        return;
+      }
+    }
+    
     setLoading(true);
     setError('');
     
@@ -179,22 +206,40 @@ export const ConnectCRM: React.FC = () => {
               }
             }}
           >
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🔵</div>
-            <h3 style={{
-              fontSize: '20px',
-              fontWeight: 600,
-              color: '#1e293b',
-              marginBottom: '8px'
-            }}>
-              {connectedPlatform === 'hubspot' ? '✓ Connected to HubSpot' : 'Connect HubSpot'}
-            </h3>
-            <p style={{
-              fontSize: '14px',
-              color: '#64748b',
-              lineHeight: '1.5'
-            }}>
-              Sync contacts with your HubSpot CRM
-            </p>
+            <div style={{ position: 'relative' }}>
+              {/* Pro Badge */}
+              <div style={{
+                position: 'absolute',
+                top: '-8px',
+                right: '-8px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '4px 8px',
+                borderRadius: '6px',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)'
+              }}>
+                PRO
+              </div>
+              
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🔵</div>
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: '#1e293b',
+                marginBottom: '8px'
+              }}>
+                {connectedPlatform === 'hubspot' ? '✓ Connected to HubSpot' : 'Connect HubSpot'}
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#64748b',
+                lineHeight: '1.5'
+              }}>
+                Sync contacts with your HubSpot CRM
+              </p>
+            </div>
           </button>
 
           {/* Salesforce Tile */}
@@ -225,22 +270,40 @@ export const ConnectCRM: React.FC = () => {
               }
             }}
           >
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>🟠</div>
-            <h3 style={{
-              fontSize: '20px',
-              fontWeight: 600,
-              color: '#1e293b',
-              marginBottom: '8px'
-            }}>
-              {connectedPlatform === 'salesforce' ? '✓ Connected to Salesforce' : 'Connect Salesforce'}
-            </h3>
-            <p style={{
-              fontSize: '14px',
-              color: '#64748b',
-              lineHeight: '1.5'
-            }}>
-              Sync contacts with your Salesforce CRM
-            </p>
+            <div style={{ position: 'relative' }}>
+              {/* Pro Badge */}
+              <div style={{
+                position: 'absolute',
+                top: '-8px',
+                right: '-8px',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '4px 8px',
+                borderRadius: '6px',
+                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)'
+              }}>
+                PRO
+              </div>
+              
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🟠</div>
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: 600,
+                color: '#1e293b',
+                marginBottom: '8px'
+              }}>
+                {connectedPlatform === 'salesforce' ? '✓ Connected to Salesforce' : 'Connect Salesforce'}
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#64748b',
+                lineHeight: '1.5'
+              }}>
+                Sync contacts with your Salesforce CRM
+              </p>
+            </div>
           </button>
         </div>
 
@@ -295,6 +358,163 @@ export const ConnectCRM: React.FC = () => {
           🔒 Your OAuth tokens are encrypted and stored securely. We never access your CRM data without your explicit permission.
         </p>
       </div>
+
+      {/* Trial Modal */}
+      {showTrialModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }} onClick={() => setShowTrialModal(false)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '24px',
+            padding: '48px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+              <div style={{ fontSize: '64px', marginBottom: '16px' }}>🚀</div>
+              <h2 style={{
+                fontSize: '28px',
+                fontWeight: 700,
+                marginBottom: '12px',
+                color: '#1e293b'
+              }}>
+                CRM Integration Requires Pro
+              </h2>
+              <p style={{
+                fontSize: '16px',
+                color: '#64748b',
+                lineHeight: '1.6'
+              }}>
+                Connect to HubSpot & Salesforce with automatic contact syncing
+              </p>
+            </div>
+
+            <div style={{
+              background: '#f0fdf4',
+              border: '2px solid #86efac',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                marginBottom: '12px'
+              }}>
+                <span style={{ fontSize: '24px', marginRight: '12px' }}>✨</span>
+                <span style={{
+                  fontSize: '20px',
+                  fontWeight: 600,
+                  color: '#166534'
+                }}>
+                  Start 14-Day Free Trial
+                </span>
+              </div>
+              <p style={{
+                fontSize: '14px',
+                color: '#166534',
+                lineHeight: '1.6'
+              }}>
+                Full access to Pro features. No credit card required. Cancel anytime.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <p style={{
+                fontSize: '14px',
+                color: '#64748b',
+                fontWeight: 600,
+                marginBottom: '12px'
+              }}>
+                Pro Plan Includes:
+              </p>
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: 0
+              }}>
+                {[
+                  'Unlimited contacts',
+                  'HubSpot & Salesforce sync',
+                  'Auto-sync every 15 minutes',
+                  'Smart duplicate detection',
+                  'Priority support'
+                ].map((feature, i) => (
+                  <li key={i} style={{
+                    padding: '8px 0',
+                    fontSize: '14px',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ color: '#10b981', marginRight: '8px' }}>✓</span>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button
+                onClick={() => {
+                  window.location.hash = '/pricing';
+                }}
+                style={{
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                }}
+              >
+                Start Free Trial → $9.99/mo after trial
+              </button>
+              
+              <button
+                onClick={() => setShowTrialModal(false)}
+                style={{
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  border: '2px solid #e5e7eb',
+                  background: 'white',
+                  color: '#64748b',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -467,6 +467,8 @@ if (typeof window !== 'undefined') {
     continueAsGuest,
     isGuestMode,
     shouldShowLoginPrompt,
+    checkAuth: isAuthenticated, // Alias for compatibility
   };
 }
+
 

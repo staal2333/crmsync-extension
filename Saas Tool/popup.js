@@ -927,6 +927,12 @@ function showFirstTimeUserPrompt() {
  * Show auth banner for logged in users
  */
 function showAuthBanner(user) {
+  // Remove existing banner first to prevent duplicates
+  const existingBanner = document.getElementById('authBanner');
+  if (existingBanner) {
+    existingBanner.remove();
+  }
+  
   const banner = document.createElement('div');
   banner.id = 'authBanner';
   banner.style.cssText = `

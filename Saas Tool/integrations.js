@@ -124,6 +124,17 @@ class IntegrationManager {
         return;
       }
       
+      // Check user tier - Pro required for CRM integrations
+      const { user } = await chrome.storage.local.get(['user']);
+      if (user) {
+        const tier = user.subscriptionTier || user.tier || 'free';
+        if (tier.toLowerCase() === 'free') {
+          // Show upgrade modal for free users
+          this.showUpgradeModal(platform);
+          return;
+        }
+      }
+      
       // Open OAuth popup
       const width = 600;
       const height = 700;
@@ -1164,6 +1175,133 @@ class IntegrationManager {
   // =====================================================
   // UI HELPERS
   // =====================================================
+  
+  showUpgradeModal(platform) {
+    const platformName = platform === 'hubspot' ? 'HubSpot' : 'Salesforce';
+    const platformColor = platform === 'hubspot' ? '#ff7a59' : '#00a1e0';
+    
+    // Remove existing modal
+    const existing = document.getElementById('upgradeModal');
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'upgradeModal';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 20px;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: var(--bg);
+      color: var(--text);
+      border-radius: 20px;
+      width: 500px;
+      max-width: 95vw;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    `;
+    
+    modal.innerHTML = `
+      <div style="padding: 48px; text-align: center;">
+        <div style="font-size: 64px; margin-bottom: 16px;">🚀</div>
+        <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 12px; color: var(--text);">
+          ${platformName} Integration Requires Pro
+        </h2>
+        <p style="font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px;">
+          Unlock automatic ${platformName} syncing with your Pro subscription
+        </p>
+        
+        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: 16px; padding: 24px; margin-bottom: 24px; text-align: left;">
+          <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 24px; margin-right: 12px;">✨</span>
+            <span style="font-size: 18px; font-weight: 600; color: #166534;">
+              Start 14-Day Free Trial
+            </span>
+          </div>
+          <p style="font-size: 13px; color: #166534; line-height: 1.6; margin: 0;">
+            Full access to Pro features. No credit card required. Cancel anytime.
+          </p>
+        </div>
+        
+        <div style="margin-bottom: 24px; text-align: left;">
+          <p style="font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px;">
+            Pro Plan Includes:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+            <div style="display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px; font-weight: 700;">✓</span>
+              Unlimited contacts
+            </div>
+            <div style="display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px; font-weight: 700;">✓</span>
+              HubSpot & Salesforce sync
+            </div>
+            <div style="display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px; font-weight: 700;">✓</span>
+              Auto-sync every 15 minutes
+            </div>
+            <div style="display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px; font-weight: 700;">✓</span>
+              Smart duplicate detection
+            </div>
+            <div style="display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px; font-weight: 700;">✓</span>
+              Priority support
+            </div>
+          </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <button id="startTrialBtn" style="padding: 16px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+            Start Free Trial → $9.99/mo after trial
+          </button>
+          
+          <button id="closeUpgradeModal" style="padding: 16px 24px; background: var(--surface); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+            Maybe Later
+          </button>
+        </div>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Event listeners
+    const startTrialBtn = modal.querySelector('#startTrialBtn');
+    const closeBtn = modal.querySelector('#closeUpgradeModal');
+    
+    startTrialBtn.addEventListener('click', () => {
+      // Open pricing page on website
+      window.open('https://crm-sync.net/#/pricing', '_blank');
+      overlay.remove();
+    });
+    
+    startTrialBtn.addEventListener('mouseenter', (e) => {
+      e.target.style.transform = 'translateY(-2px)';
+      e.target.style.boxShadow = '0 8px 20px rgba(102, 126, 234, 0.5)';
+    });
+    
+    startTrialBtn.addEventListener('mouseleave', (e) => {
+      e.target.style.transform = 'translateY(0)';
+      e.target.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+    });
+    
+    closeBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+  }
   
   showNotification(message, type = 'info') {
     console.log(`📢 Notification [${type}]:`, message);

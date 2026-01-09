@@ -26,21 +26,34 @@ async function getSalesforceIntegration(userId) {
 // =====================================================
 
 // Step 1: Initiate OAuth flow
-exports.salesforceConnect = (req, res) => {
+exports.salesforceConnect = async (req, res) => {
   try {
     const userId = req.user.userId;
     
+    // Check if user has Pro tier
+    const userResult = await db.query('SELECT subscription_tier FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    
+    const userTier = (userResult.rows[0].subscription_tier || 'free').toLowerCase();
+    if (userTier === 'free') {
+      // Redirect to pricing page with message
+      const frontendUrl = process.env.FRONTEND_URL || 'https://crm-sync.net';
+      return res.redirect(`${frontendUrl}/#/pricing?message=CRM integration requires Pro plan - Start 14-day free trial`);
+    }
+
     // Generate PKCE code verifier and challenge
     const codeVerifier = crypto.randomBytes(32).toString('base64url');
     const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
-    
+
     // Encode userId and codeVerifier in state for callback
-    const state = Buffer.from(JSON.stringify({ 
-      userId, 
+    const state = Buffer.from(JSON.stringify({
+      userId,
       codeVerifier,
-      timestamp: Date.now() 
+      timestamp: Date.now()
     })).toString('base64');
-    
+
     const authUrl = `${process.env.SALESFORCE_LOGIN_URL}/services/oauth2/authorize?` +
       `response_type=code` +
       `&client_id=${process.env.SALESFORCE_CLIENT_ID}` +

@@ -113,19 +113,32 @@ async function getValidAccessToken(userId, integration) {
 // =====================================================
 
 // Step 1: Initiate OAuth flow
-exports.hubspotConnect = (req, res) => {
+exports.hubspotConnect = async (req, res) => {
   try {
     const userId = req.user.userId;
     
+    // Check if user has Pro tier
+    const userResult = await db.query('SELECT subscription_tier FROM users WHERE id = $1', [userId]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).send('User not found');
+    }
+    
+    const userTier = (userResult.rows[0].subscription_tier || 'free').toLowerCase();
+    if (userTier === 'free') {
+      // Redirect to pricing page with message
+      const frontendUrl = process.env.FRONTEND_URL || 'https://crm-sync.net';
+      return res.redirect(`${frontendUrl}/#/pricing?message=CRM integration requires Pro plan - Start 14-day free trial`);
+    }
+
     // Encode userId in state for callback
     const state = Buffer.from(JSON.stringify({ userId, timestamp: Date.now() })).toString('base64');
-    
+
     const authUrl = `https://app.hubspot.com/oauth/authorize?` +
       `client_id=${process.env.HUBSPOT_CLIENT_ID}` +
       `&redirect_uri=${encodeURIComponent(process.env.HUBSPOT_REDIRECT_URI)}` +
       `&scope=crm.objects.contacts.write crm.objects.contacts.read` +
       `&state=${state}`;
-    
+
     console.log('🔵 Starting HubSpot OAuth for user:', userId);
     res.redirect(authUrl);
   } catch (error) {

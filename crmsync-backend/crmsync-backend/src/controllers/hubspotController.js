@@ -700,3 +700,92 @@ exports.hubspotFetchContacts = async (req, res) => {
     });
   }
 };
+
+// =====================================================
+// UPDATE EXISTING CONTACT IN HUBSPOT
+// =====================================================
+// PATCH /api/integrations/hubspot/update-contact
+// Updates existing HubSpot contact with new fields only
+exports.hubspotUpdateContact = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { email, crmId, updates } = req.body;
+    
+    console.log('🔄 Updating HubSpot contact:', { email, crmId, updates });
+    
+    // Validate input
+    if (!crmId || !updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: crmId and updates' 
+      });
+    }
+    
+    // Get user's HubSpot integration
+    const integration = await getHubSpotIntegration(userId);
+    const accessToken = await getValidAccessToken(userId, integration);
+    
+    // Map our field names to HubSpot property names
+    const propertyMapping = {
+      phone: 'phone',
+      company: 'company',
+      title: 'jobtitle',
+      jobTitle: 'jobtitle',
+      linkedin: 'linkedin_url',
+      firstName: 'firstname',
+      lastName: 'lastname'
+    };
+    
+    // Build HubSpot properties object
+    const properties = {};
+    for (const [key, value] of Object.entries(updates)) {
+      const hubspotProperty = propertyMapping[key] || key;
+      properties[hubspotProperty] = value;
+    }
+    
+    console.log('📝 Mapped properties for HubSpot:', properties);
+    
+    // Update contact in HubSpot
+    const response = await axios.patch(
+      `https://api.hubapi.com/crm/v3/objects/contacts/${crmId}`,
+      { properties },
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log(`✅ Updated HubSpot contact ${crmId} with new fields:`, Object.keys(updates));
+    
+    res.json({
+      success: true,
+      contactId: crmId,
+      updated: Object.keys(updates),
+      hubspotResponse: {
+        id: response.data.id,
+        updatedAt: response.data.updatedAt
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ HubSpot update contact error:', error.response?.data || error.message);
+    
+    // Handle specific errors
+    if (error.response?.status === 404) {
+      return res.status(404).json({ 
+        error: 'Contact not found in HubSpot' 
+      });
+    }
+    
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return res.status(403).json({ 
+        error: 'HubSpot connection expired. Please reconnect.' 
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.response?.data?.message || error.message || 'Failed to update HubSpot contact' 
+    });
+  }
+};

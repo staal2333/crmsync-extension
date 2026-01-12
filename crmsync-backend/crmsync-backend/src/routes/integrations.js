@@ -17,6 +17,7 @@ router.post('/hubspot/sync-contact', authenticateToken, hubspotController.hubspo
 router.post('/hubspot/sync-all', authenticateToken, hubspotController.hubspotSyncAll);
 router.get('/hubspot/fetch-contacts', authenticateToken, hubspotController.hubspotFetchContacts);
 router.post('/hubspot/check-duplicate', authenticateToken, hubspotController.hubspotCheckDuplicate);
+router.patch('/hubspot/update-contact', authenticateToken, hubspotController.hubspotUpdateContact);
 
 // Status & management
 router.get('/hubspot/status', authenticateToken, hubspotController.hubspotStatus);
@@ -34,6 +35,7 @@ router.get('/salesforce/callback', salesforceController.salesforceCallback);
 router.post('/salesforce/sync-contact', authenticateToken, salesforceController.salesforceSyncContact);
 router.post('/salesforce/sync-all', authenticateToken, salesforceController.salesforceSyncAll);
 router.post('/salesforce/check-duplicate', authenticateToken, salesforceController.salesforceCheckDuplicate);
+router.patch('/salesforce/update-contact', authenticateToken, salesforceController.salesforceUpdateContact);
 
 // Status & management
 router.get('/salesforce/status', authenticateToken, salesforceController.salesforceStatus);

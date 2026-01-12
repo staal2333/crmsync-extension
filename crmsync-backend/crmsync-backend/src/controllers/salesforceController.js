@@ -545,3 +545,88 @@ exports.salesforceDisconnect = async (req, res) => {
     res.status(500).json({ error: 'Failed to disconnect Salesforce' });
   }
 };
+
+// =====================================================
+// UPDATE EXISTING CONTACT IN SALESFORCE
+// =====================================================
+// PATCH /api/integrations/salesforce/update-contact
+// Updates existing Salesforce contact with new fields only
+exports.salesforceUpdateContact = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { email, crmId, updates } = req.body;
+    
+    console.log('🔄 Updating Salesforce contact:', { email, crmId, updates });
+    
+    // Validate input
+    if (!crmId || !updates || Object.keys(updates).length === 0) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: crmId and updates' 
+      });
+    }
+    
+    // Get user's Salesforce integration
+    const integration = await getSalesforceIntegration(userId);
+    const accessToken = await getValidAccessToken(userId, integration);
+    
+    // Map our field names to Salesforce field names
+    const fieldMapping = {
+      phone: 'Phone',
+      company: 'Company',
+      title: 'Title',
+      jobTitle: 'Title',
+      linkedin: 'LinkedIn__c',  // Custom field, may need adjustment
+      firstName: 'FirstName',
+      lastName: 'LastName'
+    };
+    
+    // Build Salesforce fields object
+    const fields = {};
+    for (const [key, value] of Object.entries(updates)) {
+      const salesforceField = fieldMapping[key] || key;
+      fields[salesforceField] = value;
+    }
+    
+    console.log('📝 Mapped fields for Salesforce:', fields);
+    
+    // Update contact in Salesforce
+    const response = await axios.patch(
+      `${integration.instance_url}/services/data/v58.0/sobjects/Contact/${crmId}`,
+      fields,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    console.log(`✅ Updated Salesforce contact ${crmId} with new fields:`, Object.keys(updates));
+    
+    res.json({
+      success: true,
+      contactId: crmId,
+      updated: Object.keys(updates)
+    });
+    
+  } catch (error) {
+    console.error('❌ Salesforce update contact error:', error.response?.data || error.message);
+    
+    // Handle specific errors
+    if (error.response?.status === 404) {
+      return res.status(404).json({ 
+        error: 'Contact not found in Salesforce' 
+      });
+    }
+    
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      return res.status(403).json({ 
+        error: 'Salesforce connection expired. Please reconnect.' 
+      });
+    }
+    
+    res.status(500).json({ 
+      error: error.response?.data?.[0]?.message || error.message || 'Failed to update Salesforce contact' 
+    });
+  }
+};

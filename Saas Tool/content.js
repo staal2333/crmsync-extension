@@ -5456,6 +5456,14 @@
           
           // NEW: Check if contact has CRM mapping and extract current signature to find updates
           if (existingContact && existingContact.crmMappings && Object.keys(existingContact.crmMappings).length > 0) {
+            console.log(`🔍 CRMSYNC: Checking for updates for ${contactEmail}`);
+            console.log(`📋 CRMSYNC: Existing contact data:`, {
+              phone: existingContact.phone || 'MISSING',
+              company: existingContact.company || 'MISSING',
+              title: existingContact.title || 'MISSING',
+              linkedin: existingContact.linkedin || 'MISSING'
+            });
+            
             // Extract current signature to see if there's NEW information
             const messageBody = messageContainer.querySelector('.a3s, .ii, [data-message-id]') || messageContainer;
             const bodyText = messageBody.textContent || '';
@@ -5463,14 +5471,24 @@
             const combinedText = bodyText + ' ' + bodyHtml.replace(/<[^>]+>/g, ' ');
             
             let signature = extractSignatureBlock(combinedText);
+            console.log(`✍️ CRMSYNC: Signature found?`, !!signature);
+            
             if (signature && !textContainsUserEmail(signature)) {
               const searchText = signature || combinedText;
+              console.log(`✍️ CRMSYNC: Signature accepted, length: ${searchText.length} chars`);
               
               // Extract current fields from email
               const currentPhone = extractPhone(searchText, contactEmail, userEmails);
               const currentCompany = extractCompany(searchText);
               const currentTitle = extractJobTitle(searchText);
               const currentLinkedIn = extractLinkedIn(searchText);
+              
+              console.log(`📊 CRMSYNC: Extracted from signature:`, {
+                phone: currentPhone || 'NOT FOUND',
+                company: currentCompany || 'NOT FOUND',
+                title: currentTitle || 'NOT FOUND',
+                linkedin: currentLinkedIn || 'NOT FOUND'
+              });
               
               // Filter out excluded phone
               let filteredPhone = currentPhone;
@@ -5491,10 +5509,24 @@
               
               // Compare with stored contact to find NEW fields
               const newFields = {};
-              if (filteredPhone && !existingContact.phone) newFields.phone = filteredPhone;
-              if (currentCompany && !existingContact.company) newFields.company = currentCompany;
-              if (currentTitle && !existingContact.title) newFields.title = currentTitle;
-              if (currentLinkedIn && !existingContact.linkedin) newFields.linkedin = currentLinkedIn;
+              if (filteredPhone && !existingContact.phone) {
+                newFields.phone = filteredPhone;
+                console.log(`➕ CRMSYNC: Phone is NEW: ${filteredPhone}`);
+              }
+              if (currentCompany && !existingContact.company) {
+                newFields.company = currentCompany;
+                console.log(`➕ CRMSYNC: Company is NEW: ${currentCompany}`);
+              }
+              if (currentTitle && !existingContact.title) {
+                newFields.title = currentTitle;
+                console.log(`➕ CRMSYNC: Title is NEW: ${currentTitle}`);
+              }
+              if (currentLinkedIn && !existingContact.linkedin) {
+                newFields.linkedin = currentLinkedIn;
+                console.log(`➕ CRMSYNC: LinkedIn is NEW: ${currentLinkedIn}`);
+              }
+              
+              console.log(`📊 CRMSYNC: Total NEW fields: ${Object.keys(newFields).length}`);
               
               // If new fields found, send to background for update candidate
               if (Object.keys(newFields).length > 0) {
@@ -5531,7 +5563,11 @@
                     console.error(`❌ CRMSYNC: Failed to auto-update:`, response?.error || 'Unknown error');
                   }
                 });
+              } else {
+                console.log(`ℹ️ CRMSYNC: No NEW fields to update for ${contactEmail} (all fields already exist or were excluded)`);
               }
+            } else {
+              console.log(`⚠️ CRMSYNC: Signature rejected or not found for ${contactEmail}`);
             }
           }
           

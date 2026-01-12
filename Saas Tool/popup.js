@@ -269,13 +269,74 @@ async function saveWebsiteAuthToExtension(authData) {
     
     console.log('💾 Auth synced to extension storage!');
     
-    // Fetch exclusions from backend
-    console.log('📥 Fetching user exclusions...');
-    chrome.runtime.sendMessage({ type: 'refreshExclusions' }, (response) => {
+    // Check for pending exclusions from website localStorage
+    console.log('🔍 Checking for pending exclusions from onboarding...');
+    
+    // Try to get exclusions from the website tab that just completed onboarding
+    try {
+      const tabs = await chrome.tabs.query({ url: ['*://crm-sync.net/*', '*://*.crm-sync.net/*'] });
+      
+      for (const tab of tabs) {
+        try {
+          const results = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => {
+              const pending = localStorage.getItem('pendingExclusions');
+              if (pending) {
+                console.log('📦 Found pendingExclusions in localStorage');
+                return JSON.parse(pending);
+              }
+              return null;
+            }
+          });
+          
+          if (results && results[0] && results[0].result) {
+            const exclusions = results[0].result;
+            console.log('✅ Found pending exclusions:', exclusions);
+            
+            // Save to extension storage
+            await chrome.storage.local.set({
+              userExclusions: exclusions
+            });
+            
+            // Also save legacy format
+            await chrome.storage.sync.set({
+              excludeNames: exclusions.exclude_name ? [exclusions.exclude_name] : [],
+              excludeDomains: exclusions.exclude_domains || [],
+              excludePhones: exclusions.exclude_phone ? [exclusions.exclude_phone] : []
+            });
+            
+            console.log('✅ Exclusions synced from onboarding to extension!');
+            
+            // Clear from website localStorage
+            await chrome.scripting.executeScript({
+              target: { tabId: tab.id },
+              func: () => {
+                localStorage.removeItem('pendingExclusions');
+                console.log('🧹 Cleared pendingExclusions from localStorage');
+              }
+            });
+            
+            break; // Found it, stop checking other tabs
+          }
+        } catch (tabError) {
+          console.warn('Could not check tab:', tabError.message);
+        }
+      }
+    } catch (exclusionError) {
+      console.warn('⚠️ Could not sync exclusions from website:', exclusionError.message);
+    }
+    
+    // Fetch exclusions from backend (as fallback or to ensure sync)
+    console.log('📥 Fetching user exclusions from backend...');
+    chrome.runtime.sendMessage({ 
+      action: 'refreshExclusions',
+      token: authData.token 
+    }, (response) => {
       if (chrome.runtime.lastError) {
         console.warn('⚠️ Could not send message to background:', chrome.runtime.lastError.message);
       } else if (response?.success) {
-        console.log('✅ Exclusions fetched and cached!');
+        console.log('✅ Exclusions fetched from backend!');
       } else {
         console.warn('⚠️ Could not fetch exclusions:', response?.error);
       }
@@ -554,6 +615,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Not critical, continue
       });
       console.log('✓ Subscription status loaded');
+      
+      // Log exclusions for debugging
+      console.log('8️⃣ Loading exclusions...');
+      await loadAndDisplayExclusions().catch(err => {
+        console.error('⚠️ Exclusions load failed:', err);
+      });
+      console.log('✓ Exclusions loaded');
       
       // Check if user should see feature tour (first time after onboarding)
       console.log('8️⃣ Checking feature tour status...');
@@ -4611,6 +4679,40 @@ document.addEventListener('change', (e) => {
     updateBulkToolbar();
   }
 });
+
+/**
+ * Load and display exclusions (for debugging and verification)
+ * Shows exclusions in console so user can verify they're saved
+ */
+async function loadAndDisplayExclusions() {
+  try {
+    const exclusions = await chrome.storage.local.get(['userExclusions']);
+    const legacy = await chrome.storage.sync.get(['excludeNames', 'excludeDomains', 'excludePhones']);
+    
+    if (exclusions.userExclusions) {
+      console.log('📋 Current Exclusions:', {
+        name: exclusions.userExclusions.exclude_name || '(none)',
+        email: exclusions.userExclusions.exclude_email || '(none)',
+        phone: exclusions.userExclusions.exclude_phone || '(none)',
+        company: exclusions.userExclusions.exclude_company || '(none)',
+        domains: exclusions.userExclusions.exclude_domains || [],
+        specificEmails: exclusions.userExclusions.exclude_emails || []
+      });
+    } else {
+      console.log('📋 No exclusions set yet');
+    }
+    
+    if (legacy.excludeNames || legacy.excludeDomains || legacy.excludePhones) {
+      console.log('📋 Legacy Exclusions:', {
+        names: legacy.excludeNames || [],
+        domains: legacy.excludeDomains || [],
+        phones: legacy.excludePhones || []
+      });
+    }
+  } catch (error) {
+    console.error('❌ Failed to load exclusions:', error);
+  }
+}
 
 // Initialize bulk actions when popup loads
 setTimeout(() => {

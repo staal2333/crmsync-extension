@@ -172,34 +172,21 @@ export const Exclusions: React.FC = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      // Sync exclusions to extension storage (if extension is installed)
-      if (typeof chrome !== 'undefined' && chrome.storage) {
-        try {
-          await chrome.storage.local.set({
-            userExclusions: {
-              exclude_name: excludeName,
-              exclude_email: excludeEmail,
-              exclude_phone: excludePhone,
-              exclude_company: excludeCompany,
-              exclude_domains: excludeDomains,
-              exclude_emails: excludeEmails,
-              ignore_signature_matches: ignoreSignatureMatches,
-              ignore_internal_threads: ignoreInternalThreads
-            }
-          });
-          
-          // Also update legacy format for backward compatibility
-          await chrome.storage.sync.set({
-            excludeNames: excludeName ? [excludeName] : [],
-            excludeDomains: excludeDomains,
-            excludePhones: excludePhone ? [excludePhone] : []
-          });
-          
-          console.log('✅ Exclusions synced to extension storage');
-        } catch (err) {
-          console.log('Extension not installed or cannot sync:', err);
-        }
-      }
+      // Store exclusions in localStorage for extension to pick up
+      // (chrome.storage API is not available on regular websites, only in extensions)
+      localStorage.setItem('pendingExclusions', JSON.stringify({
+        exclude_name: excludeName,
+        exclude_email: excludeEmail,
+        exclude_phone: excludePhone,
+        exclude_company: excludeCompany,
+        exclude_domains: excludeDomains,
+        exclude_emails: excludeEmails,
+        ignore_signature_matches: ignoreSignatureMatches,
+        ignore_internal_threads: ignoreInternalThreads,
+        timestamp: new Date().toISOString()
+      }));
+      
+      console.log('✅ Exclusions saved to backend and localStorage');
 
       // Navigate to install extension page
       window.location.hash = '/install';

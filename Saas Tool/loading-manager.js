@@ -60,6 +60,7 @@ class LoadingManager {
     }
     
     this.loadingOverlay.classList.remove('hidden');
+    this.loadingOverlay.classList.add('visible');
     logger.log('🔄 Loading:', message);
   }
   
@@ -69,6 +70,7 @@ class LoadingManager {
   hide() {
     if (this.loadingOverlay) {
       this.loadingOverlay.classList.add('hidden');
+      this.loadingOverlay.classList.remove('visible');
       this.loadingOverlay.style.display = 'none'; // Force hide with inline style
     }
   }

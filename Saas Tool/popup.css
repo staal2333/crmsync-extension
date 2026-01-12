@@ -58,7 +58,7 @@
   bottom: 0;
   background: rgba(255, 255, 255, 0.95);
   z-index: 9999;
-  display: none; /* START HIDDEN BY DEFAULT */
+  display: none !important; /* ALWAYS HIDDEN BY DEFAULT */
   align-items: center;
   justify-content: center;
 }
@@ -69,10 +69,12 @@ body.dark-mode .loading-overlay,
   background: rgba(24, 24, 27, 0.95);
 }
 
-.loading-overlay:not(.hidden) {
-  display: flex; /* Only show when NOT hidden */
+/* Only show when explicitly visible (NOT hidden) */
+.loading-overlay.visible {
+  display: flex !important;
 }
 
+/* Force hide when hidden class present */
 .loading-overlay.hidden {
   display: none !important;
 }

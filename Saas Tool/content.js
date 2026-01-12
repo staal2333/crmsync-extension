@@ -5511,6 +5511,7 @@
             if (signature && !textContainsUserEmail(signature)) {
               const searchText = signature || combinedText;
               console.log(`✍️ CRMSYNC: Signature accepted, length: ${searchText.length} chars`);
+              console.log(`📄 CRMSYNC: Signature text (first 500 chars):`, searchText.substring(0, 500));
               
               // Extract current fields from email
               const currentPhone = extractPhone(searchText, contactEmail, userEmails);
@@ -6622,6 +6623,29 @@
   function extractSignatureBlock(bodyText) {
     if (!bodyText) return null;
 
+    // CRITICAL: Remove quoted/replied text first to avoid extracting from previous emails in thread
+    // Look for common quote indicators and cut off everything after them
+    const quotePatterns = [
+      /On\s+.+\s+wrote:/i,                    // "On Mon, Jan 1, 2025 at 10:00 AM, John wrote:"
+      /Den\s+.+\s+skrev:/i,                   // Danish "On ... wrote:"
+      /Fra:\s*.+\nSendt:/i,                   // "From: ... Sent: ..." (Outlook)
+      /From:\s*.+\nSent:/i,                   // "From: ... Sent: ..." (Outlook EN)
+      /^>\s/m,                                // Lines starting with ">" (quoted)
+      /<blockquote/i,                         // HTML blockquote tags
+      /^──────/m,                             // Gmail quote divider
+      /gmail_quote/i                          // Gmail quote class
+    ];
+    
+    let cleanedBody = bodyText;
+    for (const pattern of quotePatterns) {
+      const match = cleanedBody.search(pattern);
+      if (match > 50) { // Only cut if match is after first 50 chars (to preserve real content)
+        cleanedBody = cleanedBody.substring(0, match);
+        console.log(`📧 CRMSYNC: Removed quoted text from position ${match}`);
+        break; // Found and removed quoted text
+      }
+    }
+
     // Common signature separators (English and Danish)
     const separators = [
       /^--\s*$/m,
@@ -6641,14 +6665,14 @@
 
     let signatureStart = -1;
     for (const sep of separators) {
-      const match = bodyText.search(sep);
+      const match = cleanedBody.search(sep);
       if (match > 0 && (signatureStart === -1 || match < signatureStart)) {
         signatureStart = match;
       }
     }
 
     if (signatureStart > 0) {
-      const signature = bodyText.substring(signatureStart);
+      const signature = cleanedBody.substring(signatureStart);
       // Limit signature to last 300 characters (signatures are usually shorter)
       // This prevents including too much body text
       let finalSignature = signature.length > 300 ? signature.substring(signature.length - 300) : signature;
@@ -6676,7 +6700,7 @@
 
     // If no separator found, look for signature patterns in the last portion
     // Typical signatures contain: phone numbers, email, job title, company
-    const lastPortion = bodyText.substring(Math.max(0, bodyText.length - 400));
+    const lastPortion = cleanedBody.substring(Math.max(0, cleanedBody.length - 400));
     
     // Look for signature indicators (phone, email, title patterns)
     const signatureIndicators = [

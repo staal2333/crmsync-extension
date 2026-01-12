@@ -2592,6 +2592,8 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Also initialize when extension is installed/updated  
 chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log(`📦 Extension event: ${details.reason}`);
+  
   if (details.reason === 'install') {
     // First time installation - redirect to website onboarding
     console.log('📦 Extension installed - redirecting to website onboarding');
@@ -2622,6 +2624,23 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     setTimeout(() => {
       initializeAuthAndSync();
     }, 500);
+  } else {
+    // Handle chrome_update, shared_module_update, or other reasons
+    // Check if this is first run (no data in storage)
+    const storage = await chrome.storage.local.get(['authToken', 'hasCompletedOnboarding']);
+    
+    if (!storage.authToken && !storage.hasCompletedOnboarding) {
+      console.log('👋 First run detected (via storage check) - starting onboarding');
+      chrome.tabs.create({
+        url: 'https://crm-sync.net/#/register?source=extension'
+      });
+    } else {
+      // User exists, just initialize
+      console.log('🔄 Extension reloaded, initializing...');
+      setTimeout(() => {
+        initializeAuthAndSync();
+      }, 500);
+    }
   }
 });
 

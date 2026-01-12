@@ -2583,8 +2583,17 @@ async function loadAllContacts() {
     // Update mini stats with limit info
     const allCountEl = document.getElementById('contactLimitInfo');
     if (allCountEl) {
-      // Get limit info from background
+      // Update count immediately (don't wait for background)
+      allCountEl.textContent = allContactsData.length;
+      
+      // Then get limit info from background for enhanced display
       chrome.runtime.sendMessage({ action: 'getContactLimit' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn('Could not get contact limit:', chrome.runtime.lastError);
+          // Keep showing just the count
+          return;
+        }
+        
         if (response && response.success) {
           const { count, limit, isOverLimit, isNearLimit, tier } = response;
           
@@ -2611,8 +2620,6 @@ async function loadAllContacts() {
           
           // Show/hide limit warning banner
           updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit);
-        } else {
-          allCountEl.textContent = allContactsData.length;
         }
       });
     }

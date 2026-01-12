@@ -2169,7 +2169,7 @@ async function getSettings() {
     excludePhones: []
   };
 
-  const localResult = await chrome.storage.local.get(['settings']);
+  const localResult = await chrome.storage.local.get(['settings', 'userExclusions']);
   const syncResult = await chrome.storage.sync.get([
     'settings',
     'excludeNames',
@@ -2177,14 +2177,49 @@ async function getSettings() {
     'excludePhones'
   ]);
 
+  // Prepare exclusion arrays - prioritize NEW format (userExclusions) over legacy format
+  let excludeNames = syncResult.excludeNames || defaultSettings.excludeNames;
+  let excludeDomains = syncResult.excludeDomains || defaultSettings.excludeDomains;
+  let excludePhones = syncResult.excludePhones || defaultSettings.excludePhones;
+
+  // NEW: Check for userExclusions from website onboarding (chrome.storage.local.userExclusions)
+  if (localResult.userExclusions) {
+    const userExcl = localResult.userExclusions;
+    
+    // Build excludeNames from user's name, email, and company
+    const names = [];
+    if (userExcl.exclude_name) names.push(userExcl.exclude_name);
+    if (userExcl.exclude_email) names.push(userExcl.exclude_email);
+    if (userExcl.exclude_company) names.push(userExcl.exclude_company);
+    
+    // Merge with legacy excludeNames
+    excludeNames = [...new Set([...names, ...excludeNames])];
+    
+    // Build excludeDomains from user's domain list
+    if (Array.isArray(userExcl.exclude_domains) && userExcl.exclude_domains.length > 0) {
+      excludeDomains = [...new Set([...userExcl.exclude_domains, ...excludeDomains])];
+    }
+    
+    // Build excludePhones from user's phone
+    if (userExcl.exclude_phone) {
+      excludePhones = [...new Set([userExcl.exclude_phone, ...excludePhones])];
+    }
+    
+    console.log('📋 Loaded exclusions from userExclusions:', {
+      names: excludeNames,
+      domains: excludeDomains,
+      phones: excludePhones
+    });
+  }
+
   return {
     ...defaultSettings,
     ...(localResult.settings || {}),
     ...(syncResult.settings || {}),
-    // Load exclusion arrays from top-level sync storage (set by onboarding)
-    excludeNames: syncResult.excludeNames || defaultSettings.excludeNames,
-    excludeDomains: syncResult.excludeDomains || defaultSettings.excludeDomains,
-    excludePhones: syncResult.excludePhones || defaultSettings.excludePhones,
+    // Use merged exclusion arrays (NEW format + legacy format)
+    excludeNames: excludeNames,
+    excludeDomains: excludeDomains,
+    excludePhones: excludePhones,
     noReplyAfterDays: Array.isArray((syncResult.settings && syncResult.settings.noReplyAfterDays) || (localResult.settings && localResult.settings.noReplyAfterDays))
       ? ((syncResult.settings && syncResult.settings.noReplyAfterDays) || (localResult.settings && localResult.settings.noReplyAfterDays) || [3, 7, 14])
       : [3, 7, 14]

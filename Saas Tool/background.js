@@ -454,6 +454,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ settings: { darkMode: false, autoApprove: false, reminderDays: 3, sidebarEnabled: true, trackedLabels: [], noReplyAfterDays: [3, 7, 14], soundEffects: false, hotkeysEnabled: false } });
       });
     return true;
+  } else if (request.action === 'getPendingUpdates') {
+    // Get pending contact updates for smart update feature
+    chrome.storage.local.get(['pendingUpdates']).then(result => {
+      const updates = result.pendingUpdates || [];
+      console.log('📤 Sending pending updates to popup:', updates.length);
+      sendResponse({ pendingUpdates: updates });
+    }).catch(error => {
+      console.error('❌ Error getting pending updates:', error);
+      sendResponse({ pendingUpdates: [] });
+    });
+    return true;
+  } else if (request.action === 'clearPendingUpdates') {
+    // Clear pending updates (called after user processes them)
+    chrome.storage.local.set({ pendingUpdates: [] }).then(() => {
+      console.log('🧹 Cleared pending updates');
+      sendResponse({ success: true });
+    }).catch(error => {
+      console.error('❌ Error clearing pending updates:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
   } else if (request.action === 'updateSettings') {
     const settings = request.settings || {};
     // Persist full settings locally.
@@ -836,6 +857,129 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
+// =====================================================
+// SMART CONTACT UPDATES - HELPER FUNCTIONS
+// =====================================================
+
+/**
+ * Detect if a contact has new information compared to what's in the CRM
+ * @param {Object} existingContact - Contact currently in local storage
+ * @param {Object} newContact - Updated contact data from Gmail
+ * @returns {Object|null} - Update candidate object or null if no updates
+ */
+async function detectContactUpdates(existingContact, newContact) {
+  try {
+    // Only check if setting is enabled
+    const { settings } = await chrome.storage.local.get(['settings']);
+    if (!settings?.updateExistingContacts) {
+      return null; // Feature disabled
+    }
+    
+    // Only check if contact is synced to a CRM
+    if (!existingContact.crmMappings || Object.keys(existingContact.crmMappings).length === 0) {
+      return null; // Not synced to any CRM
+    }
+    
+    // Detect new fields (fields that new contact has but existing doesn't)
+    const newFields = {};
+    
+    if (newContact.phone && !existingContact.phone) {
+      newFields.phone = newContact.phone;
+    }
+    if (newContact.company && !existingContact.company) {
+      newFields.company = newContact.company;
+    }
+    if (newContact.title && !existingContact.title) {
+      newFields.title = newContact.title;
+    }
+    if (newContact.jobTitle && !existingContact.jobTitle) {
+      newFields.jobTitle = newContact.jobTitle;
+    }
+    if (newContact.linkedin && !existingContact.linkedin) {
+      newFields.linkedin = newContact.linkedin;
+    }
+    
+    // If no new fields, return null
+    if (Object.keys(newFields).length === 0) {
+      return null;
+    }
+    
+    // Return update candidate for each CRM platform
+    const updateCandidates = [];
+    
+    for (const [platform, mapping] of Object.entries(existingContact.crmMappings)) {
+      updateCandidates.push({
+        email: existingContact.email,
+        firstName: existingContact.firstName || newContact.firstName,
+        lastName: existingContact.lastName || newContact.lastName,
+        crmId: mapping.id,
+        platform: platform,
+        newFields: newFields,
+        detectedAt: new Date().toISOString()
+      });
+    }
+    
+    console.log('🔍 Detected contact updates:', {
+      email: existingContact.email,
+      platforms: Object.keys(existingContact.crmMappings),
+      newFields: Object.keys(newFields)
+    });
+    
+    return updateCandidates.length > 0 ? updateCandidates : null;
+    
+  } catch (error) {
+    console.error('❌ Error detecting contact updates:', error);
+    return null;
+  }
+}
+
+/**
+ * Store update candidates for later notification
+ * @param {Array} updateCandidates - Array of update candidate objects
+ */
+async function storeUpdateCandidate(updateCandidates) {
+  try {
+    if (!updateCandidates || updateCandidates.length === 0) {
+      return;
+    }
+    
+    // Get existing update candidates
+    const { pendingUpdates = [] } = await chrome.storage.local.get(['pendingUpdates']);
+    
+    // Add new candidates (avoid duplicates by email+platform)
+    for (const candidate of updateCandidates) {
+      const exists = pendingUpdates.some(
+        existing => existing.email === candidate.email && existing.platform === candidate.platform
+      );
+      
+      if (!exists) {
+        pendingUpdates.push(candidate);
+      }
+    }
+    
+    // Save back to storage
+    await chrome.storage.local.set({ pendingUpdates });
+    
+    console.log('💾 Stored update candidates:', {
+      count: updateCandidates.length,
+      total: pendingUpdates.length
+    });
+    
+    // Notify popup if it's open (optional)
+    try {
+      chrome.runtime.sendMessage({
+        action: 'UPDATE_CANDIDATES_AVAILABLE',
+        count: pendingUpdates.length
+      });
+    } catch (e) {
+      // Popup not open, that's fine
+    }
+    
+  } catch (error) {
+    console.error('❌ Error storing update candidates:', error);
+  }
+}
+
 /**
  * Legacy saveContact used by older content flows.
  * Kept for compatibility; writes into the same CrmContact array.
@@ -858,6 +1002,11 @@ async function saveContact(contact) {
   const lastContactAt = contact.lastContactAt || contact.lastContact || now;
   
   if (existingIndex >= 0) {
+    const existingContact = contacts[existingIndex];
+    
+    // Check if this contact is synced to a CRM and has new information
+    const updateCandidates = await detectContactUpdates(existingContact, contact);
+    
     // Merge with existing contact
     contacts[existingIndex] = {
       ...contacts[existingIndex],
@@ -868,9 +1017,14 @@ async function saveContact(contact) {
       firstContactAt: contacts[existingIndex].firstContactAt || contacts[existingIndex].createdAt || now,
       lastUpdated: now
     };
-    
+
     // Save updated contact
     await chrome.storage.local.set({ contacts });
+    
+    // If we found new fields, store update candidates for notification
+    if (updateCandidates) {
+      await storeUpdateCandidate(updateCandidates);
+    }
   } else {
     // Check contact limit before adding new contact (soft limit - allows starting operation if under limit)
     const limitCheck = await checkContactLimit(contacts.length);

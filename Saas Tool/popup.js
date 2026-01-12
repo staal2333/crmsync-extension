@@ -623,8 +623,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       console.log('✓ Exclusions loaded');
       
+      // Check for pending contact updates (Smart Updates feature)
+      console.log('9️⃣ Checking for pending contact updates...');
+      await checkPendingUpdates().catch(err => {
+        console.error('⚠️ Pending updates check failed:', err);
+      });
+      console.log('✓ Pending updates checked');
+      
       // Check if user should see feature tour (first time after onboarding)
-      console.log('8️⃣ Checking feature tour status...');
+      console.log('1️⃣0️⃣ Checking feature tour status...');
       const { hasSeenTour, onboardingCompleted } = await chrome.storage.local.get(['hasSeenTour', 'onboardingCompleted']);
       if (onboardingCompleted && !hasSeenTour && window.featureTour) {
         // Auto-start tour after 2 seconds
@@ -4705,7 +4712,7 @@ async function loadAndDisplayExclusions() {
   try {
     const exclusions = await chrome.storage.local.get(['userExclusions']);
     const legacy = await chrome.storage.sync.get(['excludeNames', 'excludeDomains', 'excludePhones']);
-    
+
     if (exclusions.userExclusions) {
       console.log('📋 Current Exclusions:', {
         name: exclusions.userExclusions.exclude_name || '(none)',
@@ -4718,7 +4725,7 @@ async function loadAndDisplayExclusions() {
     } else {
       console.log('📋 No exclusions set yet');
     }
-    
+
     if (legacy.excludeNames || legacy.excludeDomains || legacy.excludePhones) {
       console.log('📋 Legacy Exclusions:', {
         names: legacy.excludeNames || [],
@@ -4728,6 +4735,56 @@ async function loadAndDisplayExclusions() {
     }
   } catch (error) {
     console.error('❌ Failed to load exclusions:', error);
+  }
+}
+
+/**
+ * Check for pending contact updates and show notification if any exist
+ */
+async function checkPendingUpdates() {
+  try {
+    // Check if user is authenticated
+    const { isAuthenticated } = await chrome.storage.local.get(['isAuthenticated']);
+    if (!isAuthenticated) {
+      return; // Don't check if user not logged in
+    }
+    
+    // Check if feature is enabled
+    const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
+    if (!response?.settings?.updateExistingContacts) {
+      return; // Feature disabled
+    }
+    
+    // Get pending updates from background
+    const updatesResponse = await chrome.runtime.sendMessage({ action: 'getPendingUpdates' });
+    const pendingUpdates = updatesResponse?.pendingUpdates || [];
+    
+    if (pendingUpdates.length === 0) {
+      console.log('✓ No pending contact updates');
+      return;
+    }
+    
+    console.log(`🔔 Found ${pendingUpdates.length} pending contact update(s)`);
+    
+    // Group by platform (HubSpot vs Salesforce)
+    const byPlatform = pendingUpdates.reduce((acc, update) => {
+      if (!acc[update.platform]) acc[update.platform] = [];
+      acc[update.platform].push(update);
+      return {};
+    }, {});
+    
+    // Show notification for each platform (usually just one)
+    for (const [platform, updates] of Object.entries(byPlatform)) {
+      if (window.integrationManager) {
+        // Small delay to let UI fully load first
+        setTimeout(() => {
+          window.integrationManager.showUpdateNotification(updates, platform);
+        }, 1500);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Failed to check pending updates:', error);
   }
 }
 

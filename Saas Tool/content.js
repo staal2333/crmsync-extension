@@ -5467,8 +5467,40 @@
               linkedin: existingContact.linkedin || 'MISSING'
             });
             
-            // Extract current signature to see if there's NEW information
+            // CRITICAL: Only extract from messages FROM the contact (inbound), not from YOUR replies
+            // Check if this message is FROM the contact by looking at email span positions
             const messageBody = messageContainer.querySelector('.a3s, .ii, [data-message-id]') || messageContainer;
+            const emailSpans = messageContainer.querySelectorAll('span[email], span[data-email]');
+            
+            // Find if contact's email appears as "From" (usually first email in message header)
+            let isInboundFromContact = false;
+            if (emailSpans.length > 0) {
+              const firstEmailSpan = emailSpans[0];
+              const firstEmail = (firstEmailSpan.getAttribute('email') || firstEmailSpan.getAttribute('data-email') || '').toLowerCase();
+              isInboundFromContact = firstEmail === contactEmail.toLowerCase();
+            }
+            
+            // Also check message headers for "From:" line
+            if (!isInboundFromContact) {
+              const headerText = messageBody.textContent || '';
+              const first100Lines = headerText.split('\n').slice(0, 100).join('\n');
+              const fromMatch = first100Lines.match(/^From:.*?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/im);
+              if (fromMatch) {
+                const fromEmail = fromMatch[1].toLowerCase();
+                isInboundFromContact = fromEmail === contactEmail.toLowerCase();
+              }
+            }
+            
+            console.log(`📨 CRMSYNC: Is this message FROM ${contactEmail}? ${isInboundFromContact}`);
+            
+            // Only extract if message is FROM the contact
+            if (!isInboundFromContact) {
+              console.log(`⏭️ CRMSYNC: Skipping - this message is from YOU (outbound), not from ${contactEmail}`);
+              skipped.existing++;
+              continue;
+            }
+            
+            // Extract current signature to see if there's NEW information
             const bodyText = messageBody.textContent || '';
             const bodyHtml = messageBody.innerHTML || '';
             const combinedText = bodyText + ' ' + bodyHtml.replace(/<[^>]+>/g, ' ');

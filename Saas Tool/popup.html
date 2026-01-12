@@ -935,6 +935,13 @@
       to { transform: rotate(360deg); }
     }
     
+    /* CRITICAL FIX: Ensure tab content expands to show all contacts */
+    .tab-content {
+      min-height: 400px !important;
+      height: auto !important;
+      overflow: visible !important;
+    }
+    
     /* Inline Loading */
     .inline-loading {
       display: flex;

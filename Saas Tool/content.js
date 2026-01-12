@@ -3887,7 +3887,7 @@
               font-weight: 600;
               font-size: 12px;
               cursor: pointer;
-            ">Review</button>
+            ">Review in Popup</button>
             <button class="update-dismiss-btn" style="
               background: transparent;
               color: white;
@@ -3897,7 +3897,7 @@
               font-weight: 600;
               font-size: 12px;
               cursor: pointer;
-            ">Dismiss</button>
+            ">Later</button>
           </div>
         </div>
       </div>
@@ -3918,6 +3918,16 @@
             opacity: 1;
           }
         }
+        @keyframes slideOutRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+        }
       `;
       document.head.appendChild(style);
     }
@@ -3927,31 +3937,25 @@
     // Event listeners
     notification.querySelector('.update-review-btn').addEventListener('click', () => {
       notification.remove();
-      // Open popup and trigger review
+      // Send message to open popup (popup will check pendingUpdates and show modal)
       chrome.runtime.sendMessage({
-        action: 'openPopupToReview',
-        updates: updateCandidates
+        action: 'openPopupAndShowUpdates'
       });
+      // Try to open popup programmatically
+      chrome.runtime.sendMessage({ action: 'focusPopup' });
     });
     
     notification.querySelector('.update-dismiss-btn').addEventListener('click', () => {
       notification.remove();
-      // Clear this specific update
-      chrome.storage.local.get(['pendingUpdates'], (result) => {
-        const remaining = (result.pendingUpdates || []).filter(
-          u => u.email !== candidate.email || u.platform !== candidate.platform
-        );
-        chrome.storage.local.set({ pendingUpdates: remaining });
-      });
     });
     
-    // Auto-dismiss after 15 seconds
+    // Auto-dismiss after 20 seconds
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.3s ease';
         setTimeout(() => notification.remove(), 300);
       }
-    }, 15000);
+    }, 20000);
   }
 
   function getLatestContact() {
@@ -5379,16 +5383,60 @@
         if (existingContact || existingPending) {
           console.log(`⏭️ CRMSYNC: ${contactEmail} already exists`);
           
-          // NEW: Check if this contact has pending updates
-          chrome.storage.local.get(['pendingUpdates'], (result) => {
-            const updates = (result.pendingUpdates || []).filter(u => 
-              u.email.toLowerCase() === contactEmail.toLowerCase()
-            );
-            if (updates.length > 0) {
-              console.log(`🔔 CRMSYNC: Found ${updates.length} pending update(s) for ${contactEmail}`);
-              showContactUpdateNotification(updates);
+          // NEW: Check if contact has CRM mapping and extract current signature to find updates
+          if (existingContact && existingContact.crmMappings && Object.keys(existingContact.crmMappings).length > 0) {
+            // Extract current signature to see if there's NEW information
+            const messageBody = messageContainer.querySelector('.a3s, .ii, [data-message-id]') || messageContainer;
+            const bodyText = messageBody.textContent || '';
+            const bodyHtml = messageBody.innerHTML || '';
+            const combinedText = bodyText + ' ' + bodyHtml.replace(/<[^>]+>/g, ' ');
+            
+            let signature = extractSignatureBlock(combinedText);
+            if (signature && !textContainsUserEmail(signature)) {
+              const searchText = signature || combinedText;
+              
+              // Extract current fields from email
+              const currentPhone = extractPhone(searchText, contactEmail, userEmails);
+              const currentCompany = extractCompany(searchText);
+              const currentTitle = extractJobTitle(searchText);
+              const currentLinkedIn = extractLinkedIn(searchText);
+              
+              // Compare with stored contact to find NEW fields
+              const newFields = {};
+              if (currentPhone && !existingContact.phone) newFields.phone = currentPhone;
+              if (currentCompany && !existingContact.company) newFields.company = currentCompany;
+              if (currentTitle && !existingContact.title) newFields.title = currentTitle;
+              if (currentLinkedIn && !existingContact.linkedin) newFields.linkedin = currentLinkedIn;
+              
+              // If new fields found, send to background for update candidate
+              if (Object.keys(newFields).length > 0) {
+                console.log(`✨ CRMSYNC: Found NEW fields for ${contactEmail}:`, newFields);
+                
+                // Send to background to store update candidate
+                chrome.runtime.sendMessage({
+                  action: 'storeUpdateCandidate',
+                  contact: existingContact,
+                  newFields: newFields
+                }, (response) => {
+                  if (response && response.success) {
+                    console.log(`💾 CRMSYNC: Update candidate stored for ${contactEmail}`);
+                    // Show notification immediately (debounced)
+                    const notificationKey = `update-notif-${contactEmail}`;
+                    const lastShown = sessionStorage.getItem(notificationKey);
+                    const now = Date.now();
+                    
+                    // Only show once per 60 seconds to avoid loop
+                    if (!lastShown || (now - parseInt(lastShown)) > 60000) {
+                      sessionStorage.setItem(notificationKey, now.toString());
+                      if (response.updateCandidate) {
+                        showContactUpdateNotification([response.updateCandidate]);
+                      }
+                    }
+                  }
+                });
+              }
             }
-          });
+          }
           
           skipped.existing++;
           continue;

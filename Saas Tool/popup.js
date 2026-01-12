@@ -688,6 +688,37 @@ function setupAuthListener() {
       sendResponse({ received: true });
     }
     
+    // Handle request to open popup and show update review
+    if (message.action === 'openPopupAndShowUpdates') {
+      console.log('📬 Request to show update review from Gmail');
+      
+      // Switch to CRM tab
+      const crmTab = document.querySelector('[data-tab="integrations"]');
+      if (crmTab) {
+        crmTab.click();
+      }
+      
+      // Get pending updates and show modal
+      setTimeout(async () => {
+        const response = await chrome.runtime.sendMessage({ action: 'getPendingUpdates' });
+        const updates = response?.pendingUpdates || [];
+        
+        if (updates.length > 0 && window.integrationManager) {
+          // Group by platform
+          const hubspotUpdates = updates.filter(u => u.platform === 'hubspot');
+          const salesforceUpdates = updates.filter(u => u.platform === 'salesforce');
+          
+          if (hubspotUpdates.length > 0) {
+            window.integrationManager.showUpdateReviewModal(hubspotUpdates, 'hubspot');
+          } else if (salesforceUpdates.length > 0) {
+            window.integrationManager.showUpdateReviewModal(salesforceUpdates, 'salesforce');
+          }
+        }
+      }, 500);
+      
+      sendResponse({ received: true });
+    }
+    
   // Handle HubSpot sync completion
   if (message.type === 'HUBSPOT_SYNC_COMPLETE') {
     console.log('✅ HubSpot sync completed!', message.stats);

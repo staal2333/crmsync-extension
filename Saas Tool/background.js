@@ -475,6 +475,66 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sendResponse({ success: false, error: error.message });
     });
     return true;
+  } else if (request.action === 'storeUpdateCandidate') {
+    // Store single update candidate from content script
+    (async () => {
+      try {
+        const { contact, newFields } = request;
+        
+        if (!contact || !contact.crmMappings || Object.keys(contact.crmMappings).length === 0) {
+          sendResponse({ success: false, error: 'Contact not synced to CRM' });
+          return;
+        }
+        
+        // Check if setting is enabled
+        const { settings } = await chrome.storage.local.get(['settings']);
+        if (!settings?.updateExistingContacts) {
+          sendResponse({ success: false, error: 'Feature disabled' });
+          return;
+        }
+        
+        // Create update candidates for each CRM platform
+        const updateCandidates = [];
+        for (const [platform, mapping] of Object.entries(contact.crmMappings)) {
+          updateCandidates.push({
+            email: contact.email,
+            firstName: contact.firstName,
+            lastName: contact.lastName,
+            crmId: mapping.id,
+            platform: platform,
+            newFields: newFields,
+            detectedAt: new Date().toISOString()
+          });
+        }
+        
+        // Get existing pending updates
+        const { pendingUpdates = [] } = await chrome.storage.local.get(['pendingUpdates']);
+        
+        // Add new candidates (avoid duplicates by email+platform)
+        for (const candidate of updateCandidates) {
+          const exists = pendingUpdates.some(
+            existing => existing.email === candidate.email && existing.platform === candidate.platform
+          );
+          
+          if (!exists) {
+            pendingUpdates.push(candidate);
+            console.log(`💾 Stored update candidate for ${candidate.email} (${candidate.platform})`);
+          }
+        }
+        
+        // Save back
+        await chrome.storage.local.set({ pendingUpdates });
+        
+        sendResponse({ 
+          success: true, 
+          updateCandidate: updateCandidates[0] // Return first one for immediate notification
+        });
+      } catch (error) {
+        console.error('❌ Error storing update candidate:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
   } else if (request.action === 'updateSettings') {
     const settings = request.settings || {};
     // Persist full settings locally.

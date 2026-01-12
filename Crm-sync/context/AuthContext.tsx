@@ -5,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User, refreshToken?: string) => void;
   logout: () => void;
   updateUser: (user: User) => void;
   refreshUser: () => Promise<void>;
@@ -67,20 +67,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
   }, []);
 
-  const login = (newToken: string, newUser: User) => {
+  const login = (newToken: string, newUser: User, refreshToken?: string) => {
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser)); // Store user as backup
+    
+    // Store refresh token if provided
+    if (refreshToken) {
+      localStorage.setItem('refreshToken', refreshToken);
+      console.log('💾 AuthContext: Refresh token stored');
+    }
+    
     setToken(newToken);
     setUser(newUser);
     console.log('✅ AuthContext: User logged in and stored:', newUser.email);
+    
+    // Also store in extension if it's installed
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({
+        authToken: newToken,
+        refreshToken: refreshToken || null,
+        user: {
+          email: newUser.email,
+          name: newUser.name || newUser.displayName || '',
+          firstName: newUser.firstName || '',
+          lastName: newUser.lastName || '',
+          tier: newUser.tier || newUser.subscriptionTier || 'free',
+          avatar: newUser.avatarUrl || ''
+        },
+        isAuthenticated: true,
+        authTimestamp: Date.now()
+      }).then(() => {
+        console.log('✅ Auth data synced to extension');
+      }).catch(err => {
+        console.log('Extension not installed or cannot sync:', err.message);
+      });
+    }
   };
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     console.log('🔓 AuthContext: User logged out');
+    
+    // Also clear extension storage
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.remove(['authToken', 'refreshToken', 'user', 'isAuthenticated']).catch(() => {});
+    }
   };
 
   const updateUser = (updatedUser: User) => {

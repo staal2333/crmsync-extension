@@ -56,7 +56,7 @@ export const Login: React.FC<{ onNavigate: (page: string) => void }> = ({ onNavi
     setIsLoading(true);
     try {
       const data = await authService.login(email, password);
-      login(data.token, data.user);
+      login(data.token, data.user, data.refreshToken);
       
       // If logging in from extension, they're likely a returning user
       // Send them to Done page (skip onboarding)

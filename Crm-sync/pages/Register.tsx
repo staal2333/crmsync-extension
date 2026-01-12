@@ -70,7 +70,7 @@ export const Register: React.FC<{ onNavigate: (page: string) => void }> = ({ onN
     setIsLoading(true);
     try {
       const data = await authService.register(name, email, password);
-      login(data.token, data.user);
+      login(data.token, data.user, data.refreshToken);
       
       // If coming from extension, start onboarding flow
       if (isExtensionRegister) {

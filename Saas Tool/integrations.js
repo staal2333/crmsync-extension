@@ -994,11 +994,15 @@ class IntegrationManager {
         pullBtn.innerHTML = '<span>⏳ Syncing...</span>';
       }
       
+      // Get current contact count for stats
+      const beforeSync = await chrome.storage.local.get(['contacts']);
+      const beforeCount = (beforeSync.contacts || []).length;
+      
       // Send message to background script to trigger sync
       chrome.runtime.sendMessage({
         action: 'TRIGGER_HUBSPOT_SYNC',
         token
-      }, (response) => {
+      }, async (response) => {
         if (chrome.runtime.lastError) {
           console.error('Error triggering sync:', chrome.runtime.lastError);
           this.showNotification('Failed to start sync', 'error');
@@ -1010,18 +1014,40 @@ class IntegrationManager {
           return;
         }
         
-        console.log('✅ HubSpot sync triggered:', response);
+        console.log('✅ HubSpot sync response:', response);
         
-        // The background script will send a completion message
-        // when sync is done, which will be handled by popup.js
+        // Get updated contact count
+        const afterSync = await chrome.storage.local.get(['contacts', 'hubSpotSyncStats']);
+        const afterCount = (afterSync.contacts || []).length;
+        const stats = afterSync.hubSpotSyncStats || {};
         
-        // Re-enable button after a short delay
-        setTimeout(() => {
-          if (pullBtn) {
-            pullBtn.disabled = false;
-            pullBtn.innerHTML = originalText;
-          }
-        }, 3000);
+        // Calculate actual new contacts
+        const newContacts = stats.newContacts || (afterCount - beforeCount);
+        const updatedContacts = stats.updatedContacts || 0;
+        
+        // Show completion message with stats
+        if (newContacts > 0 || updatedContacts > 0) {
+          this.showNotification(
+            `✅ Synced: ${newContacts} new, ${updatedContacts} updated`, 
+            'success'
+          );
+        } else {
+          this.showNotification('✅ Sync complete - all contacts up to date', 'success');
+        }
+        
+        // Re-enable button
+        if (pullBtn) {
+          pullBtn.disabled = false;
+          pullBtn.innerHTML = originalText;
+        }
+        
+        // Refresh contacts display
+        if (window.loadAllContacts) {
+          await window.loadAllContacts();
+        }
+        
+        // Update integration status to show sync stats
+        await this.checkIntegrationStatus();
       });
       
     } catch (error) {

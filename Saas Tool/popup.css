@@ -58,9 +58,19 @@
   bottom: 0;
   background: rgba(255, 255, 255, 0.95);
   z-index: 9999;
-  display: flex;
+  display: none; /* START HIDDEN BY DEFAULT */
   align-items: center;
   justify-content: center;
+}
+
+/* Dark mode overlay */
+body.dark-mode .loading-overlay,
+[data-theme="dark"] .loading-overlay {
+  background: rgba(24, 24, 27, 0.95);
+}
+
+.loading-overlay:not(.hidden) {
+  display: flex; /* Only show when NOT hidden */
 }
 
 .loading-overlay.hidden {
@@ -2639,5 +2649,6 @@ body.bulk-mode .contact-checkbox {
      f o n t - w e i g h t :   6 0 0 ; 
      t e x t - t r a n s f o r m :   u p p e r c a s e ; 
      m a r g i n - l e f t :   8 p x ; 
- }  
+ } 
+ 
  

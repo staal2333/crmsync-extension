@@ -1461,19 +1461,40 @@ function updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit) 
  */
 async function updateContactLimitProgress(currentCount) {
   try {
-    // Get limit info
-    const response = await chrome.runtime.sendMessage({ action: 'getContactLimit' });
-    if (!response || !response.success) return;
-    
-    const { limit, tier } = response;
-    const percentage = limit === -1 ? 0 : Math.min((currentCount / limit) * 100, 100);
-    
-    // Update elements
+    // Update elements immediately with basic info
     const progressText = document.getElementById('limitProgressText');
     const progressPercent = document.getElementById('limitProgressPercent');
     const progressBar = document.getElementById('limitProgressBar');
     const progressWarning = document.getElementById('limitProgressWarning');
     const progressWarningText = document.getElementById('limitProgressWarningText');
+    
+    // Get user tier directly from storage (faster)
+    const { user } = await chrome.storage.local.get(['user']);
+    const tier = user?.tier || 'free';
+    
+    // Set default display based on tier
+    if (tier === 'pro' || tier === 'business' || tier === 'enterprise') {
+      // Unlimited tiers
+      if (progressText) progressText.textContent = `${currentCount} contacts (Unlimited)`;
+      if (progressPercent) progressPercent.textContent = '';
+      if (progressBar) {
+        progressBar.style.width = '0%';
+        progressBar.style.background = 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)';
+      }
+      if (progressWarning) progressWarning.style.display = 'none';
+      return; // No need to check limit for unlimited tiers
+    }
+    
+    // For free tier, get limit info from background
+    const response = await chrome.runtime.sendMessage({ action: 'getContactLimit' });
+    if (!response || !response.success) {
+      // Fallback for free tier if message fails
+      if (progressText) progressText.textContent = `${currentCount} / 50 contacts`;
+      return;
+    }
+    
+    const { limit } = response;
+    const percentage = limit === -1 ? 0 : Math.min((currentCount / limit) * 100, 100);
     
     if (progressText) {
       if (limit === -1) {

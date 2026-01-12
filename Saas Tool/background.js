@@ -99,11 +99,11 @@ const TIER_LIMITS = {
     exports: 10
   },
   pro: {
-    contacts: 1000,
+    contacts: -1, // unlimited
     exports: -1 // unlimited
   },
   business: {
-    contacts: 1000,
+    contacts: -1, // unlimited
     exports: -1 // unlimited
   },
   enterprise: {

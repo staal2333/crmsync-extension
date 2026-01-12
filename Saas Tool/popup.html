@@ -576,8 +576,8 @@
         </div>
       </div>
 
-      <!-- Sync Rules & Settings -->
-      <div class="sync-rules-section" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #667eea;">
+      <!-- Sync Rules & Settings (only show when CRM connected) -->
+      <div class="sync-rules-section" id="sync-rules-section" style="display: none; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #667eea;">
         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
           <span style="font-size: 20px;">⚙️</span>
           <h3 style="font-size: 14px; font-weight: 600; margin: 0;">Sync Rules</h3>
@@ -610,8 +610,8 @@
         </div>
       </div>
 
-      <!-- Sync Status Overview -->
-      <div class="sync-status-section" style="margin-bottom: 20px;">
+      <!-- Sync Status Overview (only show when CRM connected) -->
+      <div class="sync-status-section" id="sync-status-section" style="display: none; margin-bottom: 20px;">
         <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text);">📊 Sync Status Overview</h3>
         
         <!-- HubSpot Sync Status -->

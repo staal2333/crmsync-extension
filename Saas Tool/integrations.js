@@ -368,8 +368,29 @@ class IntegrationManager {
       
       this.statusCache.lastChecked = new Date();
       console.log('✅ Integration status updated');
+      
+      // Show/hide sync sections based on connection status
+      const anyConnected = this.statusCache.hubspot?.connected || this.statusCache.salesforce?.connected;
+      const syncRulesSection = document.getElementById('sync-rules-section');
+      const syncStatusSection = document.getElementById('sync-status-section');
+      
+      if (syncRulesSection) {
+        syncRulesSection.style.display = anyConnected ? 'block' : 'none';
+      }
+      if (syncStatusSection) {
+        syncStatusSection.style.display = anyConnected ? 'block' : 'none';
+      }
     } catch (error) {
       console.error('❌ Failed to check integration status:', error);
+      
+      // If auth error (403), clear tokens and show error
+      if (error.message && error.message.includes('403')) {
+        console.warn('🔐 Token expired - user needs to re-login');
+        // Show toast notification
+        if (typeof showToast === 'function') {
+          showToast('Session expired. Please sign in again.', true);
+        }
+      }
     }
   }
   

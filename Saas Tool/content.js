@@ -3828,6 +3828,77 @@
   }
 
   /**
+   * Show simple success notification after auto-updating contact
+   */
+  function showContactUpdateSuccessNotification(email, newFields, platforms) {
+    // Remove any existing notification
+    const existing = document.querySelector('.crmsync-update-success');
+    if (existing) existing.remove();
+    
+    const platformText = platforms ? platforms.join(', ') : 'CRM';
+    const fieldsText = Object.keys(newFields).join(', ');
+    
+    const notification = document.createElement('div');
+    notification.className = 'crmsync-update-success';
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      max-width: 300px;
+      animation: slideInRight 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">✅</span>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+            Contact Updated
+          </div>
+          <div style="font-size: 11px; opacity: 0.9;">
+            ${fieldsText} synced to ${platformText}
+          </div>
+        </div>
+        <button style="
+          background: transparent;
+          border: none;
+          color: white;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 0;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">&times;</button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Close button
+    notification.querySelector('button').addEventListener('click', () => {
+      notification.remove();
+    });
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 5000);
+  }
+
+  /**
    * Show update notification in Gmail for contacts with new information
    * Similar to new contact detection but for updates
    */
@@ -5401,9 +5472,26 @@
               const currentTitle = extractJobTitle(searchText);
               const currentLinkedIn = extractLinkedIn(searchText);
               
+              // Filter out excluded phone
+              let filteredPhone = currentPhone;
+              if (currentPhone && settings.excludePhones && settings.excludePhones.length > 0) {
+                const normalizedPhone = currentPhone.replace(/[\s\-\(\)\.]/g, '');
+                const isPhoneExcluded = settings.excludePhones.some(excludedPhone => {
+                  const normalizedExcluded = excludedPhone.replace(/[\s\-\(\)\.]/g, '');
+                  return normalizedPhone === normalizedExcluded ||
+                         normalizedPhone.includes(normalizedExcluded) ||
+                         normalizedExcluded.includes(normalizedPhone);
+                });
+                
+                if (isPhoneExcluded) {
+                  console.log(`⚠️ CRMSYNC: Phone "${currentPhone}" is excluded, not adding to update`);
+                  filteredPhone = null;
+                }
+              }
+              
               // Compare with stored contact to find NEW fields
               const newFields = {};
-              if (currentPhone && !existingContact.phone) newFields.phone = currentPhone;
+              if (filteredPhone && !existingContact.phone) newFields.phone = filteredPhone;
               if (currentCompany && !existingContact.company) newFields.company = currentCompany;
               if (currentTitle && !existingContact.title) newFields.title = currentTitle;
               if (currentLinkedIn && !existingContact.linkedin) newFields.linkedin = currentLinkedIn;
@@ -5411,45 +5499,36 @@
               // If new fields found, send to background for update candidate
               if (Object.keys(newFields).length > 0) {
                 console.log(`✨ CRMSYNC: Found NEW fields for ${contactEmail}:`, newFields);
-                console.log(`📤 CRMSYNC: Sending storeUpdateCandidate message to background...`);
+                console.log(`🚀 CRMSYNC: Auto-updating contact immediately...`);
                 
-                // Send to background to store update candidate
+                // Auto-update immediately (no modal)
                 chrome.runtime.sendMessage({
-                  action: 'storeUpdateCandidate',
+                  action: 'autoUpdateContact',
                   contact: existingContact,
                   newFields: newFields
                 }, (response) => {
-                  // Check for runtime errors
                   if (chrome.runtime.lastError) {
-                    console.error(`❌ CRMSYNC: Runtime error storing update:`, chrome.runtime.lastError);
+                    console.error(`❌ CRMSYNC: Runtime error auto-updating:`, chrome.runtime.lastError);
                     return;
                   }
                   
-                  console.log(`📥 CRMSYNC: Received response from background:`, response);
+                  console.log(`📥 CRMSYNC: Auto-update response:`, response);
                   
                   if (response && response.success) {
-                    console.log(`💾 CRMSYNC: Update candidate stored for ${contactEmail}`);
-                    // Show notification immediately (debounced)
+                    console.log(`✅ CRMSYNC: Contact auto-updated for ${contactEmail}`);
+                    
+                    // Show subtle success notification (once per contact per session)
                     const notificationKey = `update-notif-${contactEmail}`;
                     const lastShown = sessionStorage.getItem(notificationKey);
                     const now = Date.now();
                     
-                    console.log(`🔍 CRMSYNC: Debounce check - lastShown: ${lastShown}, now: ${now}`);
-                    
-                    // Only show once per 60 seconds to avoid loop
+                    // Only show once per 60 seconds
                     if (!lastShown || (now - parseInt(lastShown)) > 60000) {
                       sessionStorage.setItem(notificationKey, now.toString());
-                      console.log(`🔔 CRMSYNC: Debounce passed, showing notification`);
-                      if (response.updateCandidate) {
-                        showContactUpdateNotification([response.updateCandidate]);
-                      } else {
-                        console.warn(`⚠️ CRMSYNC: No updateCandidate in response`);
-                      }
-                    } else {
-                      console.log(`⏭️ CRMSYNC: Debounce blocked (shown ${Math.round((now - parseInt(lastShown)) / 1000)}s ago)`);
+                      showContactUpdateSuccessNotification(contactEmail, newFields, response.platforms);
                     }
                   } else {
-                    console.error(`❌ CRMSYNC: Failed to store update candidate:`, response?.error || 'Unknown error');
+                    console.error(`❌ CRMSYNC: Failed to auto-update:`, response?.error || 'Unknown error');
                   }
                 });
               }
@@ -5520,13 +5599,31 @@
           extractedName = null;
         }
         
+        // NEW: Check if phone is excluded
+        let filteredPhone = phone;
+        if (phone && settings.excludePhones && settings.excludePhones.length > 0) {
+          // Normalize both extracted phone and excluded phones
+          const normalizedPhone = phone.replace(/[\s\-\(\)\.]/g, '');
+          const isPhoneExcluded = settings.excludePhones.some(excludedPhone => {
+            const normalizedExcluded = excludedPhone.replace(/[\s\-\(\)\.]/g, '');
+            return normalizedPhone === normalizedExcluded ||
+                   normalizedPhone.includes(normalizedExcluded) ||
+                   normalizedExcluded.includes(normalizedPhone);
+          });
+          
+          if (isPhoneExcluded) {
+            console.log(`⚠️ CRMSYNC: Extracted phone "${phone}" is in exclusion list, clearing it`);
+            filteredPhone = null;
+          }
+        }
+        
         const { firstName, lastName } = splitName(extractedName);
         
         console.log(`📋 CRMSYNC: Extracted data for ${contactEmail}:`);
         console.log(`   👤 Name: ${getFullName(firstName, lastName) || 'NOT FOUND'} (First: ${firstName || 'N/A'}, Last: ${lastName || 'N/A'})`);
         console.log(`   🏢 Company: ${company || 'NOT FOUND'}`);
         console.log(`   💼 Job Title: ${jobTitle || 'NOT FOUND'}`);
-        console.log(`   📞 Phone: ${phone || 'NOT FOUND'}`);
+        console.log(`   📞 Phone: ${filteredPhone || 'NOT FOUND'} ${filteredPhone !== phone ? '(EXCLUDED)' : ''}`);
         console.log(`   🔗 LinkedIn: ${linkedin || 'NOT FOUND'}`);
         
         // Create contact
@@ -5536,7 +5633,7 @@
           lastName: lastName,
           jobTitle: jobTitle,
           company: company || (domainHint ? domainHint.charAt(0).toUpperCase() + domainHint.slice(1) : null),
-          phone: phone,
+          phone: filteredPhone,
           linkedin: linkedin,
           lastContact: new Date().toISOString(),
           status: 'New'

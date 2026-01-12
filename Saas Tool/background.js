@@ -550,6 +550,84 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
     })();
     return true;
+  } else if (request.action === 'autoUpdateContact') {
+    // Auto-update contact immediately (no modal)
+    console.log('🚀 BACKGROUND: Auto-update contact:', request.contact?.email);
+    (async () => {
+      try {
+        const { contact, newFields } = request;
+        
+        if (!contact || !contact.crmMappings || Object.keys(contact.crmMappings).length === 0) {
+          sendResponse({ success: false, error: 'Contact not synced to CRM' });
+          return;
+        }
+
+        // Check if setting is enabled
+        const { settings } = await chrome.storage.local.get(['settings']);
+        if (!settings?.updateExistingContacts) {
+          sendResponse({ success: false, error: 'Feature disabled' });
+          return;
+        }
+
+        const authToken = await getAuthToken();
+        if (!authToken) {
+          sendResponse({ success: false, error: 'Not authenticated' });
+          return;
+        }
+
+        const platforms = [];
+        
+        // Update in each CRM platform
+        for (const [platform, mapping] of Object.entries(contact.crmMappings)) {
+          try {
+            const endpoint = `${API_URL}/integrations/${platform}/update-contact`;
+            const response = await fetch(endpoint, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+              },
+              body: JSON.stringify({
+                crmId: mapping.id,
+                updates: newFields
+              })
+            });
+
+            if (response.ok) {
+              console.log(`✅ BACKGROUND: Updated ${contact.email} in ${platform}`);
+              platforms.push(platform);
+              
+              // Update local storage
+              const { contacts = [] } = await chrome.storage.local.get(['contacts']);
+              const contactIndex = contacts.findIndex(c => c.email === contact.email);
+              if (contactIndex >= 0) {
+                contacts[contactIndex] = {
+                  ...contacts[contactIndex],
+                  ...newFields,
+                  lastUpdated: new Date().toISOString()
+                };
+                await chrome.storage.local.set({ contacts });
+                console.log(`💾 BACKGROUND: Updated local contact storage`);
+              }
+            } else {
+              console.error(`❌ BACKGROUND: Failed to update ${platform}:`, response.statusText);
+            }
+          } catch (error) {
+            console.error(`❌ BACKGROUND: Error updating ${platform}:`, error);
+          }
+        }
+
+        sendResponse({ 
+          success: platforms.length > 0, 
+          platforms: platforms,
+          updatedFields: Object.keys(newFields)
+        });
+      } catch (error) {
+        console.error('❌ BACKGROUND: Error auto-updating contact:', error);
+        sendResponse({ success: false, error: error.message });
+      }
+    })();
+    return true;
   } else if (request.action === 'updateSettings') {
     const settings = request.settings || {};
     // Persist full settings locally.

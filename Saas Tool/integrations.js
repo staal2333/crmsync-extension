@@ -998,14 +998,63 @@ class IntegrationManager {
       const beforeSync = await chrome.storage.local.get(['contacts']);
       const beforeCount = (beforeSync.contacts || []).length;
       
+      // Set up a timeout in case the message never gets a response
+      const messageTimeout = setTimeout(() => {
+        console.warn('⚠️ Sync message timed out after 30 seconds');
+        this.showNotification('Sync is taking longer than expected...', 'warning');
+        
+        // Check if sync actually completed by monitoring storage
+        const checkInterval = setInterval(async () => {
+          const afterSync = await chrome.storage.local.get(['contacts', 'hubSpotSyncStats']);
+          const afterCount = (afterSync.contacts || []).length;
+          
+          if (afterCount !== beforeCount) {
+            clearInterval(checkInterval);
+            console.log('✅ Sync detected via storage change!');
+            
+            const stats = afterSync.hubSpotSyncStats || {};
+            const newContacts = stats.newContacts || (afterCount - beforeCount);
+            const updatedContacts = stats.updatedContacts || 0;
+            
+            this.showNotification(
+              `✅ Synced: ${newContacts} new, ${updatedContacts} updated`, 
+              'success'
+            );
+            
+            if (pullBtn) {
+              pullBtn.disabled = false;
+              pullBtn.innerHTML = originalText;
+            }
+            
+            if (window.loadAllContacts) {
+              await window.loadAllContacts();
+            }
+            
+            await this.checkIntegrationStatus();
+          }
+        }, 2000); // Check every 2 seconds
+        
+        // Stop checking after 60 seconds total
+        setTimeout(() => {
+          clearInterval(checkInterval);
+          if (pullBtn && pullBtn.disabled) {
+            pullBtn.disabled = false;
+            pullBtn.innerHTML = originalText;
+            this.showNotification('Sync may have failed - check console', 'error');
+          }
+        }, 30000);
+      }, 30000); // 30 second timeout
+      
       // Send message to background script to trigger sync
       chrome.runtime.sendMessage({
         action: 'TRIGGER_HUBSPOT_SYNC',
         token
       }, async (response) => {
+        clearTimeout(messageTimeout); // Cancel timeout if we get a response
+        
         if (chrome.runtime.lastError) {
           console.error('Error triggering sync:', chrome.runtime.lastError);
-          this.showNotification('Failed to start sync', 'error');
+          this.showNotification('Failed to start sync: ' + chrome.runtime.lastError.message, 'error');
           
           if (pullBtn) {
             pullBtn.disabled = false;

@@ -3900,9 +3900,137 @@
 
   /**
    * Show update notification in Gmail for contacts with new information
-   * Similar to new contact detection but for updates
+   * User can click "Review" to approve updates in popup
    */
   async function showContactUpdateNotification(updateCandidates) {
+    if (!updateCandidates || updateCandidates.length === 0) return;
+    
+    // Remove any existing update notification
+    const existing = document.querySelector('.crmsync-update-notification');
+    if (existing) existing.remove();
+    
+    const candidate = updateCandidates[0]; // Show first one
+    const newFieldsText = Object.entries(candidate.newFields)
+      .map(([field, value]) => {
+        const fieldName = field === 'jobTitle' ? 'title' : field;
+        return `${fieldName}: ${value}`;
+      })
+      .join(', ');
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'crmsync-update-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      max-width: 350px;
+      animation: slideInRight 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <span style="font-size: 20px;">🔄</span>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+            New Information Found
+          </div>
+          <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">
+            ${candidate.firstName} ${candidate.lastName}
+          </div>
+          <div style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">
+            ➕ ${newFieldsText}
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="update-review-btn" style="
+              background: white;
+              color: #667eea;
+              border: none;
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 12px;
+              cursor: pointer;
+            ">Review & Update</button>
+            <button class="update-dismiss-btn" style="
+              background: transparent;
+              color: white;
+              border: 1px solid rgba(255,255,255,0.3);
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 12px;
+              cursor: pointer;
+            ">Skip</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add animation style
+    if (!document.getElementById('crmsync-update-animation')) {
+      const style = document.createElement('style');
+      style.id = 'crmsync-update-animation';
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        @keyframes slideOutRight {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Store candidates for popup to retrieve
+    chrome.storage.local.set({ pendingUpdates: updateCandidates });
+    
+    // Event listeners
+    notification.querySelector('.update-review-btn').addEventListener('click', () => {
+      notification.remove();
+      // Send message to open popup and show modal
+      chrome.runtime.sendMessage({
+        action: 'openPopupAndShowUpdates'
+      });
+    });
+    
+    notification.querySelector('.update-dismiss-btn').addEventListener('click', () => {
+      notification.remove();
+      // Clear pending updates
+      chrome.storage.local.set({ pendingUpdates: [] });
+    });
+    
+    // Auto-dismiss after 20 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 20000);
+  }
     if (!updateCandidates || updateCandidates.length === 0) return;
     
     // Remove any existing update notification
@@ -5528,41 +5656,27 @@
               
               console.log(`📊 CRMSYNC: Total NEW fields: ${Object.keys(newFields).length}`);
               
-              // If new fields found, send to background for update candidate
+              // If new fields found, show notification for manual approval
               if (Object.keys(newFields).length > 0) {
                 console.log(`✨ CRMSYNC: Found NEW fields for ${contactEmail}:`, newFields);
-                console.log(`🚀 CRMSYNC: Auto-updating contact immediately...`);
+                console.log(`📢 CRMSYNC: Showing notification for manual approval...`);
                 
-                // Auto-update immediately (no modal)
-                chrome.runtime.sendMessage({
-                  action: 'autoUpdateContact',
-                  contact: existingContact,
-                  newFields: newFields
-                }, (response) => {
-                  if (chrome.runtime.lastError) {
-                    console.error(`❌ CRMSYNC: Runtime error auto-updating:`, chrome.runtime.lastError);
-                    return;
-                  }
-                  
-                  console.log(`📥 CRMSYNC: Auto-update response:`, response);
-                  
-                  if (response && response.success) {
-                    console.log(`✅ CRMSYNC: Contact auto-updated for ${contactEmail}`);
-                    
-                    // Show subtle success notification (once per contact per session)
-                    const notificationKey = `update-notif-${contactEmail}`;
-                    const lastShown = sessionStorage.getItem(notificationKey);
-                    const now = Date.now();
-                    
-                    // Only show once per 60 seconds
-                    if (!lastShown || (now - parseInt(lastShown)) > 60000) {
-                      sessionStorage.setItem(notificationKey, now.toString());
-                      showContactUpdateSuccessNotification(contactEmail, newFields, response.platforms);
-                    }
-                  } else {
-                    console.error(`❌ CRMSYNC: Failed to auto-update:`, response?.error || 'Unknown error');
-                  }
-                });
+                // Create update candidate for notification
+                const updateCandidates = [];
+                for (const [platform, mapping] of Object.entries(existingContact.crmMappings)) {
+                  updateCandidates.push({
+                    email: existingContact.email,
+                    firstName: existingContact.firstName,
+                    lastName: existingContact.lastName,
+                    crmId: mapping.id,
+                    platform: platform,
+                    newFields: newFields,
+                    detectedAt: new Date().toISOString()
+                  });
+                }
+                
+                // Show notification with Review button
+                showContactUpdateNotification(updateCandidates);
               } else {
                 console.log(`ℹ️ CRMSYNC: No NEW fields to update for ${contactEmail} (all fields already exist or were excluded)`);
               }

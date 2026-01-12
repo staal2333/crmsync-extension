@@ -2348,180 +2348,6 @@
     }, 4000);
   }
 
-  /**
-   * Show smart update notification in Gmail (similar style to new contact notification)
-   * @param {Object} update - Update candidate object with email, newFields, etc.
-   */
-  function showUpdateNotification(update) {
-    // Remove any existing update notifications
-    const existingUpdates = document.querySelectorAll('.crmsync-update-notification');
-    existingUpdates.forEach(n => n.remove());
-
-    const notification = document.createElement('div');
-    notification.className = 'crmsync-update-notification notification-panel';
-    notification.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 12px 16px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      z-index: 10003;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 13px;
-      min-width: 320px;
-      max-width: 400px;
-      opacity: 0;
-      transform: translateY(20px);
-      transition: all 0.3s ease;
-    `;
-
-    const newFieldsList = Object.entries(update.newFields || {})
-      .map(([key, value]) => `${key}: ${value}`)
-      .join(', ');
-
-    notification.innerHTML = `
-      <span style="font-size: 20px;">🔄</span>
-      <div style="flex: 1;">
-        <div style="font-weight: 600; margin-bottom: 2px;">
-          New info for ${update.firstName || ''} ${update.lastName || ''}
-        </div>
-        <div style="font-size: 11px; opacity: 0.9;">
-          ${newFieldsList}
-        </div>
-      </div>
-      <button class="crmsync-update-btn" style="
-        background: white;
-        color: #667eea;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-      ">Update CRM</button>
-      <button class="crmsync-skip-btn" style="
-        background: transparent;
-        color: white;
-        border: 1px solid rgba(255,255,255,0.3);
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 12px;
-        cursor: pointer;
-      ">Skip</button>
-    `;
-
-    document.body.appendChild(notification);
-
-    // Force visibility with delay
-    setTimeout(() => {
-      notification.style.opacity = '1';
-      notification.style.transform = 'translateY(0)';
-    }, 10);
-
-    // Update button - opens popup to CRM tab
-    notification.querySelector('.crmsync-update-btn').addEventListener('click', () => {
-      // Clear this specific update from pending
-      chrome.storage.local.get(['pendingUpdates'], (result) => {
-        const updates = result.pendingUpdates || [];
-        const filtered = updates.filter(u => u.email !== update.email);
-        chrome.storage.local.set({ pendingUpdates: filtered });
-      });
-      
-      // Open popup extension (trigger the update flow there)
-      chrome.runtime.sendMessage({ 
-        action: 'OPEN_POPUP_WITH_UPDATE',
-        update: update
-      });
-      
-      notification.remove();
-      showNotification('Opening CRM-Sync to update contact...');
-    });
-
-    // Skip button
-    notification.querySelector('.crmsync-skip-btn').addEventListener('click', () => {
-      // Remove from pending updates
-      chrome.storage.local.get(['pendingUpdates'], (result) => {
-        const updates = result.pendingUpdates || [];
-        const filtered = updates.filter(u => u.email !== update.email);
-        chrome.storage.local.set({ pendingUpdates: filtered });
-      });
-      
-      notification.style.opacity = '0';
-      notification.style.transform = 'translateY(20px)';
-      setTimeout(() => notification.remove(), 300);
-    });
-
-    // Auto-remove after 10 seconds
-    setTimeout(() => {
-      if (notification.parentNode) {
-        notification.style.opacity = '0';
-        notification.style.transform = 'translateY(20px)';
-        setTimeout(() => notification.remove(), 300);
-      }
-    }, 10000);
-  }
-
-  /**
-   * Check if currently viewed email has pending updates
-   */
-  async function checkForContactUpdates() {
-    try {
-      // Get pending updates
-      const { pendingUpdates } = await chrome.storage.local.get(['pendingUpdates']);
-      if (!pendingUpdates || pendingUpdates.length === 0) {
-        return;
-      }
-
-      // Get current email from thread
-      const currentEmail = getCurrentEmailFromThread();
-      if (!currentEmail) {
-        return;
-      }
-
-      // Check if this email has pending updates
-      const update = pendingUpdates.find(u => u.email.toLowerCase() === currentEmail.toLowerCase());
-      if (update) {
-        console.log('🔔 Found pending update for current email:', currentEmail);
-        showUpdateNotification(update);
-      }
-    } catch (error) {
-      console.error('Error checking for contact updates:', error);
-    }
-  }
-
-  /**
-   * Get email address from currently viewed thread
-   */
-  function getCurrentEmailFromThread() {
-    // Try to find email in the thread view
-    const selectors = [
-      '[email]',
-      '[data-hovercard-id]',
-      '.gD[email]',
-      'span[email]'
-    ];
-
-    for (const selector of selectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        const email = element.getAttribute('email') || element.getAttribute('data-hovercard-id');
-        if (email && email.includes('@')) {
-          return email.toLowerCase();
-        }
-      }
-    }
-
-    return null;
-  }
-
   function createSidebar() {
     // Remove existing sidebar if any
     if (sidebarContainer && sidebarContainer.parentNode) {
@@ -4001,6 +3827,133 @@
     }
   }
 
+  /**
+   * Show update notification in Gmail for contacts with new information
+   * Similar to new contact detection but for updates
+   */
+  async function showContactUpdateNotification(updateCandidates) {
+    if (!updateCandidates || updateCandidates.length === 0) return;
+    
+    // Remove any existing update notification
+    const existing = document.querySelector('.crmsync-update-notification');
+    if (existing) existing.remove();
+    
+    const candidate = updateCandidates[0]; // Show first one
+    const newFieldsText = Object.entries(candidate.newFields)
+      .map(([field, value]) => {
+        const fieldName = field === 'jobTitle' ? 'title' : field;
+        return `${fieldName}: ${value}`;
+      })
+      .join(', ');
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'crmsync-update-notification';
+    notification.style.cssText = `
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      max-width: 350px;
+      animation: slideInRight 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    `;
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: flex-start; gap: 10px;">
+        <span style="font-size: 20px;">🔄</span>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+            Contact has new information
+          </div>
+          <div style="font-size: 12px; opacity: 0.9; margin-bottom: 4px;">
+            ${candidate.firstName} ${candidate.lastName}
+          </div>
+          <div style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">
+            ➕ ${newFieldsText}
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="update-review-btn" style="
+              background: white;
+              color: #667eea;
+              border: none;
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 12px;
+              cursor: pointer;
+            ">Review</button>
+            <button class="update-dismiss-btn" style="
+              background: transparent;
+              color: white;
+              border: 1px solid rgba(255,255,255,0.3);
+              padding: 6px 12px;
+              border-radius: 6px;
+              font-weight: 600;
+              font-size: 12px;
+              cursor: pointer;
+            ">Dismiss</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Add animation style
+    if (!document.getElementById('crmsync-update-animation')) {
+      const style = document.createElement('style');
+      style.id = 'crmsync-update-animation';
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Event listeners
+    notification.querySelector('.update-review-btn').addEventListener('click', () => {
+      notification.remove();
+      // Open popup and trigger review
+      chrome.runtime.sendMessage({
+        action: 'openPopupToReview',
+        updates: updateCandidates
+      });
+    });
+    
+    notification.querySelector('.update-dismiss-btn').addEventListener('click', () => {
+      notification.remove();
+      // Clear this specific update
+      chrome.storage.local.get(['pendingUpdates'], (result) => {
+        const remaining = (result.pendingUpdates || []).filter(
+          u => u.email !== candidate.email || u.platform !== candidate.platform
+        );
+        chrome.storage.local.set({ pendingUpdates: remaining });
+      });
+    });
+    
+    // Auto-dismiss after 15 seconds
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, 15000);
+  }
+
   function getLatestContact() {
     if (!contacts || contacts.length === 0) return null;
     return contacts
@@ -4992,6 +4945,16 @@
       }
       toggleSidebar();
       sendResponse({ success: true });
+    } else if (request.action === 'UPDATE_CANDIDATES_AVAILABLE') {
+      // Background detected pending updates, check and show notification
+      chrome.storage.local.get(['pendingUpdates'], (result) => {
+        const updates = result.pendingUpdates || [];
+        if (updates.length > 0) {
+          console.log('📬 Received update notification, showing in Gmail');
+          showContactUpdateNotification(updates);
+        }
+      });
+      sendResponse({ success: true });
     } else if (request.action === 'showWidget') {
       // Show the widget (floating action button) and return it to top right
       if (!widgetContainer) {
@@ -5546,9 +5509,6 @@
       await loadContacts();
       updateWidget();
       updateSidebar();
-      
-      // Check for pending contact updates (Smart Updates feature)
-      await checkForContactUpdates();
     };
     
     // Store reference globally for manual triggering

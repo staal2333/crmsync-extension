@@ -302,6 +302,12 @@ class IntegrationManager {
         
         if (hubspotResponse.status === 401 || hubspotResponse.status === 403) {
           console.warn('⚠️ HubSpot integration expired, clearing connection');
+          
+          // Detect if this is a JWT token expiry (not just CRM token)
+          if (hubspotResponse.status === 403) {
+            await this.handleSessionExpiry('HubSpot API returned 403 - JWT token likely expired');
+          }
+          
           this.statusCache.hubspot = { connected: false };
           this.updateIntegrationUI('hubspot', false, {});
         } else if (hubspotResponse.status === 429) {
@@ -1478,6 +1484,79 @@ class IntegrationManager {
       salesforce: this.isConnected('salesforce'),
       any: this.isConnected('hubspot') || this.isConnected('salesforce')
     };
+  }
+  
+  // Handle session expiry (403 errors)
+  async handleSessionExpiry(reason) {
+    console.warn('🔐 Session expired:', reason);
+    
+    // Check if we already showed the expiry modal recently (prevent spam)
+    const lastShown = this.lastExpiryModalShown || 0;
+    const now = Date.now();
+    
+    if (now - lastShown < 60000) { // Don't show more than once per minute
+      console.log('⏸️ Expiry modal already shown recently, skipping');
+      return;
+    }
+    
+    this.lastExpiryModalShown = now;
+    
+    // Show a modal instead of toast
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 999999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    modal.innerHTML = `
+      <div style="background: white; border-radius: 16px; padding: 32px; max-width: 400px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+        <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+        <h2 style="font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #1e293b;">Session Expired</h2>
+        <p style="font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5;">
+          Your login session has expired. Please sign in again to continue using CRM-Sync.
+        </p>
+        <button id="reloginBtn" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 12px 32px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+        ">
+          Sign In Again
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Handle re-login button
+    document.getElementById('reloginBtn').addEventListener('click', async () => {
+      modal.remove();
+      
+      // Clear all auth data
+      await chrome.storage.local.remove(['authToken', 'refreshToken', 'user', 'isAuthenticated']);
+      
+      // Open login page
+      window.open('https://www.crm-sync.net/#/login?from=extension&reason=expired', '_blank');
+      
+      // Show toast
+      if (typeof showToast === 'function') {
+        showToast('Please sign in to continue', false);
+      }
+    });
   }
 }
 

@@ -1864,10 +1864,18 @@ class IntegrationManager {
    * Show review modal for contact updates
    */
   showUpdateReviewModal(updateCandidates, platform) {
+    console.log('🎯 INTEGRATIONS: showUpdateReviewModal called');
+    console.log('📋 INTEGRATIONS: updateCandidates:', updateCandidates);
+    console.log('🏢 INTEGRATIONS: platform:', platform);
+    
     // Remove any existing modal
     const existing = document.getElementById('update-review-modal');
-    if (existing) existing.remove();
-    
+    if (existing) {
+      console.log('🗑️ INTEGRATIONS: Removing existing modal');
+      existing.remove();
+    }
+
+    console.log('✨ INTEGRATIONS: Creating new modal...');
     const modal = document.createElement('div');
     modal.id = 'update-review-modal';
     modal.style.cssText = `
@@ -1882,7 +1890,7 @@ class IntegrationManager {
       justify-content: center;
       z-index: 10001;
     `;
-    
+
     const modalContent = document.createElement('div');
     modalContent.style.cssText = `
       background: white;
@@ -1893,10 +1901,11 @@ class IntegrationManager {
       overflow-y: auto;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     `;
-    
+
     const platformName = platform === 'hubspot' ? 'HubSpot' : 'Salesforce';
     let selectedContacts = new Set(updateCandidates.map(c => c.email));
-    
+
+    console.log('📝 INTEGRATIONS: Building modal HTML...');
     modalContent.innerHTML = `
       <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
         <h3 style="margin: 0; font-size: 16px; font-weight: 600;">
@@ -1963,10 +1972,15 @@ class IntegrationManager {
         </button>
       </div>
     `;
-    
+
+    console.log('🔗 INTEGRATIONS: Appending modal to document...');
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
-    
+    console.log('✅ INTEGRATIONS: Modal appended to body');
+    console.log('🔍 INTEGRATIONS: Modal element:', modal);
+    console.log('🔍 INTEGRATIONS: Modal display:', modal.style.display);
+    console.log('🔍 INTEGRATIONS: Modal z-index:', modal.style.zIndex);
+
     // Checkbox handlers
     modalContent.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
       checkbox.addEventListener('change', (e) => {

@@ -690,29 +690,43 @@ function setupAuthListener() {
     
     // Handle request to open popup and show update review
     if (message.action === 'openPopupAndShowUpdates') {
-      console.log('📬 Request to show update review from Gmail');
+      console.log('📬 POPUP: Request to show update review from Gmail');
       
       // Switch to CRM tab
       const crmTab = document.querySelector('[data-tab="integrations"]');
+      console.log('🔍 POPUP: Found CRM tab button?', !!crmTab);
       if (crmTab) {
         crmTab.click();
+        console.log('✅ POPUP: Clicked CRM tab');
       }
       
       // Get pending updates and show modal
       setTimeout(async () => {
+        console.log('⏰ POPUP: Timeout reached, fetching updates...');
         const response = await chrome.runtime.sendMessage({ action: 'getPendingUpdates' });
+        console.log('📥 POPUP: Received getPendingUpdates response:', response);
         const updates = response?.pendingUpdates || [];
+        console.log('📋 POPUP: Pending updates count:', updates.length);
+        console.log('📋 POPUP: integrationManager exists?', !!window.integrationManager);
         
         if (updates.length > 0 && window.integrationManager) {
+          console.log('✅ POPUP: Have updates and integrationManager, showing modal...');
           // Group by platform
           const hubspotUpdates = updates.filter(u => u.platform === 'hubspot');
           const salesforceUpdates = updates.filter(u => u.platform === 'salesforce');
           
+          console.log('📊 POPUP: HubSpot updates:', hubspotUpdates.length);
+          console.log('📊 POPUP: Salesforce updates:', salesforceUpdates.length);
+          
           if (hubspotUpdates.length > 0) {
+            console.log('🔵 POPUP: Calling showUpdateReviewModal for HubSpot...');
             window.integrationManager.showUpdateReviewModal(hubspotUpdates, 'hubspot');
           } else if (salesforceUpdates.length > 0) {
+            console.log('🟠 POPUP: Calling showUpdateReviewModal for Salesforce...');
             window.integrationManager.showUpdateReviewModal(salesforceUpdates, 'salesforce');
           }
+        } else {
+          console.warn('⚠️ POPUP: Cannot show modal - updates:', updates.length, 'integrationManager:', !!window.integrationManager);
         }
       }, 500);
       

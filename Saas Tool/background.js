@@ -229,6 +229,132 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 /**
+ * Sync contacts from HubSpot to local storage
+ * Called when user clicks "Pull from HubSpot" button
+ * 
+ * @param {string} authToken - JWT authentication token
+ * @returns {Promise<{success: boolean, newContacts: number, updatedContacts: number}>}
+ */
+async function syncFromHubSpot(authToken) {
+  const API_URL = 'https://crmsync-api.onrender.com/api/integrations';
+  
+  console.log('🔵 Starting HubSpot auto-sync...');
+  
+  try {
+    if (!authToken) {
+      throw new Error('No authentication token provided');
+    }
+    
+    // Step 1: Fetch contacts from HubSpot via backend
+    console.log('📡 Fetching contacts from HubSpot...');
+    const response = await fetch(`${API_URL}/hubspot/fetch-contacts`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ HubSpot fetch failed:', response.status, errorText);
+      throw new Error(`Failed to fetch HubSpot contacts: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Received data from HubSpot:', data);
+    
+    // Extract contacts array from response
+    const hubspotContacts = data.contacts || data.data || [];
+    console.log(`📦 Processing ${hubspotContacts.length} contacts from HubSpot...`);
+    
+    if (hubspotContacts.length === 0) {
+      console.log('ℹ️ No contacts found in HubSpot');
+      return { success: true, newContacts: 0, updatedContacts: 0 };
+    }
+    
+    // Step 2: Get existing contacts from local storage
+    const storage = await chrome.storage.local.get(['contacts']);
+    const existingContacts = storage.contacts || [];
+    const existingEmails = new Set(existingContacts.map(c => c.email?.toLowerCase()));
+    
+    // Step 3: Merge contacts
+    let newContacts = 0;
+    let updatedContacts = 0;
+    const mergedContacts = [...existingContacts];
+    
+    for (const hubspotContact of hubspotContacts) {
+      const email = hubspotContact.email || hubspotContact.properties?.email;
+      
+      if (!email) {
+        console.warn('⚠️ Skipping contact without email:', hubspotContact);
+        continue;
+      }
+      
+      const normalizedEmail = email.toLowerCase();
+      
+      // Check if contact already exists
+      const existingIndex = mergedContacts.findIndex(
+        c => c.email?.toLowerCase() === normalizedEmail
+      );
+      
+      // Format contact for our system
+      const formattedContact = {
+        email: email,
+        firstName: hubspotContact.firstName || hubspotContact.properties?.firstname || '',
+        lastName: hubspotContact.lastName || hubspotContact.properties?.lastname || '',
+        company: hubspotContact.company || hubspotContact.properties?.company || '',
+        title: hubspotContact.title || hubspotContact.properties?.jobtitle || '',
+        phone: hubspotContact.phone || hubspotContact.properties?.phone || '',
+        status: 'approved', // HubSpot contacts are pre-approved
+        firstContactAt: hubspotContact.firstContactAt || hubspotContact.properties?.createdate || new Date().toISOString(),
+        lastContactAt: hubspotContact.lastContactAt || hubspotContact.properties?.lastmodifieddate || new Date().toISOString(),
+        createdAt: hubspotContact.createdAt || hubspotContact.properties?.createdate || new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        source: 'hubspot'
+      };
+      
+      if (existingIndex >= 0) {
+        // Update existing contact (merge data, keep local changes)
+        mergedContacts[existingIndex] = {
+          ...mergedContacts[existingIndex],
+          ...formattedContact,
+          lastUpdated: new Date().toISOString()
+        };
+        updatedContacts++;
+        console.log('🔄 Updated existing contact:', email);
+      } else {
+        // Add new contact
+        mergedContacts.push(formattedContact);
+        newContacts++;
+        console.log('➕ Added new contact:', email);
+      }
+    }
+    
+    // Step 4: Save merged contacts to storage
+    await chrome.storage.local.set({ contacts: mergedContacts });
+    
+    // Step 5: Store sync stats for the popup to read
+    await chrome.storage.local.set({
+      hubSpotSyncStats: {
+        newContacts,
+        updatedContacts,
+        totalContacts: mergedContacts.length,
+        lastSync: new Date().toISOString()
+      }
+    });
+    
+    console.log(`✅ HubSpot sync complete: ${newContacts} new, ${updatedContacts} updated, ${mergedContacts.length} total`);
+    
+    return { success: true, newContacts, updatedContacts };
+    
+  } catch (error) {
+    console.error('❌ HubSpot sync failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Handle authentication from website
  * @param {Object} data - Auth data from website
  * @param {string} data.token - JWT or session token

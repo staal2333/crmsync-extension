@@ -5378,6 +5378,18 @@
         
         if (existingContact || existingPending) {
           console.log(`⏭️ CRMSYNC: ${contactEmail} already exists`);
+          
+          // NEW: Check if this contact has pending updates
+          chrome.storage.local.get(['pendingUpdates'], (result) => {
+            const updates = (result.pendingUpdates || []).filter(u => 
+              u.email.toLowerCase() === contactEmail.toLowerCase()
+            );
+            if (updates.length > 0) {
+              console.log(`🔔 CRMSYNC: Found ${updates.length} pending update(s) for ${contactEmail}`);
+              showContactUpdateNotification(updates);
+            }
+          });
+          
           skipped.existing++;
           continue;
         }

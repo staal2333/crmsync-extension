@@ -3179,14 +3179,45 @@ function setupEventListeners() {
         // Get the active Gmail tab
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         console.log('Current tabs:', tabs);
-        if (tabs[0] && tabs[0].url?.includes('mail.google.com')) {
-          // Send message to content script to show widget
-          console.log('Sending showWidget message to tab', tabs[0].id);
-          chrome.tabs.sendMessage(tabs[0].id, { action: 'showWidget' });
-          showToast('Widget shown on Gmail page');
-        } else {
+        
+        if (!tabs[0]) {
+          showToast('No active tab found', true);
+          return;
+        }
+        
+        if (!tabs[0].url?.includes('mail.google.com')) {
           console.log('Not on Gmail, current URL:', tabs[0]?.url);
           showToast('Please open Gmail first', true);
+          return;
+        }
+        
+        // Send message to content script to show widget
+        console.log('Sending showWidget message to tab', tabs[0].id);
+        
+        try {
+          await chrome.tabs.sendMessage(tabs[0].id, { action: 'showWidget' });
+          showToast('Widget shown on Gmail page');
+        } catch (msgError) {
+          console.error('Message error:', msgError);
+          // Content script not loaded yet - try to inject it
+          console.log('Content script not responding, trying to inject...');
+          
+          try {
+            await chrome.scripting.executeScript({
+              target: { tabId: tabs[0].id },
+              files: ['content.js']
+            });
+            
+            // Wait a bit for it to load
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            // Try again
+            await chrome.tabs.sendMessage(tabs[0].id, { action: 'showWidget' });
+            showToast('Widget shown on Gmail page');
+          } catch (injectError) {
+            console.error('Failed to inject content script:', injectError);
+            showToast('Please refresh the Gmail tab and try again', true);
+          }
         }
       } catch (error) {
         console.error('Error showing widget:', error);

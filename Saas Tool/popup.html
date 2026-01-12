@@ -938,8 +938,10 @@
     /* CRITICAL FIX: Ensure tab content expands to show all contacts */
     .tab-content {
       min-height: 400px !important;
+      max-height: 500px !important;
       height: auto !important;
-      overflow: visible !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
     }
     
     /* Inline Loading */

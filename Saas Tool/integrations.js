@@ -212,6 +212,104 @@ class IntegrationManager {
     }
   }
   
+  // =====================================================
+  // SYNC OPERATIONS
+  // =====================================================
+  
+  async syncAllContacts(platform) {
+    try {
+      console.log(`⬆️ Pushing contacts to ${platform}...`);
+      
+      const token = await window.CRMSyncAuth.getAuthToken();
+      if (!token) {
+        this.showNotification('Please sign in first', 'error');
+        return;
+      }
+      
+      this.showNotification(`Syncing contacts to ${platform}...`, 'info');
+      
+      // Use the sync.js manager if available
+      if (window.syncManager) {
+        await window.syncManager.manualSync();
+      } else {
+        this.showNotification('Sync manager not available', 'error');
+      }
+    } catch (error) {
+      console.error(`❌ Failed to sync to ${platform}:`, error);
+      this.showNotification(`Failed to sync to ${platform}`, 'error');
+    }
+  }
+  
+  async pullFromHubSpot() {
+    try {
+      console.log('⬇️ Pulling contacts from HubSpot...');
+      
+      const token = await window.CRMSyncAuth.getAuthToken();
+      if (!token) {
+        this.showNotification('Please sign in first', 'error');
+        return;
+      }
+      
+      // Show loading state
+      const pullBtn = document.getElementById('hubspot-pull-contacts-btn');
+      const originalHTML = pullBtn ? pullBtn.innerHTML : '';
+      
+      if (pullBtn) {
+        pullBtn.disabled = true;
+        pullBtn.innerHTML = '<span>⏳ Syncing...</span>';
+      }
+      
+      // Trigger the background script to sync
+      chrome.runtime.sendMessage({ 
+        action: 'TRIGGER_HUBSPOT_SYNC', 
+        token 
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Message error:', chrome.runtime.lastError);
+          this.showNotification('Failed to trigger HubSpot sync', 'error');
+          
+          // Reset button
+          if (pullBtn) {
+            pullBtn.disabled = false;
+            pullBtn.innerHTML = originalHTML;
+          }
+          return;
+        }
+        
+        console.log('✅ HubSpot sync triggered:', response);
+        
+        // Reset button after 3 seconds
+        setTimeout(() => {
+          if (pullBtn) {
+            pullBtn.disabled = false;
+            pullBtn.innerHTML = originalHTML;
+          }
+          
+          this.showNotification('Contacts pulled from HubSpot!', 'success');
+          
+          // Reload contacts
+          if (window.loadAllContacts) {
+            window.loadAllContacts();
+          }
+        }, 3000);
+      });
+    } catch (error) {
+      console.error('❌ Failed to pull from HubSpot:', error);
+      this.showNotification('Failed to pull from HubSpot', 'error');
+      
+      // Reset button
+      const pullBtn = document.getElementById('hubspot-pull-contacts-btn');
+      if (pullBtn) {
+        pullBtn.disabled = false;
+        pullBtn.innerHTML = '<span>⬇️ Pull from HubSpot</span>';
+      }
+    }
+  }
+  
+  // =====================================================
+  // CONNECTION SUCCESS HANDLING
+  // =====================================================
+  
   async handleConnectionSuccess(platform) {
     console.log(`✅ ${platform} connection callback received`);
     

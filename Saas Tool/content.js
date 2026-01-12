@@ -5411,6 +5411,7 @@
               // If new fields found, send to background for update candidate
               if (Object.keys(newFields).length > 0) {
                 console.log(`✨ CRMSYNC: Found NEW fields for ${contactEmail}:`, newFields);
+                console.log(`📤 CRMSYNC: Sending storeUpdateCandidate message to background...`);
                 
                 // Send to background to store update candidate
                 chrome.runtime.sendMessage({
@@ -5418,6 +5419,14 @@
                   contact: existingContact,
                   newFields: newFields
                 }, (response) => {
+                  // Check for runtime errors
+                  if (chrome.runtime.lastError) {
+                    console.error(`❌ CRMSYNC: Runtime error storing update:`, chrome.runtime.lastError);
+                    return;
+                  }
+                  
+                  console.log(`📥 CRMSYNC: Received response from background:`, response);
+                  
                   if (response && response.success) {
                     console.log(`💾 CRMSYNC: Update candidate stored for ${contactEmail}`);
                     // Show notification immediately (debounced)
@@ -5425,13 +5434,22 @@
                     const lastShown = sessionStorage.getItem(notificationKey);
                     const now = Date.now();
                     
+                    console.log(`🔍 CRMSYNC: Debounce check - lastShown: ${lastShown}, now: ${now}`);
+                    
                     // Only show once per 60 seconds to avoid loop
                     if (!lastShown || (now - parseInt(lastShown)) > 60000) {
                       sessionStorage.setItem(notificationKey, now.toString());
+                      console.log(`🔔 CRMSYNC: Debounce passed, showing notification`);
                       if (response.updateCandidate) {
                         showContactUpdateNotification([response.updateCandidate]);
+                      } else {
+                        console.warn(`⚠️ CRMSYNC: No updateCandidate in response`);
                       }
+                    } else {
+                      console.log(`⏭️ CRMSYNC: Debounce blocked (shown ${Math.round((now - parseInt(lastShown)) / 1000)}s ago)`);
                     }
+                  } else {
+                    console.error(`❌ CRMSYNC: Failed to store update candidate:`, response?.error || 'Unknown error');
                   }
                 });
               }

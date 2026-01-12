@@ -477,22 +477,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   } else if (request.action === 'storeUpdateCandidate') {
     // Store single update candidate from content script
+    console.log('📥 BACKGROUND: Received storeUpdateCandidate message:', request);
     (async () => {
       try {
         const { contact, newFields } = request;
         
+        console.log('🔍 BACKGROUND: Contact:', contact?.email, 'has crmMappings:', !!contact?.crmMappings);
+        console.log('🔍 BACKGROUND: New fields:', newFields);
+
         if (!contact || !contact.crmMappings || Object.keys(contact.crmMappings).length === 0) {
+          console.error('❌ BACKGROUND: Contact not synced to CRM');
           sendResponse({ success: false, error: 'Contact not synced to CRM' });
           return;
         }
-        
+
         // Check if setting is enabled
         const { settings } = await chrome.storage.local.get(['settings']);
+        console.log('🔍 BACKGROUND: Settings:', settings);
+        console.log('🔍 BACKGROUND: updateExistingContacts enabled?', settings?.updateExistingContacts);
+        
         if (!settings?.updateExistingContacts) {
+          console.error('❌ BACKGROUND: Feature disabled in settings');
           sendResponse({ success: false, error: 'Feature disabled' });
           return;
         }
-        
+
         // Create update candidates for each CRM platform
         const updateCandidates = [];
         for (const [platform, mapping] of Object.entries(contact.crmMappings)) {
@@ -505,32 +514,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             newFields: newFields,
             detectedAt: new Date().toISOString()
           });
+          console.log(`✅ BACKGROUND: Created update candidate for ${platform}:`, updateCandidates[updateCandidates.length - 1]);
         }
-        
+
         // Get existing pending updates
         const { pendingUpdates = [] } = await chrome.storage.local.get(['pendingUpdates']);
-        
+        console.log(`📋 BACKGROUND: Existing pending updates: ${pendingUpdates.length}`);
+
         // Add new candidates (avoid duplicates by email+platform)
         for (const candidate of updateCandidates) {
           const exists = pendingUpdates.some(
             existing => existing.email === candidate.email && existing.platform === candidate.platform
           );
-          
+
           if (!exists) {
             pendingUpdates.push(candidate);
-            console.log(`💾 Stored update candidate for ${candidate.email} (${candidate.platform})`);
+            console.log(`💾 BACKGROUND: Added new pending update for ${candidate.email} (${candidate.platform})`);
+          } else {
+            console.log(`⏭️ BACKGROUND: Duplicate skipped for ${candidate.email} (${candidate.platform})`);
           }
         }
-        
+
         // Save back
         await chrome.storage.local.set({ pendingUpdates });
-        
-        sendResponse({ 
-          success: true, 
+        console.log(`✅ BACKGROUND: Saved ${pendingUpdates.length} pending updates to storage`);
+
+        sendResponse({
+          success: true,
           updateCandidate: updateCandidates[0] // Return first one for immediate notification
         });
+        console.log(`📤 BACKGROUND: Sent success response with updateCandidate`);
       } catch (error) {
-        console.error('❌ Error storing update candidate:', error);
+        console.error('❌ BACKGROUND: Error storing update candidate:', error);
         sendResponse({ success: false, error: error.message });
       }
     })();

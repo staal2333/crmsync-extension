@@ -1731,6 +1731,11 @@ async function loadSettings() {
     autoApproveCRMInput.checked = settings.autoApproveCRM !== false; // Default true
   }
   
+  const updateExistingContactsInput = document.getElementById('updateExistingContacts');
+  if (updateExistingContactsInput) {
+    updateExistingContactsInput.checked = settings.updateExistingContacts || false; // Default false
+  }
+  
   const hotkeysInput = document.getElementById('hotkeysEnabled');
   if (hotkeysInput) {
     hotkeysInput.checked = settings.hotkeysEnabled || false;
@@ -3356,6 +3361,18 @@ function setupEventListeners() {
       settings.autoApproveCRM = e.target.checked;
       await chrome.runtime.sendMessage({ action: 'updateSettings', settings });
       console.log('✅ Auto-approve CRM setting updated:', e.target.checked);
+    });
+  }
+
+  // Update existing CRM contacts toggle
+  const updateExistingContactsInput = document.getElementById('updateExistingContacts');
+  if (updateExistingContactsInput) {
+    updateExistingContactsInput.addEventListener('change', async (e) => {
+      const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
+      const settings = response.settings || {};
+      settings.updateExistingContacts = e.target.checked;
+      await chrome.runtime.sendMessage({ action: 'updateSettings', settings });
+      console.log('✅ Update existing contacts setting updated:', e.target.checked);
     });
   }
 

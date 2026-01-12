@@ -2166,7 +2166,8 @@ async function getSettings() {
     hotkeysEnabled: false,
     excludeNames: [],
     excludeDomains: [],
-    excludePhones: []
+    excludePhones: [],
+    updateExistingContacts: false // NEW: Default off for minimal noise
   };
 
   const localResult = await chrome.storage.local.get(['settings', 'userExclusions']);

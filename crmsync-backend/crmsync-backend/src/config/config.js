@@ -10,9 +10,9 @@ module.exports = {
   
   jwt: {
     secret: process.env.JWT_SECRET || 'dev_jwt_secret_change_in_production',
-    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    expiresIn: process.env.JWT_EXPIRES_IN || '1h', // Changed from 15m to 1h
     refreshSecret: process.env.REFRESH_TOKEN_SECRET || 'dev_refresh_secret_change_in_production',
-    refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+    refreshExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '30d', // Changed from 7d to 30d
   },
   
   google: {

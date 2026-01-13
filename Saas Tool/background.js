@@ -3,6 +3,9 @@
 // Import logger first
 importScripts('logger.js');
 
+// Import auth functions for token refresh
+importScripts('auth.js');
+
 // Import subscription service
 importScripts('subscriptionService.js');
 
@@ -3009,6 +3012,23 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   }
   
+  if (alarm.name === 'token-refresh') {
+    console.log('⏰ Checking if token needs refresh...');
+    
+    const { isAuthenticated, refreshToken } = await chrome.storage.local.get(['isAuthenticated', 'refreshToken']);
+    
+    if (isAuthenticated && refreshToken) {
+      try {
+        await refreshAccessToken(refreshToken, false);
+        console.log('✅ Token refreshed automatically');
+      } catch (error) {
+        console.error('❌ Automatic token refresh failed:', error);
+        // Don't log user out - let them continue working
+        // The next API call will trigger manual refresh if needed
+      }
+    }
+  }
+  
   if (alarm.name === 'keep-alive') {
     // This keeps the service worker active
     console.log('💓 Service worker keep-alive ping');
@@ -3020,4 +3040,10 @@ chrome.alarms.create('keep-alive', {
   periodInMinutes: 1 // Ping every minute
 });
 
-console.log('✅ Background script initialized with keep-alive');
+// Create token refresh alarm to keep user logged in
+chrome.alarms.create('token-refresh', {
+  delayInMinutes: 10,  // First refresh after 10 minutes
+  periodInMinutes: 10  // Then refresh every 10 minutes (JWT expires in 15 minutes)
+});
+
+console.log('✅ Background script initialized with keep-alive and token-refresh');

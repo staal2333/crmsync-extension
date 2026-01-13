@@ -2616,48 +2616,52 @@
 
   /**
    * Show inline upgrade panel (replaces approval panel when limit reached)
+   * Matches the exact style and format of the approval panel
    * @param {Object} contact - Contact object
    * @param {HTMLElement} messageContainer - Message container to attach to
    * @param {number} limit - Contact limit
    */
   function showUpgradePanel(contact, messageContainer, limit) {
+    // Remove existing upgrade panels
+    const existingUpgrade = document.querySelectorAll('.crmsync-approval-panel.upgrade-panel');
+    existingUpgrade.forEach(p => p.remove());
+    
     const panel = document.createElement('div');
-    panel.className = 'approval-panel upgrade-panel';
-    panel.dataset.email = contact.email;
+    panel.className = 'crmsync-approval-panel upgrade-panel';
+    panel.setAttribute('data-contact-email', contact.email);
     
     const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
     
     panel.innerHTML = `
-      <div class="approval-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+      <div class="approval-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
         <div class="approval-title">🚀 Contact Limit Reached</div>
-        <button class="approval-close" data-email="${contact.email}">×</button>
+        <button class="approval-close-btn" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 4px 8px;">×</button>
       </div>
-      <div class="approval-content" style="text-align: center; padding: 24px;">
-        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
-        <h3 style="color: #1a1f2e; font-size: 20px; margin: 0 0 12px 0; font-weight: 600;">
+      <div class="approval-content" style="text-align: center; padding: 24px 20px;">
+        <h3 style="color: #1a1f2e; font-size: 18px; margin: 0 0 8px 0; font-weight: 600;">
           You've reached your ${limit}-contact limit
         </h3>
-        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+        <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 20px 0;">
           Upgrade to <strong>Pro</strong> to continue adding contacts and unlock powerful CRM integrations!
         </p>
         
         <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: left;">
-          <div style="font-weight: 600; color: #1a1f2e; margin-bottom: 12px;">✨ Unlock with Pro:</div>
-          <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #6b7280;">
+          <div style="font-weight: 600; color: #1a1f2e; margin-bottom: 10px; font-size: 14px;">✨ Unlock with Pro:</div>
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; color: #6b7280;">
             <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
               <span><strong>Unlimited contacts</strong></span>
             </li>
             <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
               <span>HubSpot & Salesforce sync</span>
             </li>
             <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
               <span>Cloud sync across devices</span>
             </li>
             <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
               <span>Priority support</span>
             </li>
           </ul>
@@ -2668,7 +2672,7 @@
           color: white;
           border: none;
           padding: 12px 24px;
-          border-radius: 8px;
+          border-radius: 6px;
           font-size: 14px;
           font-weight: 600;
           cursor: pointer;
@@ -2679,12 +2683,12 @@
           Upgrade to Pro →
         </button>
         
-        <button class="btn-dismiss" data-email="${contact.email}" style="
+        <button class="btn-dismiss-upgrade" style="
           background: transparent;
           color: #6b7280;
           border: none;
           padding: 8px;
-          font-size: 13px;
+          font-size: 12px;
           cursor: pointer;
           width: 100%;
         ">
@@ -2693,21 +2697,18 @@
       </div>
     `;
     
-    // Insert panel
+    // Insert panel - same logic as approval panel
     if (messageContainer) {
-      messageContainer.insertAdjacentElement('beforeend', panel);
+      messageContainer.insertAdjacentElement('afterend', panel);
     } else {
       document.body.appendChild(panel);
     }
     
-    // Position panel
-    if (messageContainer) {
-      const rect = messageContainer.getBoundingClientRect();
-      panel.style.position = 'absolute';
-      panel.style.top = `${rect.bottom + 10}px`;
-      panel.style.left = `${rect.left}px`;
-      panel.style.zIndex = '10004';
-    }
+    // Close button
+    const closeBtn = panel.querySelector('.approval-close-btn');
+    closeBtn.addEventListener('click', () => {
+      panel.remove();
+    });
     
     // Upgrade button
     const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
@@ -2722,7 +2723,7 @@
       panel.remove();
     });
     
-    // Hover effect
+    // Hover effect for upgrade button
     upgradeBtn.addEventListener('mouseenter', () => {
       upgradeBtn.style.transform = 'translateY(-2px)';
       upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
@@ -2732,14 +2733,8 @@
       upgradeBtn.style.boxShadow = 'none';
     });
     
-    // Close button
-    const closeBtn = panel.querySelector('.approval-close');
-    closeBtn.addEventListener('click', () => {
-      panel.remove();
-    });
-    
     // Dismiss button
-    const dismissBtn = panel.querySelector('.btn-dismiss');
+    const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
     dismissBtn.addEventListener('click', () => {
       panel.remove();
     });
@@ -2751,7 +2746,7 @@
       }
     }, 30000);
     
-    // Play sound
+    // Play error sound
     playClickSound('error');
   }
 

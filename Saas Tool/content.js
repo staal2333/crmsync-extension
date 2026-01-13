@@ -2622,6 +2622,12 @@
    * @param {number} limit - Contact limit
    */
   function showUpgradePanel(contact, messageContainer, limit) {
+    // CRITICAL: Prevent duplicate panels - check if already shown
+    if (contactsInApproval.has(contact.email)) {
+      console.log(`⏭️ CRMSYNC: Upgrade panel already shown for ${contact.email}, skipping`);
+      return;
+    }
+    
     // Remove existing upgrade panels
     const existingUpgrade = document.querySelectorAll('.crmsync-approval-panel');
     existingUpgrade.forEach(p => {
@@ -2637,35 +2643,39 @@
     const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
     
     panel.innerHTML = `
-      <div class="approval-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
-        <div class="approval-title">🚀 Contact Limit Reached</div>
-        <button class="approval-close-btn" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 4px 8px;">×</button>
+      <div class="approval-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
+        <div class="approval-title" style="font-size: 15px; font-weight: 600;">🔒 Contact Limit Reached</div>
+        <button class="approval-close-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">×</button>
       </div>
       <div class="approval-content" style="text-align: center; padding: 24px 20px;">
-        <h3 style="color: #1a1f2e; font-size: 18px; margin: 0 0 8px 0; font-weight: 600;">
-          You've reached your ${limit}-contact limit
+        <div style="font-size: 42px; margin-bottom: 12px; animation: pulse 2s ease-in-out infinite;">🚀</div>
+        
+        <h3 style="color: #fff; font-size: 19px; margin: 0 0 8px 0; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+          You've reached your ${limit}-contact limit!
         </h3>
-        <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 20px 0;">
-          Upgrade to <strong>Pro</strong> to continue adding contacts and unlock powerful CRM integrations!
+        <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0 0 24px 0;">
+          Upgrade to <strong style="color: #fff;">Pro</strong> to continue adding contacts and unlock powerful features
         </p>
         
-        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: left;">
-          <div style="font-weight: 600; color: #1a1f2e; margin-bottom: 10px; font-size: 14px;">✨ Unlock with Pro:</div>
-          <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; color: #6b7280;">
-            <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
-              <span><strong>Unlimited contacts</strong></span>
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155; border-radius: 10px; padding: 18px; margin-bottom: 20px; text-align: left; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
+          <div style="font-weight: 600; color: #fff; margin-bottom: 12px; font-size: 14px; display: flex; align-items: center;">
+            <span style="margin-right: 6px;">✨</span> Unlock with Pro
+          </div>
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #94a3b8;">
+            <li style="padding: 6px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
+              <span><strong style="color: #fff;">Unlimited contacts</strong></span>
             </li>
-            <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+            <li style="padding: 6px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
               <span>HubSpot & Salesforce sync</span>
             </li>
-            <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+            <li style="padding: 6px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
               <span>Cloud sync across devices</span>
             </li>
-            <li style="padding: 4px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+            <li style="padding: 6px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
               <span>Priority support</span>
             </li>
           </ul>
@@ -2675,26 +2685,30 @@
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
           border: none;
-          padding: 12px 24px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
+          padding: 14px 24px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 700;
           cursor: pointer;
           width: 100%;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
           transition: all 0.2s ease;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         ">
-          Upgrade to Pro →
+          ✨ Upgrade to Pro →
         </button>
         
         <button class="btn-dismiss-upgrade" style="
           background: transparent;
-          color: #6b7280;
+          color: #64748b;
           border: none;
           padding: 8px;
           font-size: 12px;
           cursor: pointer;
           width: 100%;
+          transition: color 0.2s;
         ">
           Maybe Later
         </button>
@@ -2706,28 +2720,42 @@
     panel.style.bottom = '100px';
     panel.style.right = '24px';
     panel.style.zIndex = '10005';
-    panel.style.background = 'var(--card-bg, #1e293b)';
-    panel.style.border = '1px solid var(--border, #334155)';
-    panel.style.borderRadius = '12px';
-    panel.style.padding = '20px';
-    panel.style.minWidth = '360px';
-    panel.style.maxWidth = '400px';
+    panel.style.background = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)';
+    panel.style.border = '1px solid #334155';
+    panel.style.borderRadius = '16px';
+    panel.style.padding = '0';
+    panel.style.minWidth = '380px';
+    panel.style.maxWidth = '420px';
     panel.style.maxHeight = '80vh';
     panel.style.overflowY = 'auto';
-    panel.style.boxShadow = '0 10px 40px rgba(0,0,0,0.3)';
+    panel.style.boxShadow = '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)';
     panel.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    panel.style.animation = 'slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
     
     document.body.appendChild(panel);
     
+    // Add to tracking set to prevent duplicates
+    contactsInApproval.add(contact.email);
+    console.log(`✅ CRMSYNC: Added ${contact.email} to contactsInApproval for upgrade panel`);
+    
     // Close button
     const closeBtn = panel.querySelector('.approval-close-btn');
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.3)';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = 'rgba(255,255,255,0.2)';
+    });
     closeBtn.addEventListener('click', () => {
       panel.remove();
+      contactsInApproval.delete(contact.email);
+      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (upgrade panel closed)`);
     });
     
     // Upgrade button
     const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
     upgradeBtn.addEventListener('click', () => {
+      playClickSound('success');
       if (window.CRMSyncPayment && window.CRMSyncPayment.createCheckoutSession) {
         window.CRMSyncPayment.createCheckoutSession('pro', 'monthly');
       } else {
@@ -2736,7 +2764,47 @@
         window.open(`${websiteUrl}/#/pricing`, '_blank');
       }
       panel.remove();
+      contactsInApproval.delete(contact.email);
+      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (upgrade clicked)`);
     });
+    
+    // Hover effects for upgrade button
+    upgradeBtn.addEventListener('mouseenter', () => {
+      upgradeBtn.style.transform = 'translateY(-2px) scale(1.02)';
+      upgradeBtn.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+    });
+    upgradeBtn.addEventListener('mouseleave', () => {
+      upgradeBtn.style.transform = 'translateY(0) scale(1)';
+      upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+    });
+    
+    // Dismiss button
+    const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
+    dismissBtn.addEventListener('mouseenter', () => {
+      dismissBtn.style.color = '#94a3b8';
+    });
+    dismissBtn.addEventListener('mouseleave', () => {
+      dismissBtn.style.color = '#64748b';
+    });
+    dismissBtn.addEventListener('click', () => {
+      playClickSound('reject');
+      panel.remove();
+      contactsInApproval.delete(contact.email);
+      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (dismissed)`);
+    });
+    
+    // Auto-dismiss after 30 seconds
+    setTimeout(() => {
+      if (panel.parentNode) {
+        panel.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+          panel.remove();
+          contactsInApproval.delete(contact.email);
+          console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (auto-dismissed)`);
+        }, 300);
+      }
+    }, 30000);
+  }
     
     // Hover effect for upgrade button
     upgradeBtn.addEventListener('mouseenter', () => {

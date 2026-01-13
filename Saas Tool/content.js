@@ -4936,69 +4936,111 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'crmsync-upgrade-panel';
+      panel.className = 'crmsync-approval-panel upgrade-panel';
       panel.setAttribute('data-contact-email', contact.email);
       
-      const fullName = getFullName(contact.firstName, contact.lastName) || contact.email;
+      const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
+      const limit = limitInfo?.limit || 50;
       
       panel.innerHTML = `
-        <div class="upgrade-overlay">
-          <div class="upgrade-icon">🔒</div>
-          <div class="upgrade-title">Contact Limit Reached</div>
-          <div class="upgrade-subtitle">${limitInfo.count}/${limitInfo.limit} contacts</div>
+        <div class="approval-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+          <div class="approval-title">🚀 Contact Limit Reached</div>
+          <button class="approval-close-btn" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer; padding: 4px 8px;">×</button>
+        </div>
+        <div class="approval-content" style="text-align: center; padding: 24px 20px;">
+          <h3 style="color: #1a1f2e; font-size: 18px; margin: 0 0 8px 0; font-weight: 600;">
+            You've reached your ${limit}-contact limit
+          </h3>
+          <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 20px 0;">
+            Upgrade to <strong>Pro</strong> to continue adding contacts and unlock powerful CRM integrations!
+          </p>
           
-          <div class="upgrade-contact-preview">
-            <div class="upgrade-contact-icon">👤</div>
-            <div class="upgrade-contact-info">
-              <strong>${fullName}</strong>
-              <div style="font-size: 12px; opacity: 0.8;">${contact.email}</div>
-              ${contact.company ? `<div style="font-size: 11px; opacity: 0.7;">${contact.company}</div>` : ''}
-            </div>
+          <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: left;">
+            <div style="font-weight: 600; color: #1a1f2e; margin-bottom: 10px; font-size: 14px;">✨ Unlock with Pro:</div>
+            <ul style="list-style: none; padding: 0; margin: 0; font-size: 12px; color: #6b7280;">
+              <li style="padding: 4px 0; display: flex; align-items: center;">
+                <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+                <span><strong>Unlimited contacts</strong></span>
+              </li>
+              <li style="padding: 4px 0; display: flex; align-items: center;">
+                <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+                <span>HubSpot & Salesforce sync</span>
+              </li>
+              <li style="padding: 4px 0; display: flex; align-items: center;">
+                <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+                <span>Cloud sync across devices</span>
+              </li>
+              <li style="padding: 4px 0; display: flex; align-items: center;">
+                <span style="color: #10b981; margin-right: 8px; font-weight: bold;">✓</span>
+                <span>Priority support</span>
+              </li>
+            </ul>
           </div>
           
-          <div class="upgrade-message">
-            You've reached your ${limitInfo.tier || 'Free'} tier limit. Upgrade to <strong>Pro</strong> for <strong>1,000 contacts</strong>, or free up space by deleting old contacts.
-          </div>
+          <button class="btn-upgrade-pro" style="
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+          ">
+            Upgrade to Pro →
+          </button>
           
-          <div class="upgrade-actions">
-            <button class="btn-upgrade-now">✨ Upgrade to Pro</button>
-            <button class="btn-upgrade-dismiss">Not Now</button>
-          </div>
-          
-          <div class="upgrade-note">
-            💡 Tip: Export your contacts before deleting to keep a backup
-          </div>
+          <button class="btn-dismiss-upgrade" style="
+            background: transparent;
+            color: #6b7280;
+            border: none;
+            padding: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            width: 100%;
+          ">
+            Maybe Later
+          </button>
         </div>
       `;
 
-      // Styling
-      panel.style.position = 'fixed';
-      panel.style.bottom = '100px';
-      panel.style.right = '24px';
-      panel.style.zIndex = '10005';
-      panel.style.width = '380px';
-      panel.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-      panel.style.border = 'none';
-      panel.style.borderRadius = '16px';
-      panel.style.padding = '0';
-      panel.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.4)';
-      panel.style.animation = 'slideIn 0.3s ease-out';
-
+      // Insert inline in Gmail, same as approval panel
       document.body.appendChild(panel);
 
-      // Upgrade button
-      const upgradeBtn = panel.querySelector('.btn-upgrade-now');
-      upgradeBtn.addEventListener('click', () => {
-        playClickSound('success');
-        // Open pricing page
-        const websiteUrl = 'https://www.crm-sync.net';
-        const pricingUrl = `${websiteUrl}?source=extension#/pricing`;
-        window.open(pricingUrl, '_blank');
+      // Close button
+      const closeBtn = panel.querySelector('.approval-close-btn');
+      closeBtn.addEventListener('click', () => {
         panel.remove();
       });
 
+      // Upgrade button
+      const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
+      upgradeBtn.addEventListener('click', () => {
+        playClickSound('success');
+        if (window.CRMSyncPayment && window.CRMSyncPayment.createCheckoutSession) {
+          window.CRMSyncPayment.createCheckoutSession('pro', 'monthly');
+        } else {
+          const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
+          window.open(`${websiteUrl}/#/pricing`, '_blank');
+        }
+        panel.remove();
+      });
+
+      // Hover effect for upgrade button
+      upgradeBtn.addEventListener('mouseenter', () => {
+        upgradeBtn.style.transform = 'translateY(-2px)';
+        upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+      });
+      upgradeBtn.addEventListener('mouseleave', () => {
+        upgradeBtn.style.transform = 'translateY(0)';
+        upgradeBtn.style.boxShadow = 'none';
+      });
+
       // Dismiss button
-      const dismissBtn = panel.querySelector('.btn-upgrade-dismiss');
+      const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
       dismissBtn.addEventListener('click', () => {
         playClickSound('reject');
         panel.remove();

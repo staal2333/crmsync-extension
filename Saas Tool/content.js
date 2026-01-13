@@ -2623,11 +2623,15 @@
    */
   function showUpgradePanel(contact, messageContainer, limit) {
     // Remove existing upgrade panels
-    const existingUpgrade = document.querySelectorAll('.crmsync-approval-panel.upgrade-panel');
-    existingUpgrade.forEach(p => p.remove());
+    const existingUpgrade = document.querySelectorAll('.crmsync-approval-panel');
+    existingUpgrade.forEach(p => {
+      if (p.getAttribute('data-contact-email') === contact.email) {
+        p.remove();
+      }
+    });
     
     const panel = document.createElement('div');
-    panel.className = 'crmsync-approval-panel upgrade-panel';
+    panel.className = 'crmsync-approval-panel'; // ONLY approval-panel class, NO upgrade-panel
     panel.setAttribute('data-contact-email', contact.email);
     
     const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
@@ -2697,12 +2701,23 @@
       </div>
     `;
     
-    // Insert panel - same logic as approval panel
-    if (messageContainer) {
-      messageContainer.insertAdjacentElement('afterend', panel);
-    } else {
-      document.body.appendChild(panel);
-    }
+    // Position panel - EXACT SAME AS APPROVAL PANEL
+    panel.style.position = 'fixed';
+    panel.style.bottom = '100px';
+    panel.style.right = '24px';
+    panel.style.zIndex = '10005';
+    panel.style.background = 'var(--card-bg, #1e293b)';
+    panel.style.border = '1px solid var(--border, #334155)';
+    panel.style.borderRadius = '12px';
+    panel.style.padding = '20px';
+    panel.style.minWidth = '360px';
+    panel.style.maxWidth = '400px';
+    panel.style.maxHeight = '80vh';
+    panel.style.overflowY = 'auto';
+    panel.style.boxShadow = '0 10px 40px rgba(0,0,0,0.3)';
+    panel.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    
+    document.body.appendChild(panel);
     
     // Close button
     const closeBtn = panel.querySelector('.approval-close-btn');

@@ -2459,6 +2459,161 @@
     }, 4000);
   }
 
+  /**
+   * Show upgrade modal when limit is reached
+   * @param {string} message - Custom message to display
+   */
+  function showUpgradeModal(message = 'Upgrade to Pro for unlimited contacts!') {
+    // Remove existing upgrade modals
+    const existingModals = document.querySelectorAll('.upgrade-modal-overlay');
+    existingModals.forEach(m => m.remove());
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'upgrade-modal-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10005;
+      animation: fadeIn 0.2s ease;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.className = 'upgrade-modal';
+    modal.style.cssText = `
+      background: #1a1f2e;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 480px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      animation: slideUp 0.3s ease;
+      position: relative;
+    `;
+    
+    modal.innerHTML = `
+      <button class="modal-close-btn" style="
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: transparent;
+        border: none;
+        font-size: 24px;
+        color: #8b92a7;
+        cursor: pointer;
+        padding: 4px 8px;
+        line-height: 1;
+      ">×</button>
+      
+      <div style="text-align: center;">
+        <div style="font-size: 64px; margin-bottom: 16px;">🚀</div>
+        <h2 style="color: #fff; font-size: 28px; margin: 0 0 12px 0; font-weight: 600;">Contact Limit Reached</h2>
+        <p style="color: #8b92a7; font-size: 16px; line-height: 1.5; margin: 0 0 24px 0;">${message}</p>
+        
+        <div style="background: #252b3b; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+          <h3 style="color: #fff; font-size: 18px; margin: 0 0 16px 0; font-weight: 600;">✨ Pro Features</h3>
+          <ul style="list-style: none; padding: 0; margin: 0; text-align: left;">
+            <li style="color: #8b92a7; padding: 8px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 12px; font-size: 20px;">✓</span>
+              <span>Unlimited contacts</span>
+            </li>
+            <li style="color: #8b92a7; padding: 8px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 12px; font-size: 20px;">✓</span>
+              <span>HubSpot & Salesforce sync</span>
+            </li>
+            <li style="color: #8b92a7; padding: 8px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 12px; font-size: 20px;">✓</span>
+              <span>Cloud sync across devices</span>
+            </li>
+            <li style="color: #8b92a7; padding: 8px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 12px; font-size: 20px;">✓</span>
+              <span>Priority support</span>
+            </li>
+          </ul>
+        </div>
+        
+        <button class="upgrade-now-btn" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 14px 32px;
+          border-radius: 8px;
+          font-size: 16px;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+          margin-bottom: 12px;
+          transition: transform 0.2s ease;
+        ">
+          Upgrade to Pro →
+        </button>
+        
+        <button class="maybe-later-btn" style="
+          background: transparent;
+          color: #8b92a7;
+          border: none;
+          padding: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          width: 100%;
+        ">
+          Maybe Later
+        </button>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Add hover effect
+    const upgradeBtn = modal.querySelector('.upgrade-now-btn');
+    upgradeBtn.addEventListener('mouseenter', () => {
+      upgradeBtn.style.transform = 'translateY(-2px)';
+      upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+    });
+    upgradeBtn.addEventListener('mouseleave', () => {
+      upgradeBtn.style.transform = 'translateY(0)';
+      upgradeBtn.style.boxShadow = 'none';
+    });
+    
+    // Close button
+    modal.querySelector('.modal-close-btn').addEventListener('click', () => {
+      overlay.remove();
+    });
+    
+    // Maybe Later button
+    modal.querySelector('.maybe-later-btn').addEventListener('click', () => {
+      overlay.remove();
+    });
+    
+    // Upgrade button - trigger payment flow
+    upgradeBtn.addEventListener('click', () => {
+      overlay.remove();
+      if (window.CRMSyncPayment && window.CRMSyncPayment.createCheckoutSession) {
+        window.CRMSyncPayment.createCheckoutSession('pro', 'monthly');
+      } else {
+        // Fallback: open popup
+        chrome.runtime.sendMessage({ type: 'OPEN_POPUP_TO_UPGRADE' });
+      }
+    });
+    
+    // Click overlay to close
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+    
+    // Play sound
+    playClickSound('error');
+  }
+
   function createSidebar() {
     // Remove existing sidebar if any
     if (sidebarContainer && sidebarContainer.parentNode) {
@@ -6345,6 +6500,28 @@
           newCount++;
           console.log(`✅ CRMSYNC: Contact ${contactEmail} approved and added to contacts`);
         } else {
+          // CRITICAL: Check if contact limit reached BEFORE showing approval panel
+          const { user } = await chrome.storage.local.get(['user']);
+          const userTier = user?.tier || user?.subscriptionTier || 'free';
+          const tierLimits = window.CONFIG?.TIERS || {};
+          const tierConfig = tierLimits[userTier] || tierLimits['free'];
+          const limit = tierConfig?.contactLimit || 50;
+          
+          // Count total contacts (saved + pending)
+          const totalContacts = contacts.length + pendingContacts.length;
+          
+          console.log(`📊 CRMSYNC: Limit check - Total: ${totalContacts}, Limit: ${limit}, Tier: ${userTier}`);
+          
+          if (totalContacts >= limit) {
+            console.log(`🚫 CRMSYNC: Contact limit reached (${totalContacts}/${limit}), showing upgrade modal`);
+            
+            // Show upgrade modal instead of approval panel
+            showUpgradeModal(`You've reached your ${limit}-contact limit! Upgrade to Pro for unlimited contacts and CRM sync.`);
+            
+            skipped.existing++;
+            continue;
+          }
+          
           // Check if this contact is already shown in an approval panel
           if (contactsInApproval.has(contactEmail)) {
             console.log(`⏭️ CRMSYNC: Contact ${contactEmail} already in approval panel, skipping`);

@@ -2614,6 +2614,147 @@
     playClickSound('error');
   }
 
+  /**
+   * Show inline upgrade panel (replaces approval panel when limit reached)
+   * @param {Object} contact - Contact object
+   * @param {HTMLElement} messageContainer - Message container to attach to
+   * @param {number} limit - Contact limit
+   */
+  function showUpgradePanel(contact, messageContainer, limit) {
+    const panel = document.createElement('div');
+    panel.className = 'approval-panel upgrade-panel';
+    panel.dataset.email = contact.email;
+    
+    const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
+    
+    panel.innerHTML = `
+      <div class="approval-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="approval-title">🚀 Contact Limit Reached</div>
+        <button class="approval-close" data-email="${contact.email}">×</button>
+      </div>
+      <div class="approval-content" style="text-align: center; padding: 24px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+        <h3 style="color: #1a1f2e; font-size: 20px; margin: 0 0 12px 0; font-weight: 600;">
+          You've reached your ${limit}-contact limit
+        </h3>
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+          Upgrade to <strong>Pro</strong> to continue adding contacts and unlock powerful CRM integrations!
+        </p>
+        
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin-bottom: 20px; text-align: left;">
+          <div style="font-weight: 600; color: #1a1f2e; margin-bottom: 12px;">✨ Unlock with Pro:</div>
+          <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #6b7280;">
+            <li style="padding: 4px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span><strong>Unlimited contacts</strong></span>
+            </li>
+            <li style="padding: 4px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span>HubSpot & Salesforce sync</span>
+            </li>
+            <li style="padding: 4px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span>Cloud sync across devices</span>
+            </li>
+            <li style="padding: 4px 0; display: flex; align-items: center;">
+              <span style="color: #10b981; margin-right: 8px;">✓</span>
+              <span>Priority support</span>
+            </li>
+          </ul>
+        </div>
+        
+        <button class="btn-upgrade-pro" style="
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          width: 100%;
+          margin-bottom: 8px;
+          transition: all 0.2s ease;
+        ">
+          Upgrade to Pro →
+        </button>
+        
+        <button class="btn-dismiss" data-email="${contact.email}" style="
+          background: transparent;
+          color: #6b7280;
+          border: none;
+          padding: 8px;
+          font-size: 13px;
+          cursor: pointer;
+          width: 100%;
+        ">
+          Maybe Later
+        </button>
+      </div>
+    `;
+    
+    // Insert panel
+    if (messageContainer) {
+      messageContainer.insertAdjacentElement('beforeend', panel);
+    } else {
+      document.body.appendChild(panel);
+    }
+    
+    // Position panel
+    if (messageContainer) {
+      const rect = messageContainer.getBoundingClientRect();
+      panel.style.position = 'absolute';
+      panel.style.top = `${rect.bottom + 10}px`;
+      panel.style.left = `${rect.left}px`;
+      panel.style.zIndex = '10004';
+    }
+    
+    // Upgrade button
+    const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
+    upgradeBtn.addEventListener('click', () => {
+      if (window.CRMSyncPayment && window.CRMSyncPayment.createCheckoutSession) {
+        window.CRMSyncPayment.createCheckoutSession('pro', 'monthly');
+      } else {
+        // Fallback: open website pricing page
+        const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
+        window.open(`${websiteUrl}/#/pricing`, '_blank');
+      }
+      panel.remove();
+    });
+    
+    // Hover effect
+    upgradeBtn.addEventListener('mouseenter', () => {
+      upgradeBtn.style.transform = 'translateY(-2px)';
+      upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+    });
+    upgradeBtn.addEventListener('mouseleave', () => {
+      upgradeBtn.style.transform = 'translateY(0)';
+      upgradeBtn.style.boxShadow = 'none';
+    });
+    
+    // Close button
+    const closeBtn = panel.querySelector('.approval-close');
+    closeBtn.addEventListener('click', () => {
+      panel.remove();
+    });
+    
+    // Dismiss button
+    const dismissBtn = panel.querySelector('.btn-dismiss');
+    dismissBtn.addEventListener('click', () => {
+      panel.remove();
+    });
+    
+    // Auto-remove after 30 seconds
+    setTimeout(() => {
+      if (panel.parentNode) {
+        panel.remove();
+      }
+    }, 30000);
+    
+    // Play sound
+    playClickSound('error');
+  }
+
   function createSidebar() {
     // Remove existing sidebar if any
     if (sidebarContainer && sidebarContainer.parentNode) {
@@ -6513,10 +6654,10 @@
           console.log(`📊 CRMSYNC: Limit check - Total: ${totalContacts}, Limit: ${limit}, Tier: ${userTier}`);
           
           if (totalContacts >= limit) {
-            console.log(`🚫 CRMSYNC: Contact limit reached (${totalContacts}/${limit}), showing upgrade modal`);
+            console.log(`🚫 CRMSYNC: Contact limit reached (${totalContacts}/${limit}), showing upgrade panel`);
             
-            // Show upgrade modal instead of approval panel
-            showUpgradeModal(`You've reached your ${limit}-contact limit! Upgrade to Pro for unlimited contacts and CRM sync.`);
+            // Show upgrade panel instead of approval panel (inline, not modal)
+            showUpgradePanel(contact, messageContainer, limit);
             
             skipped.existing++;
             continue;

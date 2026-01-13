@@ -616,6 +616,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
       console.log('✓ Subscription status loaded');
       
+      // Initialize payment buttons for Stripe checkout
+      console.log('7.5️⃣ Initializing payment buttons...');
+      if (window.CRMSyncPayment && window.CRMSyncPayment.initializePaymentButtons) {
+        try {
+          window.CRMSyncPayment.initializePaymentButtons();
+          console.log('✓ Payment buttons initialized');
+        } catch (err) {
+          console.error('⚠️ Payment button init failed:', err);
+        }
+      }
+      
       // Log exclusions for debugging
       console.log('8️⃣ Loading exclusions...');
       await loadAndDisplayExclusions().catch(err => {
@@ -1526,6 +1537,7 @@ function showAccountSettings(user) {
   
   // Show/hide upgrade button based on tier
   const upgradeBtn = document.getElementById('upgradeBtn');
+  const manageSubBtn = document.getElementById('manageSubscriptionBtn');
   if (upgradeBtn) {
     if (user.tier === 'free') {
       upgradeBtn.style.display = 'block';
@@ -1534,9 +1546,104 @@ function showAccountSettings(user) {
       upgradeBtn.style.display = 'none';
     }
   }
+  if (manageSubBtn) {
+    if (user.tier !== 'free') {
+      manageSubBtn.style.display = 'block';
+    } else {
+      manageSubBtn.style.display = 'none';
+    }
+  }
   
   // Setup sign out button (only once)
   setupSignOutButton();
+  
+  // Show subscription management section
+  showSubscriptionManagement(user);
+}
+
+/**
+ * Show subscription management section in Settings tab
+ */
+async function showSubscriptionManagement(user) {
+  const container = document.getElementById('subscriptionManagementContainer');
+  if (!container) {
+    console.log('⚠️ Subscription management container not found');
+    return;
+  }
+  
+  // Always show the subscription section
+  container.style.display = 'block';
+  
+  const tier = user?.tier || 'free';
+  const tierUpper = tier.toUpperCase();
+  
+  // Update plan name
+  const planNameEl = document.getElementById('subscriptionPlanName');
+  if (planNameEl) {
+    if (tier === 'free') {
+      planNameEl.textContent = 'Free Plan';
+    } else if (tier === 'pro') {
+      planNameEl.textContent = 'Pro Plan';
+    } else if (tier === 'business') {
+      planNameEl.textContent = 'Business Plan';
+    } else {
+      planNameEl.textContent = `${tierUpper} Plan`;
+    }
+  }
+  
+  // Update status badge
+  const statusBadge = document.getElementById('subscriptionStatusBadge');
+  if (statusBadge) {
+    const status = user?.subscriptionStatus || 'active';
+    statusBadge.textContent = status.toUpperCase();
+    
+    // Set color based on status
+    if (status === 'active') {
+      statusBadge.style.background = '#10b981'; // green
+    } else if (status === 'trialing') {
+      statusBadge.style.background = '#3b82f6'; // blue
+    } else if (status === 'past_due') {
+      statusBadge.style.background = '#f59e0b'; // orange
+    } else if (status === 'canceled') {
+      statusBadge.style.background = '#ef4444'; // red
+    }
+  }
+  
+  // Update contact limit
+  const limitEl = document.getElementById('subscriptionContactLimit');
+  const limitDescEl = document.getElementById('subscriptionLimitDescription');
+  if (limitEl) {
+    if (tier === 'free') {
+      limitEl.textContent = '50 contacts';
+      if (limitDescEl) {
+        limitDescEl.textContent = 'Upgrade to Pro for unlimited contacts';
+      }
+    } else {
+      limitEl.textContent = 'Unlimited';
+      if (limitDescEl) {
+        limitDescEl.textContent = 'You have unlimited contact storage';
+      }
+    }
+  }
+  
+  // Show/hide buttons based on tier
+  const upgradeProBtn = document.getElementById('upgradeProBtn');
+  const manageBillingBtn = document.getElementById('manageBillingBtn');
+  const upgradeFeaturesList = document.getElementById('upgradeFeaturesList');
+  
+  if (tier === 'free') {
+    // Free user: show upgrade button and features list
+    if (upgradeProBtn) upgradeProBtn.style.display = 'block';
+    if (manageBillingBtn) manageBillingBtn.style.display = 'none';
+    if (upgradeFeaturesList) upgradeFeaturesList.style.display = 'block';
+  } else {
+    // Paid user: show manage billing button
+    if (upgradeProBtn) upgradeProBtn.style.display = 'none';
+    if (manageBillingBtn) manageBillingBtn.style.display = 'block';
+    if (upgradeFeaturesList) upgradeFeaturesList.style.display = 'none';
+  }
+  
+  console.log(`✅ Subscription management shown for ${tierUpper} user`);
 }
 
 /**
@@ -1566,10 +1673,9 @@ function updateLimitWarningBanner(count, limit, tier, isOverLimit, isNearLimit) 
     upgradeBtn.parentNode.replaceChild(newUpgradeBtn, upgradeBtn);
     
     newUpgradeBtn.addEventListener('click', () => {
-      const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
-      const pricingPath = window.CONFIG?.AUTH?.PRICING || '/#/pricing';
-      const pricingUrl = `${websiteUrl}?source=extension${pricingPath}`;
-      chrome.tabs.create({ url: pricingUrl });
+      // Always redirect to website pricing page
+      const websiteUrl = 'https://www.crm-sync.net';
+      chrome.tabs.create({ url: `${websiteUrl}/#/pricing` });
     });
   } else {
     banner.style.display = 'none';

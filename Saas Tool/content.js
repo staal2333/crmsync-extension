@@ -2622,20 +2622,30 @@
    * @param {number} limit - Contact limit
    */
   function showUpgradePanel(contact, messageContainer, limit) {
-    // CRITICAL: Prevent duplicate panels - check if already shown
-    if (contactsInApproval.has(contact.email)) {
-      console.log(`⏭️ CRMSYNC: Upgrade panel already shown for ${contact.email}, skipping`);
-      return;
-    }
-    
-    // Remove existing upgrade panels
-    const existingUpgrade = document.querySelectorAll('.crmsync-approval-panel');
-    existingUpgrade.forEach(p => {
-      if (p.getAttribute('data-contact-email') === contact.email) {
-        p.remove();
+    // Check if panel was recently dismissed (15 minutes cooldown)
+    chrome.storage.local.get(['upgradePanel_lastDismissed'], (storage) => {
+      const lastDismissed = storage.upgradePanel_lastDismissed;
+      const now = Date.now();
+      const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+      
+      if (lastDismissed && (now - lastDismissed < fifteenMinutes)) {
+        const remainingMinutes = Math.ceil((fifteenMinutes - (now - lastDismissed)) / 60000);
+        console.log(`⏰ CRMSYNC: Upgrade panel dismissed, showing again in ${remainingMinutes} minutes`);
+        return; // Don't show panel yet
       }
+      
+      // Check if panel already exists for this contact - prevent refresh glitch
+      const existingPanel = document.querySelector(`.crmsync-approval-panel[data-contact-email="${contact.email}"]`);
+      if (existingPanel) {
+        console.log(`⏭️ CRMSYNC: Upgrade panel already showing for ${contact.email}, skipping`);
+        return;
+      }
+      
+      createUpgradePanel(contact, limit);
     });
-    
+  }
+  
+  function createUpgradePanel(contact, limit) {
     const panel = document.createElement('div');
     panel.className = 'crmsync-approval-panel'; // ONLY approval-panel class, NO upgrade-panel
     panel.setAttribute('data-contact-email', contact.email);
@@ -2643,40 +2653,160 @@
     const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
     
     panel.innerHTML = `
-      <div class="approval-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);">
-        <div class="approval-title" style="font-size: 15px; font-weight: 600;">🔒 Contact Limit Reached</div>
-        <button class="approval-close-btn" style="background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;">×</button>
+      <div class="approval-header" style="
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        position: relative;
+        overflow: hidden;
+      ">
+        <div style="
+          position: absolute;
+          top: -50%;
+          right: -50%;
+          width: 200%;
+          height: 200%;
+          background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+          animation: shimmer 3s ease-in-out infinite;
+        "></div>
+        <div class="approval-title" style="position: relative; z-index: 1;">🔒 Contact Limit Reached</div>
+        <button class="approval-close-btn" style="
+          background: none;
+          border: none;
+          color: white;
+          font-size: 20px;
+          cursor: pointer;
+          padding: 4px 8px;
+          position: relative;
+          z-index: 1;
+          transition: transform 0.2s ease;
+        " onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">×</button>
       </div>
-      <div class="approval-content" style="text-align: center; padding: 24px 20px;">
-        <div style="font-size: 42px; margin-bottom: 12px; animation: pulse 2s ease-in-out infinite;">🚀</div>
+      <div class="approval-content" style="
+        text-align: center;
+        padding: 28px 24px;
+        background: linear-gradient(180deg, #f9fafb 0%, #ffffff 100%);
+      ">
+        <div style="
+          width: 56px;
+          height: 56px;
+          margin: 0 auto 16px;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          animation: pulse-glow 2s ease-in-out infinite;
+        ">🚀</div>
         
-        <h3 style="color: #fff; font-size: 19px; margin: 0 0 8px 0; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-          You've reached your ${limit}-contact limit!
+        <h3 style="
+          color: #1a1f2e;
+          font-size: 19px;
+          margin: 0 0 8px 0;
+          font-weight: 700;
+          letter-spacing: -0.3px;
+        ">
+          You've Hit Your ${limit}-Contact Limit
         </h3>
-        <p style="color: #94a3b8; font-size: 13px; line-height: 1.6; margin: 0 0 24px 0;">
-          Upgrade to <strong style="color: #fff;">Pro</strong> to continue adding contacts and unlock powerful features
+        <p style="
+          color: #6b7280;
+          font-size: 13px;
+          line-height: 1.6;
+          margin: 0 0 24px 0;
+        ">
+          Upgrade to <strong style="color: #667eea;">Pro</strong> to unlock unlimited contacts and powerful integrations!
         </p>
         
-        <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); border: 1px solid #334155; border-radius: 10px; padding: 18px; margin-bottom: 20px; text-align: left; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);">
-          <div style="font-weight: 600; color: #fff; margin-bottom: 12px; font-size: 14px; display: flex; align-items: center;">
-            <span style="margin-right: 6px;">✨</span> Unlock with Pro
+        <div style="
+          background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+          border-radius: 12px;
+          padding: 18px;
+          margin-bottom: 24px;
+          text-align: left;
+          border: 1px solid #e5e7eb;
+          box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        ">
+          <div style="
+            font-weight: 700;
+            color: #1a1f2e;
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+          ">
+            <span style="margin-right: 8px; font-size: 18px;">✨</span>
+            Unlock Pro Features
           </div>
-          <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #94a3b8;">
-            <li style="padding: 6px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
-              <span><strong style="color: #fff;">Unlimited contacts</strong></span>
+          <ul style="
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 12.5px;
+            color: #4b5563;
+          ">
+            <li style="
+              padding: 6px 0;
+              display: flex;
+              align-items: center;
+              transition: transform 0.2s ease;
+            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <span style="
+                color: #10b981;
+                margin-right: 10px;
+                font-weight: bold;
+                font-size: 16px;
+                width: 20px;
+                display: inline-block;
+              ">✓</span>
+              <span><strong style="color: #1a1f2e;">Unlimited contacts</strong> - never hit a limit again</span>
             </li>
-            <li style="padding: 6px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
-              <span>HubSpot & Salesforce sync</span>
+            <li style="
+              padding: 6px 0;
+              display: flex;
+              align-items: center;
+              transition: transform 0.2s ease;
+            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <span style="
+                color: #10b981;
+                margin-right: 10px;
+                font-weight: bold;
+                font-size: 16px;
+                width: 20px;
+                display: inline-block;
+              ">✓</span>
+              <span><strong style="color: #1a1f2e;">HubSpot & Salesforce</strong> sync</span>
             </li>
-            <li style="padding: 6px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
-              <span>Cloud sync across devices</span>
+            <li style="
+              padding: 6px 0;
+              display: flex;
+              align-items: center;
+              transition: transform 0.2s ease;
+            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <span style="
+                color: #10b981;
+                margin-right: 10px;
+                font-weight: bold;
+                font-size: 16px;
+                width: 20px;
+                display: inline-block;
+              ">✓</span>
+              <span><strong style="color: #1a1f2e;">Cloud sync</strong> across all devices</span>
             </li>
-            <li style="padding: 6px 0; display: flex; align-items: center;">
-              <span style="color: #10b981; margin-right: 10px; font-weight: bold; font-size: 16px;">✓</span>
-              <span>Priority support</span>
+            <li style="
+              padding: 6px 0;
+              display: flex;
+              align-items: center;
+              transition: transform 0.2s ease;
+            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+              <span style="
+                color: #10b981;
+                margin-right: 10px;
+                font-weight: bold;
+                font-size: 16px;
+                width: 20px;
+                display: inline-block;
+              ">✓</span>
+              <span><strong style="color: #1a1f2e;">Priority support</strong> & faster responses</span>
             </li>
           </ul>
         </div>
@@ -2685,31 +2815,39 @@
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           color: white;
           border: none;
-          padding: 14px 24px;
+          padding: 14px 28px;
           border-radius: 8px;
-          font-size: 15px;
+          font-size: 14.5px;
           font-weight: 700;
           cursor: pointer;
           width: 100%;
           margin-bottom: 10px;
-          transition: all 0.2s ease;
+          transition: all 0.3s ease;
           box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
+          position: relative;
+          overflow: hidden;
+        " onmouseover="
+          this.style.transform='translateY(-2px)';
+          this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';
+        " onmouseout="
+          this.style.transform='translateY(0)';
+          this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)';
         ">
-          ✨ Upgrade to Pro →
+          <span style="position: relative; z-index: 1;">🚀 Upgrade to Pro Now</span>
         </button>
         
         <button class="btn-dismiss-upgrade" style="
           background: transparent;
-          color: #64748b;
+          color: #9ca3af;
           border: none;
-          padding: 8px;
-          font-size: 12px;
+          padding: 10px;
+          font-size: 12.5px;
           cursor: pointer;
           width: 100%;
-          transition: color 0.2s;
-        ">
+          transition: color 0.2s ease;
+          font-weight: 500;
+        " onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color='#9ca3af'">
           Maybe Later
         </button>
       </div>
@@ -2720,42 +2858,31 @@
     panel.style.bottom = '100px';
     panel.style.right = '24px';
     panel.style.zIndex = '10005';
-    panel.style.background = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)';
-    panel.style.border = '1px solid #334155';
+    panel.style.background = 'white';
+    panel.style.border = '1px solid #e5e7eb';
     panel.style.borderRadius = '16px';
     panel.style.padding = '0';
-    panel.style.minWidth = '380px';
-    panel.style.maxWidth = '420px';
-    panel.style.maxHeight = '80vh';
+    panel.style.width = '400px';
+    panel.style.maxWidth = '90vw';
+    panel.style.maxHeight = '85vh';
     panel.style.overflowY = 'auto';
-    panel.style.boxShadow = '0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)';
+    panel.style.boxShadow = '0 20px 60px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.05)';
     panel.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    panel.style.animation = 'slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    panel.style.animation = 'slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
     
     document.body.appendChild(panel);
     
-    // Add to tracking set to prevent duplicates
-    contactsInApproval.add(contact.email);
-    console.log(`✅ CRMSYNC: Added ${contact.email} to contactsInApproval for upgrade panel`);
-    
     // Close button
     const closeBtn = panel.querySelector('.approval-close-btn');
-    closeBtn.addEventListener('mouseenter', () => {
-      closeBtn.style.background = 'rgba(255,255,255,0.3)';
-    });
-    closeBtn.addEventListener('mouseleave', () => {
-      closeBtn.style.background = 'rgba(255,255,255,0.2)';
-    });
     closeBtn.addEventListener('click', () => {
-      panel.remove();
+      panel.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => panel.remove(), 300);
       contactsInApproval.delete(contact.email);
-      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (upgrade panel closed)`);
     });
     
     // Upgrade button
     const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
     upgradeBtn.addEventListener('click', () => {
-      playClickSound('success');
       if (window.CRMSyncPayment && window.CRMSyncPayment.createCheckoutSession) {
         window.CRMSyncPayment.createCheckoutSession('pro', 'monthly');
       } else {
@@ -2763,48 +2890,10 @@
         const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
         window.open(`${websiteUrl}/#/pricing`, '_blank');
       }
-      panel.remove();
+      panel.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => panel.remove(), 300);
       contactsInApproval.delete(contact.email);
-      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (upgrade clicked)`);
     });
-    
-    // Hover effects for upgrade button
-    upgradeBtn.addEventListener('mouseenter', () => {
-      upgradeBtn.style.transform = 'translateY(-2px) scale(1.02)';
-      upgradeBtn.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-    });
-    upgradeBtn.addEventListener('mouseleave', () => {
-      upgradeBtn.style.transform = 'translateY(0) scale(1)';
-      upgradeBtn.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
-    });
-    
-    // Dismiss button
-    const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
-    dismissBtn.addEventListener('mouseenter', () => {
-      dismissBtn.style.color = '#94a3b8';
-    });
-    dismissBtn.addEventListener('mouseleave', () => {
-      dismissBtn.style.color = '#64748b';
-    });
-    dismissBtn.addEventListener('click', () => {
-      playClickSound('reject');
-      panel.remove();
-      contactsInApproval.delete(contact.email);
-      console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (dismissed)`);
-    });
-    
-    // Auto-dismiss after 30 seconds
-    setTimeout(() => {
-      if (panel.parentNode) {
-        panel.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-          panel.remove();
-          contactsInApproval.delete(contact.email);
-          console.log(`🗑️ CRMSYNC: Removed ${contact.email} from contactsInApproval (auto-dismissed)`);
-        }, 300);
-      }
-    }, 30000);
-  }
     
     // Hover effect for upgrade button
     upgradeBtn.addEventListener('mouseenter', () => {
@@ -2816,10 +2905,22 @@
       upgradeBtn.style.boxShadow = 'none';
     });
     
-    // Dismiss button
+    // Dismiss button - "Maybe Later" with 15-minute cooldown
     const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
     dismissBtn.addEventListener('click', () => {
-      panel.remove();
+      // Save dismiss timestamp for 15-minute cooldown
+      chrome.storage.local.set({ upgradePanel_lastDismissed: Date.now() }, () => {
+        console.log('⏰ CRMSYNC: Upgrade panel dismissed, will show again in 15 minutes');
+        
+        // Show toast notification
+        showNotification('Upgrade reminder snoozed for 15 minutes ⏰', 'info');
+      });
+      
+      panel.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => {
+        panel.remove();
+        contactsInApproval.delete(contact.email);
+      }, 300);
     });
     
     // Auto-remove after 30 seconds
@@ -6639,6 +6740,9 @@
           
           if (totalContacts >= limit) {
             console.log(`🚫 CRMSYNC: Contact limit reached (${totalContacts}/${limit}), showing upgrade panel`);
+            
+            // Add to tracking set to prevent refresh glitch
+            contactsInApproval.add(contactEmail);
             
             // Show upgrade panel instead of approval panel (inline, not modal)
             showUpgradePanel(contact, messageContainer, limit);

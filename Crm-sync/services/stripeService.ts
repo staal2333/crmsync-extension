@@ -78,11 +78,8 @@ export const createCheckoutSession = async (priceId: string, tier?: string): Pro
     return data;
   } catch (error) {
     console.error("Error creating checkout session:", error);
-    if ((error as Error).message === "Unauthorized") {
-        throw error;
-    }
-    // Fallback for demo ensures user isn't stuck if API fails
-    return { url: window.location.origin + '/#/success' };
+    // Re-throw error so caller can handle it properly
+    throw error;
   }
 };
 

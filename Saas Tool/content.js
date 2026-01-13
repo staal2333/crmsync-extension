@@ -1496,6 +1496,117 @@
     return null;
   }
 
+  /**
+   * IMPROVED: Structure-aware signature parsing
+   * Understands the typical order of signature elements
+   * Returns { company, title } with better accuracy
+   */
+  function extractStructuredSignatureInfo(signatureText, senderName) {
+    if (!signatureText) return { company: null, title: null };
+    
+    const lines = signatureText.split(/\n/).map(l => l.trim()).filter(l => l.length > 0);
+    
+    let company = null;
+    let title = null;
+    let nameLineIndex = -1;
+    
+    // Danish/European job title keywords (more comprehensive)
+    const titleKeywords = [
+      // Danish
+      'direktør', 'chef', 'leder', 'koordinator', 'manager', 'medarbejder', 
+      'konsulent', 'rådgiver', 'specialist', 'ansvarlig', 'assistent',
+      'udvikler', 'designer', 'arkitekt', 'analytiker', 'controller',
+      // English
+      'director', 'manager', 'coordinator', 'officer', 'executive',
+      'consultant', 'advisor', 'specialist', 'lead', 'head',
+      'president', 'founder', 'owner', 'partner', 'associate'
+    ];
+    
+    // Company indicators
+    const companyIndicators = [
+      // Legal forms
+      'A/S', 'ApS', 'IVS', 'Ltd', 'Inc', 'Corp', 'GmbH', 'AB',
+      // Generic words that appear in company names
+      'Media', 'Group', 'Film', 'Distribution', 'Productions', 'Studios',
+      'Consulting', 'Solutions', 'Systems', 'Technologies', 'Services',
+      'International', 'Global', 'Agency', 'Partners', 'Holding'
+    ];
+    
+    // Skip patterns (things that are NOT company/title)
+    const skipPatterns = [
+      /^(T|Tlf|Tel|Phone|Mobile|Mobil|M)[:.\s]/i,  // Phone lines
+      /^\+?\d+[\d\s\-()\.]+$/,                      // Phone numbers
+      /^[A-Z]{2,3}[-\s]?\d{4}$/,                   // Postal codes (DK-2100, 2100, etc)
+      /@/,                                          // Email addresses
+      /^https?:\/\//i,                             // URLs
+      /^(CVR|VAT|Org\.?nr|Reg\.?nr)[:.\s]/i,      // Tax/registration numbers
+      /^\d+\s+[A-Z][a-z]+/,                        // Street addresses (123 Street Name)
+      /^(Bedste hilsner|Best regards|Med venlig hilsen|Venlig hilsen|Mvh|Kind regards|Sincerely)/i // Sign-offs
+    ];
+    
+    // Step 1: Find the sender's name line (first meaningful line after sign-off)
+    for (let i = 0; i < Math.min(3, lines.length); i++) {
+      const line = lines[i];
+      
+      // Skip if it matches skip patterns
+      if (skipPatterns.some(p => p.test(line))) continue;
+      
+      // If the line looks like a name (2-3 capitalized words, no special chars)
+      if (/^[A-ZÆØÅ][a-zæøå]+(\s+[A-ZÆØÅ][a-zæøå]+){1,3}$/.test(line)) {
+        nameLineIndex = i;
+        console.log(`👤 CRMSYNC: Identified name line at index ${i}: "${line}"`);
+        break;
+      }
+    }
+    
+    // Step 2: Parse lines AFTER the name line
+    const startIndex = nameLineIndex >= 0 ? nameLineIndex + 1 : 0;
+    
+    for (let i = startIndex; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Skip lines that match skip patterns
+      if (skipPatterns.some(p => p.test(line))) continue;
+      
+      // Too short or too long
+      if (line.length < 3 || line.length > 80) continue;
+      
+      // Check if this line is a title (contains title keywords)
+      const isTitle = titleKeywords.some(keyword => 
+        line.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      // Check if this line is a company (contains company indicators or looks like a company)
+      const isCompany = companyIndicators.some(indicator =>
+        line.includes(indicator)
+      ) || (
+        // Or: Capitalized multi-word phrase (typical company format)
+        /^[A-ZÆØÅ][A-Za-zæøåÆØÅ]+(\s+[A-ZÆØÅ][A-Za-zæøåÆØÅ]+)+$/.test(line) &&
+        !isTitle // But not if it's a title
+      );
+      
+      // Assign to title or company
+      if (isTitle && !title) {
+        title = line;
+        console.log(`💼 CRMSYNC: Found title at line ${i}: "${line}"`);
+      } else if (isCompany && !company) {
+        company = line;
+        console.log(`🏢 CRMSYNC: Found company at line ${i}: "${line}"`);
+      }
+      
+      // If we found both, we're done
+      if (title && company) break;
+    }
+    
+    // Validation: If "company" is actually the same as the name, clear it
+    if (company && senderName && company.toLowerCase() === senderName.toLowerCase()) {
+      console.log(`⚠️ CRMSYNC: Company matches sender name, clearing: "${company}"`);
+      company = null;
+    }
+    
+    return { company, title };
+  }
+
   function extractCompany(text) {
     if (!text) return null;
 
@@ -2403,6 +2514,18 @@
 
       <!-- Single Content Section -->
       <div class="sidebar-content">
+        <!-- Pending Updates Section -->
+        <div class="sidebar-updates-section" id="sidebar-updates-section" style="display: none;">
+          <div class="section-header">
+            <h3>🔔 Pending Updates</h3>
+            <span class="count-badge" id="sidebar-updates-badge">0</span>
+          </div>
+          
+          <div id="sidebar-updates-list" class="sidebar-updates-list">
+            <!-- Pending updates will be rendered here -->
+          </div>
+        </div>
+        
         <!-- Today's Contacts Section -->
         <div class="sidebar-today-section">
           <div class="section-header">
@@ -2647,6 +2770,144 @@
           display: flex;
           flex-direction: column;
           min-height: 0;
+        }
+        
+        /* Pending Updates Section */
+        .sidebar-updates-section {
+          padding: 16px;
+          background: #fff7ed;
+          border-bottom: 2px solid #fb923c;
+          margin-bottom: 8px;
+        }
+        
+        .sidebar-updates-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 12px;
+        }
+        
+        .sidebar-update-card {
+          background: white;
+          border: 1px solid #fed7aa;
+          border-radius: 8px;
+          padding: 12px;
+        }
+        
+        .update-header {
+          margin-bottom: 12px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .update-contact-name {
+          font-weight: 600;
+          font-size: 14px;
+          color: #111827;
+          margin-bottom: 4px;
+        }
+        
+        .update-contact-email {
+          font-size: 12px;
+          color: #6b7280;
+        }
+        
+        .update-changes {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+        
+        .update-field {
+          font-size: 12px;
+        }
+        
+        .field-label {
+          font-weight: 500;
+          color: #6b7280;
+          margin-bottom: 4px;
+        }
+        
+        .field-edit {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        
+        .field-input {
+          padding: 8px 10px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          font-size: 13px;
+          color: #111827;
+          transition: border-color 0.2s;
+        }
+        
+        .field-input:focus {
+          outline: none;
+          border-color: #7c3aed;
+          box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+        }
+        
+        .field-hint {
+          font-size: 11px;
+          color: #9ca3af;
+        }
+        
+        .field-change {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        
+        .field-old {
+          color: #9ca3af;
+          text-decoration: line-through;
+        }
+        
+        .field-arrow {
+          color: #fb923c;
+        }
+        
+        .field-new {
+          color: #059669;
+          font-weight: 500;
+        }
+        
+        .update-actions {
+          display: flex;
+          gap: 8px;
+        }
+        
+        .update-approve-btn,
+        .update-reject-btn {
+          flex: 1;
+          padding: 8px 12px;
+          border: none;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .update-approve-btn {
+          background: #10b981;
+          color: white;
+        }
+        
+        .update-approve-btn:hover {
+          background: #059669;
+        }
+        
+        .update-reject-btn {
+          background: #ef4444;
+          color: white;
+        }
+        
+        .update-reject-btn:hover {
+          background: #dc2626;
         }
         
         .sidebar-today-section .section-header {
@@ -3480,6 +3741,8 @@
         toggleBtn.textContent = 'Hide';
         toggleBtn.title = 'Hide Sidebar';
       }
+      // Load pending updates when sidebar opens
+      loadPendingUpdates();
       // Trigger a scan when sidebar opens if we're in a thread view
       setTimeout(() => {
         const currentUrl = window.location.href;
@@ -3498,6 +3761,160 @@
       }
     }
     updateFloatingWidgetPosition();
+  }
+
+  // Load and display pending updates in sidebar
+  async function loadPendingUpdates() {
+    try {
+      const result = await chrome.storage.local.get(['pendingUpdates']);
+      const updates = result.pendingUpdates || [];
+      
+      const updatesSection = document.getElementById('sidebar-updates-section');
+      const updatesList = document.getElementById('sidebar-updates-list');
+      const updatesBadge = document.getElementById('sidebar-updates-badge');
+      
+      if (!updatesSection || !updatesList) return;
+      
+      if (updates.length === 0) {
+        updatesSection.style.display = 'none';
+        return;
+      }
+      
+      // Show updates section
+      updatesSection.style.display = 'block';
+      updatesBadge.textContent = updates.length;
+      
+      // Render each update
+      updatesList.innerHTML = updates.map(update => {
+        const existingData = update.existingData || {};
+        const newFields = update.newFields || {};
+        
+        return `
+          <div class="sidebar-update-card" data-email="${update.email}">
+            <div class="update-header">
+              <div class="update-contact-name">${update.name || update.email}</div>
+              <div class="update-contact-email">${update.email}</div>
+            </div>
+            <div class="update-changes">
+              ${Object.keys(newFields).map(field => `
+                <div class="update-field">
+                  <div class="field-label">${field.charAt(0).toUpperCase() + field.slice(1)}</div>
+                  <div class="field-edit">
+                    <input 
+                      type="text" 
+                      class="field-input" 
+                      data-field="${field}"
+                      data-email="${update.email}"
+                      value="${newFields[field]}"
+                      placeholder="Enter ${field}"
+                    />
+                    <span class="field-hint">Was: ${existingData[field] || 'Not set'}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+            <div class="update-actions">
+              <button class="update-approve-btn" data-email="${update.email}">✓ Approve</button>
+              <button class="update-reject-btn" data-email="${update.email}">✕ Reject</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      // Add event listeners for approve/reject buttons
+      updatesList.querySelectorAll('.update-approve-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const email = btn.getAttribute('data-email');
+          const update = updates.find(u => u.email === email);
+          if (update) {
+            // Collect edited values from inputs
+            const card = btn.closest('.sidebar-update-card');
+            const inputs = card.querySelectorAll('.field-input');
+            const editedFields = {};
+            
+            inputs.forEach(input => {
+              const field = input.getAttribute('data-field');
+              const value = input.value.trim();
+              if (value) {
+                editedFields[field] = value;
+              }
+            });
+            
+            // Update the newFields with edited values
+            update.newFields = editedFields;
+            
+            await approveUpdate(update);
+            await loadPendingUpdates(); // Reload to remove from list
+          }
+        });
+      });
+      
+      updatesList.querySelectorAll('.update-reject-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const email = btn.getAttribute('data-email');
+          await rejectUpdate(email);
+          await loadPendingUpdates(); // Reload to remove from list
+        });
+      });
+      
+    } catch (error) {
+      console.error('Error loading pending updates:', error);
+    }
+  }
+
+  // Approve an update
+  async function approveUpdate(update) {
+    try {
+      console.log(`✅ Approving update for ${update.email}:`, update.newFields);
+      
+      // Get current contacts
+      const result = await chrome.storage.local.get(['contacts']);
+      const contacts = result.contacts || [];
+      
+      // Find and update the contact
+      const contactIndex = contacts.findIndex(c => c.email === update.email);
+      if (contactIndex !== -1) {
+        // Merge new fields into existing contact
+        contacts[contactIndex] = {
+          ...contacts[contactIndex],
+          ...update.newFields,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        // Save updated contacts
+        await chrome.storage.local.set({ contacts });
+        
+        // Remove from pending updates
+        const pendingResult = await chrome.storage.local.get(['pendingUpdates']);
+        const pendingUpdates = pendingResult.pendingUpdates || [];
+        const filteredUpdates = pendingUpdates.filter(u => u.email !== update.email);
+        await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+        
+        console.log(`✅ Update approved for ${update.email}`);
+        showNotification(`Updated ${update.name || update.email}`, 'success');
+      }
+    } catch (error) {
+      console.error('Error approving update:', error);
+      showNotification('Failed to approve update', 'error');
+    }
+  }
+
+  // Reject an update
+  async function rejectUpdate(email) {
+    try {
+      console.log(`❌ Rejecting update for ${email}`);
+      
+      // Remove from pending updates
+      const result = await chrome.storage.local.get(['pendingUpdates']);
+      const pendingUpdates = result.pendingUpdates || [];
+      const filteredUpdates = pendingUpdates.filter(u => u.email !== email);
+      await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+      
+      console.log(`❌ Update rejected for ${email}`);
+      showNotification('Update rejected', 'info');
+    } catch (error) {
+      console.error('Error rejecting update:', error);
+    }
   }
 
   function showBulkApprovalPanel() {
@@ -3744,7 +4161,7 @@
           right: parseInt(widgetContainer.style.right)
         };
         await chrome.storage.local.set({ widgetPosition: newPosition });
-        logger.log('📍 Widget position saved:', newPosition);
+        console.log('📍 Widget position saved:', newPosition);
       }
     });
 
@@ -4009,16 +4426,42 @@
     chrome.storage.local.set({ pendingUpdates: updateCandidates });
     
     // Event listeners
-    notification.querySelector('.update-review-btn').addEventListener('click', () => {
+    notification.querySelector('.update-review-btn').addEventListener('click', async () => {
       notification.remove();
-      // Send message to open popup and show modal
-      chrome.runtime.sendMessage({
-        action: 'openPopupAndShowUpdates'
+      // Remove from tracking set
+      contactsInApproval.delete(candidate.email);
+      // Mark as recently updated to prevent re-detection for 5 minutes
+      recentlyUpdatedContacts.set(candidate.email, Date.now());
+      console.log(`📝 CRMSYNC: Opening sidebar for ${candidate.email}`);
+      
+      // Store the pending update in chrome.storage for the sidebar to display
+      await chrome.storage.local.set({ 
+        pendingUpdates: [candidate] // Array of update candidates
       });
+      
+      // Open the sidebar
+      toggleSidebar(true); // Force open
+      
+      // Wait a moment for sidebar to open, then try to switch to updates view
+      setTimeout(() => {
+        const sidebar = document.querySelector('.crmsync-sidebar');
+        if (sidebar) {
+          // Look for updates/pending tab
+          const updatesTab = sidebar.querySelector('[data-tab="updates"], [data-tab="pending"]');
+          if (updatesTab) {
+            updatesTab.click();
+          }
+        }
+      }, 100);
     });
     
     notification.querySelector('.update-dismiss-btn').addEventListener('click', () => {
       notification.remove();
+      // Remove from tracking set
+      contactsInApproval.delete(candidate.email);
+      // Mark as recently updated to prevent re-detection for 5 minutes
+      recentlyUpdatedContacts.set(candidate.email, Date.now());
+      console.log(`🚫 CRMSYNC: User dismissed update for ${candidate.email}`);
       // Clear pending updates
       chrome.storage.local.set({ pendingUpdates: [] });
     });
@@ -4027,7 +4470,11 @@
     setTimeout(() => {
       if (notification.parentNode) {
         notification.style.animation = 'slideOutRight 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
+        setTimeout(() => {
+          notification.remove();
+          // Remove from tracking set on auto-dismiss
+          contactsInApproval.delete(candidate.email);
+        }, 300);
       }
     }, 20000);
   }
@@ -5179,6 +5626,61 @@
   }
 
   /**
+   * Check if signature contains excluded names, emails, phones, or domains
+   * to prevent extracting user's own signature as contact info.
+   */
+  function signatureContainsExcludedPatterns(signature, settings, contactEmail) {
+    if (!signature) return false;
+    const sigLower = signature.toLowerCase();
+    
+    // Check excluded names (user's own name, company)
+    if (settings.excludeNames && settings.excludeNames.length > 0) {
+      for (const name of settings.excludeNames) {
+        if (name && sigLower.includes(name.toLowerCase())) {
+          console.log(`🚫 CRMSYNC: Signature rejected - contains excluded name: "${name}"`);
+          return true;
+        }
+      }
+    }
+    
+    // Check excluded domains (user's own email domain)
+    if (settings.excludeDomains && settings.excludeDomains.length > 0) {
+      for (const domain of settings.excludeDomains) {
+        if (domain && sigLower.includes(domain.toLowerCase())) {
+          console.log(`🚫 CRMSYNC: Signature rejected - contains excluded domain: "${domain}"`);
+          return true;
+        }
+      }
+    }
+    
+    // Check excluded phones
+    if (settings.excludePhones && settings.excludePhones.length > 0) {
+      for (const phone of settings.excludePhones) {
+        if (phone) {
+          // Normalize both signature and excluded phone for comparison
+          const sigNormalized = signature.replace(/[\s\-\(\)\.+]/g, '');
+          const phoneNormalized = phone.replace(/[\s\-\(\)\.+]/g, '');
+          if (sigNormalized.includes(phoneNormalized)) {
+            console.log(`🚫 CRMSYNC: Signature rejected - contains excluded phone: "${phone}"`);
+            return true;
+          }
+        }
+      }
+    }
+    
+    // Make sure signature belongs to contact, not someone else
+    // Signature should contain the contact's email or name
+    const contactName = contactEmail.split('@')[0].replace(/[._-]/g, ' ');
+    if (!sigLower.includes(contactEmail.toLowerCase()) && 
+        !sigLower.includes(contactName.toLowerCase())) {
+      console.log(`🚫 CRMSYNC: Signature rejected - doesn't contain contact info (${contactEmail})`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Check if an email should be excluded based on domain settings.
    */
   function isExcludedDomain(email) {
@@ -5270,6 +5772,9 @@
   
   // Track contacts currently shown in approval panels to prevent duplicates
   let contactsInApproval = new Set(); // Set of emails
+  
+  // Track recently updated contacts to prevent immediate re-detection (expires after 5 minutes)
+  let recentlyUpdatedContacts = new Map(); // Map<email, timestamp>
 
   function setupThreadObserver() {
     let lastScannedThread = null;
@@ -5284,6 +5789,44 @@
      */
     const scanThread = async () => {
       console.log('🔍 CRMSYNC: Starting thread scan...');
+      
+      // DON'T clear contactsInApproval here - it causes panels to reappear!
+      // The set is cleared when user approves/rejects or when thread changes
+      
+      // CRITICAL: If userEmails is empty, try to detect it from Gmail
+      if (!userEmails || userEmails.length === 0) {
+        console.log('⚠️ CRMSYNC: userEmails is empty! Attempting to auto-detect from Gmail...');
+        
+        // Try to find user's email from Gmail's account menu
+        const accountMenuSelectors = [
+          'a[aria-label*="Google Account"]',
+          'div[data-email]',
+          'span[email]',
+          '[data-hovercard-id*="@"]'
+        ];
+        
+        for (const selector of accountMenuSelectors) {
+          const elements = document.querySelectorAll(selector);
+          for (const el of elements) {
+            const email = el.getAttribute('data-email') || 
+                         el.getAttribute('email') || 
+                         el.getAttribute('data-hovercard-id') ||
+                         el.textContent;
+            
+            if (email && email.includes('@') && !email.includes('noreply')) {
+              const cleanEmail = email.match(/([a-zA-Z0-9._+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/)?.[1];
+              if (cleanEmail) {
+                userEmails = [cleanEmail.toLowerCase()];
+                userEmail = userEmails[0];
+                await chrome.storage.local.set({ userEmails, userEmail });
+                console.log(`✅ CRMSYNC: Auto-detected user email: ${userEmail}`);
+                break;
+              }
+            }
+          }
+          if (userEmails.length > 0) break;
+        }
+      }
       
       // SAFETY: Clean up user emails - remove any that don't contain hydemedia.dk
       // (your actual domain - adjust this if needed)
@@ -5443,6 +5986,25 @@
           continue;
         }
         
+        // CRITICAL: Additional check - if user is logged in, check against their backend email too
+        let backendUserEmail = null;
+        try {
+          const storage = await chrome.storage.local.get(['user']);
+          if (storage.user && storage.user.email) {
+            backendUserEmail = storage.user.email.toLowerCase();
+            console.log(`🔐 CRMSYNC: Backend user email: ${backendUserEmail}`);
+            
+            // If contact email matches backend email, skip it
+            if (contactEmail.toLowerCase() === backendUserEmail) {
+              console.log(`⏭️ CRMSYNC: Skipping ${contactEmail} - matches backend logged-in user email`);
+              skipped.userEmail++;
+              continue;
+            }
+          }
+        } catch (err) {
+          console.log('⚠️ CRMSYNC: Could not check backend user email:', err);
+        }
+        
         if (isUserEmail(contactEmail) || isExcludedDomain(contactEmail)) {
           console.log(`⏭️ CRMSYNC: Skipping ${contactEmail} (user/excluded)`);
           skipped.userEmail++;
@@ -5505,20 +6067,44 @@
             const bodyHtml = messageBody.innerHTML || '';
             const combinedText = bodyText + ' ' + bodyHtml.replace(/<[^>]+>/g, ' ');
             
+            // DEBUGGING: Show what text we're working with
+            console.log(`📄 CRMSYNC: Message body (first 500 chars):`, combinedText.substring(0, 500));
+            console.log(`📄 CRMSYNC: Message body (last 500 chars):`, combinedText.substring(Math.max(0, combinedText.length - 500)));
+            console.log(`📄 CRMSYNC: Message body total length:`, combinedText.length);
+            
             let signature = extractSignatureBlock(combinedText);
             console.log(`✍️ CRMSYNC: Signature found?`, !!signature);
             
-            if (signature && !textContainsUserEmail(signature)) {
+            if (signature) {
+              console.log(`📄 CRMSYNC: Raw signature (first 500 chars):`, signature.substring(0, 500));
+              console.log(`📄 CRMSYNC: Signature contains jva@statedrinks.com?`, signature.toLowerCase().includes('jva@statedrinks.com'));
+              console.log(`📄 CRMSYNC: Signature contains hydemedia.dk?`, signature.toLowerCase().includes('hydemedia.dk'));
+            }
+            
+            // CRITICAL: Validate signature doesn't contain user/excluded info
+            const signatureIsValid = signature && 
+                                     !textContainsUserEmail(signature) &&
+                                     !signatureContainsExcludedPatterns(signature, settings, contactEmail);
+            
+            if (!signatureIsValid && signature) {
+              console.log(`🚫 CRMSYNC: Signature rejected - contains user/excluded info`);
+            }
+            
+            if (signatureIsValid) {
               const searchText = signature || combinedText;
               console.log(`✍️ CRMSYNC: Signature accepted, length: ${searchText.length} chars`);
               console.log(`📄 CRMSYNC: Signature text (first 500 chars):`, searchText.substring(0, 500));
               
               // Extract current fields from email
+              // Extract contact info from signature with IMPROVED STRUCTURED PARSING
               const currentPhone = extractPhone(searchText, contactEmail, userEmails);
-              const currentCompany = extractCompany(searchText);
-              const currentTitle = extractJobTitle(searchText);
-              const currentLinkedIn = extractLinkedIn(searchText);
               
+              // Use new structured extraction for better accuracy
+              const structuredInfo = extractStructuredSignatureInfo(searchText, contactName);
+              const currentCompany = structuredInfo.company || extractCompany(searchText);
+              const currentTitle = structuredInfo.title || extractJobTitle(searchText);
+              const currentLinkedIn = extractLinkedIn(searchText);
+
               console.log(`📊 CRMSYNC: Extracted from signature:`, {
                 phone: currentPhone || 'NOT FOUND',
                 company: currentCompany || 'NOT FOUND',
@@ -5567,6 +6153,20 @@
               // If new fields found, show notification for manual approval
               if (Object.keys(newFields).length > 0) {
                 console.log(`✨ CRMSYNC: Found NEW fields for ${contactEmail}:`, newFields);
+
+                // Check if this contact was recently updated (within last 5 minutes)
+                const recentUpdateTime = recentlyUpdatedContacts.get(contactEmail);
+                if (recentUpdateTime && (Date.now() - recentUpdateTime < 5 * 60 * 1000)) {
+                  console.log(`⏭️ CRMSYNC: Skipping ${contactEmail} - recently updated ${Math.round((Date.now() - recentUpdateTime) / 1000)}s ago`);
+                  continue;
+                }
+
+                // CRITICAL: Check if we already have a pending notification for this contact
+                if (contactsInApproval.has(contactEmail)) {
+                  console.log(`ℹ️ CRMSYNC: Skipping notification - ${contactEmail} already has a pending update`);
+                  continue;
+                }
+                
                 console.log(`📢 CRMSYNC: Showing notification for manual approval...`);
                 
                 // Create update candidate for notification
@@ -5582,6 +6182,9 @@
                     detectedAt: new Date().toISOString()
                   });
                 }
+                
+                // Add to tracking set BEFORE showing notification (to prevent duplicates)
+                contactsInApproval.add(contactEmail);
                 
                 // Show notification with Review button
                 showContactUpdateNotification(updateCandidates);
@@ -5747,6 +6350,28 @@
     // Store reference globally for manual triggering
     globalScanThread = scanThread;
 
+    // Helper function to check if we're in inbox list view (not thread view)
+    const isInboxListView = (url) => {
+      // Gmail thread URLs contain specific patterns like #inbox/thread-id or #label/thread-id
+      // Inbox list view is just #inbox, #sent, #label/name, etc without /thread-id
+      const hash = url.split('#')[1] || '';
+      
+      // If hash contains multiple slashes, it's likely a thread view
+      // e.g., #inbox/FMfcgzQXxxxxxx or #label/Important/FMfcgzQXxxxxxx
+      const slashCount = (hash.match(/\//g) || []).length;
+      
+      // Thread views typically have format: #category/thread-id or #label/name/thread-id
+      // List views have format: #category or #label/name
+      // If the last segment after slash looks like a thread ID (long alphanumeric), it's a thread
+      const segments = hash.split('/');
+      const lastSegment = segments[segments.length - 1];
+      
+      // Thread IDs are typically 16+ characters, alphanumeric
+      const looksLikeThreadId = lastSegment && lastSegment.length > 15 && /^[a-zA-Z0-9]+$/.test(lastSegment);
+      
+      return !looksLikeThreadId;
+    };
+
     // Watch for URL changes (Gmail uses pushState)
     let lastUrl = window.location.href;
     const urlObserver = new MutationObserver(() => {
@@ -5771,6 +6396,7 @@
         
         lastUrl = window.location.href;
         lastScannedThread = null; // Reset to allow re-scanning new thread
+        contactsInApproval.clear(); // Clear approval tracking when thread changes
         clearTimeout(scanDebounceTimer);
         scanDebounceTimer = setTimeout(scanThread, 800); // Reduced delay
       }
@@ -5801,14 +6427,16 @@
     window.addEventListener('popstate', () => {
       console.log('CRMSYNC: popstate event, triggering scan');
       lastScannedThread = null;
+      contactsInApproval.clear(); // Clear approval tracking on navigation
       clearTimeout(scanDebounceTimer);
       scanDebounceTimer = setTimeout(scanThread, 800); // Reduced delay
     });
-    
+
     // Listen for hashchange (Gmail uses hash-based navigation)
     window.addEventListener('hashchange', () => {
       console.log('CRMSYNC: hashchange event, triggering scan', window.location.href);
       lastScannedThread = null;
+      contactsInApproval.clear(); // Clear approval tracking on navigation
       clearTimeout(scanDebounceTimer);
       scanDebounceTimer = setTimeout(scanThread, 800); // Reduced delay
     });
@@ -6626,16 +7254,18 @@
     // CRITICAL: Remove quoted/replied text first to avoid extracting from previous emails in thread
     // Look for common quote indicators and cut off everything after them
     const quotePatterns = [
-      /On\s+.+\s+wrote:/i,                    // "On Mon, Jan 1, 2025 at 10:00 AM, John wrote:"
-      /Den\s+.+\s+skrev:/i,                   // Danish "On ... wrote:"
-      /Fra:\s*.+\nSendt:/i,                   // "From: ... Sent: ..." (Outlook)
-      /From:\s*.+\nSent:/i,                   // "From: ... Sent: ..." (Outlook EN)
-      /^>\s/m,                                // Lines starting with ">" (quoted)
-      /<blockquote/i,                         // HTML blockquote tags
-      /^──────/m,                             // Gmail quote divider
-      /gmail_quote/i                          // Gmail quote class
+      /On\s+.+\s+wrote:/i,                              // "On Mon, Jan 1, 2025 at 10:00 AM, John wrote:"
+      /Den\s+[^<]+\s+skrev\s+[^:]+:/i,                  // Danish "Den fre. 7. nov. 2025 kl. 14.33 skrev Sebastian Staal <...>:"
+      /Den\s+\w+\.?\s+\d+\.?\s+\w+\.?\s+\d{4}/i,        // Danish date format "Den fre. 7. nov. 2025"
+      /Fra:\s*.+\nSendt:/i,                             // "From: ... Sent: ..." (Outlook)
+      /From:\s*.+\nSent:/i,                             // "From: ... Sent: ..." (Outlook EN)
+      /^>\s/m,                                          // Lines starting with ">" (quoted)
+      /<blockquote/i,                                   // HTML blockquote tags
+      /^──────/m,                                       // Gmail quote divider
+      /gmail_quote/i,                                   // Gmail quote class
+      /\d{4}\s+kl\.\s+\d{1,2}[:.]\d{2}\s+skrev/i       // Danish time format "2025 kl. 14:33 skrev"
     ];
-    
+
     let cleanedBody = bodyText;
     for (const pattern of quotePatterns) {
       const match = cleanedBody.search(pattern);
@@ -6646,54 +7276,90 @@
       }
     }
 
+    // Debug: Show what we're searching for signatures in
+    console.log(`🔎 CRMSYNC: cleanedBody after quote removal (length: ${cleanedBody.length}):`);
+    console.log(`   First 300 chars:`, cleanedBody.substring(0, 300));
+    console.log(`   Last 300 chars:`, cleanedBody.substring(Math.max(0, cleanedBody.length - 300)));
+    
     // Common signature separators (English and Danish)
+    // IMPORTANT: Order matters! More specific patterns should come first
     const separators = [
       /^--\s*$/m,
       /^---\s*$/m,
       /^___\s*$/m,
-      /^Best regards?/i,
-      /^Sincerely?/i,
-      /^Thanks?/i,
-      /^Regards?/i,
-      /^Sent from/i,
-      // Danish signature separators
-      /^Med venlig hilsen/i,  // Danish "Best regards"
-      /^Venlig hilsen/i,      // Danish "Kind regards"
-      /^mvh/i,                // Danish "mvh" (med venlig hilsen)
-      /^Med venlige hilsner/i // Danish "With kind regards"
+      /^Best regards?/im,
+      /^Sincerely?/im,
+      /^Thanks?/im,
+      /^Regards?/im,
+      /^Sent from/im,
+      // Danish signature separators - MUST come before generic "mvh" pattern
+      /^\s*Bedste hilsner/im,     // Danish "Best regards" (allow leading whitespace)
+      /^\s*Med venlig hilsen/im,  // Danish "Best regards" 
+      /^\s*Venlig hilsen/im,      // Danish "Kind regards"
+      /^\s*Med venlige hilsner/im, // Danish "With kind regards"
+      /^\s*mvh\b/im,              // Danish "mvh" (med venlig hilsen) at start of line
+      /\bDbh\b/i,                 // Danish abbreviation "De bedste hilsner"
+      // Generic "mvh" LAST to avoid matching user's quoted replies
+      /\bmvh\b/i                  // Danish "mvh" as word boundary (generic, matches anywhere)
     ];
 
     let signatureStart = -1;
+    let foundSeparator = null;
     for (const sep of separators) {
       const match = cleanedBody.search(sep);
       if (match > 0 && (signatureStart === -1 || match < signatureStart)) {
         signatureStart = match;
+        foundSeparator = sep.source;
       }
     }
-
+    
     if (signatureStart > 0) {
+      console.log(`📌 CRMSYNC: Found separator "${foundSeparator}" at position ${signatureStart}`);
       const signature = cleanedBody.substring(signatureStart);
-      // Limit signature to last 300 characters (signatures are usually shorter)
-      // This prevents including too much body text
-      let finalSignature = signature.length > 300 ? signature.substring(signature.length - 300) : signature;
+      // Limit signature to FIRST 600 characters (signatures are usually at the start)
+      // This prevents including disclaimers and legal text that often comes after
+      let finalSignature = signature.length > 600 ? signature.substring(0, 600) : signature;
       
-      // CRITICAL: Validate that this signature doesn't belong to the user
-      // Check for user's own signature patterns (these indicate quoted content)
+      console.log(`📝 CRMSYNC: Raw signature extracted (first 300 chars):`, finalSignature.substring(0, 300));
+      
+      // CRITICAL: Truncate at user's signature if it appears (this is quoted content)
+      // Check for user's own signature patterns and cut off before them
       const userSignaturePatterns = [
+        /Fra:\s*Sebastian\s+Staal/i,  // Outlook "From: Sebastian Staal"
+        /From:\s*Sebastian\s+Staal/i,  // English "From: Sebastian Staal"
         /Mvh\s+Sebastian/i,
-        /Best regards\s+Sebastian/i,
-        /Med venlig hilsen\s+Sebastian/i,
-        /Sebastian\s+Staal/i,
-        /Nordr/i  // User's company name if we can detect it
+        /Best regards,?\s+Sebastian/i,
+        /Med venlig hilsen,?\s+Sebastian/i,
+        /--\s*Sebastian\s+Staal/i,  // Signature separator followed by user name
+        /Sebastian\s+Staal\s+Direktør/i,  // User's name + title
+        /\bDirektør\b.*\bhydemedia\b/i,  // User's title + company together
+        /\bhydemedia\.dk\b/i  // User's company domain
       ];
       
+      let truncateAt = -1;
       for (const pattern of userSignaturePatterns) {
-        if (pattern.test(finalSignature)) {
-          console.log('CRMSYNC: Rejected signature block (contains user signature):', finalSignature.substring(0, 100));
-          // This is the user's signature, not the sender's - return null to use domain fallback
+        const match = finalSignature.search(pattern);
+        if (match >= 0) {
+          console.log(`🔍 CRMSYNC: Pattern ${pattern.source} found at position ${match}`);
+        }
+        if (match > 50) { // Only truncate if match is after first 50 chars (preserve sender's content)
+          if (truncateAt === -1 || match < truncateAt) {
+            truncateAt = match;
+          }
+        } else if (match >= 0 && match < 50) {
+          // If user signature appears in first 50 chars, this entire block is likely the user's
+          console.log('CRMSYNC: Rejected signature block (user signature at start):', finalSignature.substring(0, 100));
           return null;
         }
       }
+      
+      if (truncateAt > 50) {
+        console.log(`📧 CRMSYNC: Truncated signature at user pattern (position ${truncateAt})`);
+        finalSignature = finalSignature.substring(0, truncateAt).trim();
+      }
+      
+      // Debug: Log final signature that will be used for extraction
+      console.log(`✅ CRMSYNC: Final signature for extraction (${finalSignature.length} chars):`, finalSignature.substring(0, 300));
       
       return finalSignature;
     }

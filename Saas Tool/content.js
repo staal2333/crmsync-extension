@@ -5988,11 +5988,25 @@
         
         // CRITICAL: Additional check - if user is logged in, check against their backend email too
         let backendUserEmail = null;
+        let backendUserName = null;
         try {
           const storage = await chrome.storage.local.get(['user']);
           if (storage.user && storage.user.email) {
             backendUserEmail = storage.user.email.toLowerCase();
             console.log(`🔐 CRMSYNC: Backend user email: ${backendUserEmail}`);
+            
+            // Extract user's name from backend
+            if (storage.user.displayName) {
+              backendUserName = storage.user.displayName;
+              console.log(`👤 CRMSYNC: Backend user name: ${backendUserName}`);
+            } else if (storage.user.email) {
+              // Fallback: extract name from email (e.g., sebastian.staal@... → Sebastian Staal)
+              const emailParts = storage.user.email.split('@')[0].split('.');
+              if (emailParts.length >= 2) {
+                backendUserName = emailParts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+                console.log(`👤 CRMSYNC: Derived user name from email: ${backendUserName}`);
+              }
+            }
             
             // If contact email matches backend email, skip it
             if (contactEmail.toLowerCase() === backendUserEmail) {
@@ -6248,6 +6262,20 @@
         const linkedin = extractLinkedIn(searchText);
         // Use searchText instead of bodyText to avoid extracting name from user's signature
         let extractedName = contactName || extractNameFromText(searchText, contactEmail);
+        
+        // CRITICAL: Check if extracted name matches logged-in user's name
+        if (extractedName && backendUserName) {
+          const extractedLower = extractedName.toLowerCase().trim();
+          const userNameLower = backendUserName.toLowerCase().trim();
+          
+          // Check if names match (full or partial)
+          if (extractedLower === userNameLower || 
+              userNameLower.includes(extractedLower) ||
+              extractedLower.includes(userNameLower)) {
+            console.log(`⚠️ CRMSYNC: Extracted name "${extractedName}" matches user name "${backendUserName}", clearing it`);
+            extractedName = null;
+          }
+        }
         
         // Additional safeguard: If extracted name is excluded, set to null
         const { firstName: tempFirst, lastName: tempLast } = splitName(extractedName);

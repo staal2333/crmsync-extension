@@ -4936,7 +4936,7 @@
       }
 
       const panel = document.createElement('div');
-      panel.className = 'crmsync-approval-panel upgrade-panel';
+      panel.className = 'crmsync-approval-panel'; // ONLY use approval-panel class, NOT upgrade-panel
       panel.setAttribute('data-contact-email', contact.email);
       
       const safeId = contact.email.replace(/[^a-z0-9]/gi, '');
@@ -5007,14 +5007,31 @@
         </div>
       `;
 
-      // Insert inline in Gmail, same as approval panel
+      // Position panel - EXACT SAME AS APPROVAL PANEL
+      panel.style.position = 'fixed';
+      panel.style.bottom = '100px';
+      panel.style.right = '24px';
+      panel.style.zIndex = '10005';
+      panel.style.background = 'var(--card-bg, #1e293b)';
+      panel.style.border = '1px solid var(--border, #334155)';
+      panel.style.borderRadius = '12px';
+      panel.style.padding = '20px';
+      panel.style.minWidth = '360px';
+      panel.style.maxWidth = '400px';
+      panel.style.maxHeight = '80vh';
+      panel.style.overflowY = 'auto';
+      panel.style.boxShadow = '0 10px 40px rgba(0,0,0,0.3)';
+      panel.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+
       document.body.appendChild(panel);
 
       // Close button
       const closeBtn = panel.querySelector('.approval-close-btn');
-      closeBtn.addEventListener('click', () => {
-        panel.remove();
-      });
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          panel.remove();
+        });
+      }
 
       // Upgrade button
       const upgradeBtn = panel.querySelector('.btn-upgrade-pro');

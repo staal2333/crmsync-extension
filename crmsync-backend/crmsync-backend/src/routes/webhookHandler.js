@@ -4,6 +4,28 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const db = require('../config/database');
 
 // ============================================
+// GET /api/subscription/webhook
+// Test endpoint to verify webhook is accessible
+// ============================================
+router.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'CRMSYNC Webhook Endpoint',
+    note: 'This endpoint only accepts POST requests from Stripe',
+    webhookUrl: 'https://crmsync-api.onrender.com/api/subscription/webhook',
+    acceptedEvents: [
+      'checkout.session.completed',
+      'customer.subscription.created',
+      'customer.subscription.updated',
+      'customer.subscription.deleted',
+      'invoice.payment_succeeded',
+      'invoice.payment_failed'
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ============================================
 // POST /api/subscription/webhook
 // Handle Stripe webhook events
 // Note: Raw body parsing is done in server.js before this route

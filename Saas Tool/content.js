@@ -2623,26 +2623,36 @@
    */
   function showUpgradePanel(contact, messageContainer, limit) {
     // Check if panel was recently dismissed (15 minutes cooldown)
-    chrome.storage.local.get(['upgradePanel_lastDismissed'], (storage) => {
-      const lastDismissed = storage.upgradePanel_lastDismissed;
-      const now = Date.now();
-      const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
-      
-      if (lastDismissed && (now - lastDismissed < fifteenMinutes)) {
-        const remainingMinutes = Math.ceil((fifteenMinutes - (now - lastDismissed)) / 60000);
-        console.log(`⏰ CRMSYNC: Upgrade panel dismissed, showing again in ${remainingMinutes} minutes`);
-        return; // Don't show panel yet
-      }
-      
-      // Check if panel already exists for this contact - prevent refresh glitch
-      const existingPanel = document.querySelector(`.crmsync-approval-panel[data-contact-email="${contact.email}"]`);
-      if (existingPanel) {
-        console.log(`⏭️ CRMSYNC: Upgrade panel already showing for ${contact.email}, skipping`);
-        return;
-      }
-      
-      createUpgradePanel(contact, limit);
-    });
+    try {
+      chrome.storage.local.get(['upgradePanel_lastDismissed'], (storage) => {
+        if (chrome.runtime.lastError) {
+          console.error('CRMSYNC: Error checking dismiss timestamp:', chrome.runtime.lastError);
+          createUpgradePanel(contact, limit);
+          return;
+        }
+        
+        const lastDismissed = storage.upgradePanel_lastDismissed;
+        const now = Date.now();
+        const fifteenMinutes = 15 * 60 * 1000; // 15 minutes in milliseconds
+        
+        if (lastDismissed && (now - lastDismissed < fifteenMinutes)) {
+          const remainingMinutes = Math.ceil((fifteenMinutes - (now - lastDismissed)) / 60000);
+          console.log(`⏰ CRMSYNC: Upgrade panel dismissed, showing again in ${remainingMinutes} minutes`);
+          return; // Don't show panel yet
+        }
+        
+        // Check if panel already exists for this contact - prevent refresh glitch
+        const existingPanel = document.querySelector(`.crmsync-approval-panel[data-contact-email="${contact.email}"]`);
+        if (existingPanel) {
+          console.log(`⏭️ CRMSYNC: Upgrade panel already showing for ${contact.email}, skipping`);
+          return;
+        }
+        
+        createUpgradePanel(contact, limit);
+      });
+    } catch (error) {
+      console.error('CRMSYNC: Extension context invalidated in showUpgradePanel:', error);
+    }
   }
   
   function createUpgradePanel(contact, limit) {
@@ -2678,7 +2688,7 @@
           position: relative;
           z-index: 1;
           transition: transform 0.2s ease;
-        " onmouseover="this.style.transform='scale(1.2)'" onmouseout="this.style.transform='scale(1)'">×</button>
+        ">×</button>
       </div>
       <div class="approval-content" style="
         text-align: center;
@@ -2749,7 +2759,7 @@
               display: flex;
               align-items: center;
               transition: transform 0.2s ease;
-            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            ">
               <span style="
                 color: #10b981;
                 margin-right: 10px;
@@ -2765,7 +2775,7 @@
               display: flex;
               align-items: center;
               transition: transform 0.2s ease;
-            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            ">
               <span style="
                 color: #10b981;
                 margin-right: 10px;
@@ -2781,7 +2791,7 @@
               display: flex;
               align-items: center;
               transition: transform 0.2s ease;
-            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            ">
               <span style="
                 color: #10b981;
                 margin-right: 10px;
@@ -2797,7 +2807,7 @@
               display: flex;
               align-items: center;
               transition: transform 0.2s ease;
-            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+            ">
               <span style="
                 color: #10b981;
                 margin-right: 10px;
@@ -2827,12 +2837,6 @@
           letter-spacing: 0.3px;
           position: relative;
           overflow: hidden;
-        " onmouseover="
-          this.style.transform='translateY(-2px)';
-          this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';
-        " onmouseout="
-          this.style.transform='translateY(0)';
-          this.style.boxShadow='0 4px 12px rgba(102, 126, 234, 0.4)';
         ">
           <span style="position: relative; z-index: 1;">🚀 Upgrade to Pro Now</span>
         </button>
@@ -2847,7 +2851,7 @@
           width: 100%;
           transition: color 0.2s ease;
           font-weight: 500;
-        " onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color='#9ca3af'">
+        ">
           Maybe Later
         </button>
       </div>
@@ -2880,6 +2884,25 @@
       contactsInApproval.delete(contact.email);
     });
     
+    // Close button hover effect
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.transform = 'scale(1.2)';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.transform = 'scale(1)';
+    });
+    
+    // List items hover effect
+    const listItems = panel.querySelectorAll('.approval-content ul li');
+    listItems.forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.style.transform = 'translateX(4px)';
+      });
+      item.addEventListener('mouseleave', () => {
+        item.style.transform = 'translateX(0)';
+      });
+    });
+    
     // Upgrade button
     const upgradeBtn = panel.querySelector('.btn-upgrade-pro');
     upgradeBtn.addEventListener('click', () => {
@@ -2909,12 +2932,20 @@
     const dismissBtn = panel.querySelector('.btn-dismiss-upgrade');
     dismissBtn.addEventListener('click', () => {
       // Save dismiss timestamp for 15-minute cooldown
-      chrome.storage.local.set({ upgradePanel_lastDismissed: Date.now() }, () => {
-        console.log('⏰ CRMSYNC: Upgrade panel dismissed, will show again in 15 minutes');
-        
-        // Show toast notification
-        showNotification('Upgrade reminder snoozed for 15 minutes ⏰', 'info');
-      });
+      try {
+        chrome.storage.local.set({ upgradePanel_lastDismissed: Date.now() }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('CRMSYNC: Error saving dismiss timestamp:', chrome.runtime.lastError);
+            return;
+          }
+          console.log('⏰ CRMSYNC: Upgrade panel dismissed, will show again in 15 minutes');
+          
+          // Show toast notification
+          showNotification('Upgrade reminder snoozed for 15 minutes ⏰', 'info');
+        });
+      } catch (error) {
+        console.error('CRMSYNC: Extension context invalidated:', error);
+      }
       
       panel.style.animation = 'slideOutRight 0.3s ease-in';
       setTimeout(() => {
@@ -7421,7 +7452,7 @@
       }
 
       // Extract name with improved function
-      const name = extractNameFromElement(headerEl, latestMessage) || null;
+      let name = extractNameFromElement(headerEl, latestMessage) || null;
 
       // Message body: used for signature heuristics
       const bodySelectors = [

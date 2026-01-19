@@ -88,6 +88,8 @@ const App: React.FC = () => {
       case 'terms':
       case 'security':
       case 'support':
+      case 'testimonials':
+      case 'case-studies':
         return <StaticPage pageKey={page} />;
       case 'home':
       default:

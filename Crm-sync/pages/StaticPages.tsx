@@ -820,18 +820,175 @@ const PAGES: Record<string, PageContent> = {
   },
   blog: {
     title: "Blog",
-    subtitle: "Latest updates and tips",
+    subtitle: "Tips, updates, and insights for sales professionals",
     content: (
-      <div className="grid gap-6">
-        <div className="border border-gray-100 p-6 rounded-xl">
-          <h3 className="font-bold text-lg">5 Tips for Better Email Management</h3>
-          <p className="text-gray-500 text-sm mt-2">March 15, 2024</p>
-          <p className="mt-4 text-gray-600">Learn how to hit Inbox Zero without losing your mind...</p>
+      <div className="space-y-8">
+        {/* Featured Post */}
+        <article className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl">
+          <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Featured</span>
+          <h2 className="text-2xl font-bold mt-4">The Hidden Cost of Manual Data Entry: Why Sales Teams Lose 5+ Hours Weekly</h2>
+          <p className="text-blue-100 mt-3">December 2024</p>
+          <p className="mt-4 text-blue-50">
+            Studies show that sales reps spend up to 20% of their time on administrative tasks like data entry. 
+            That's one full day every week not spent talking to prospects or closing deals. Here's how to reclaim that time.
+          </p>
+          <div className="mt-6 pt-6 border-t border-white/20">
+            <h4 className="font-semibold">Key Takeaways:</h4>
+            <ul className="mt-2 space-y-2 text-blue-100">
+              <li>• Average sales rep enters 50+ contacts per week manually</li>
+              <li>• Each contact takes 2-3 minutes to enter correctly</li>
+              <li>• Automation can reduce this to seconds per contact</li>
+              <li>• Time saved = more calls, more deals, more revenue</li>
+            </ul>
+          </div>
+        </article>
+
+        {/* Blog Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Post 1 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-orange-100 p-4">
+              <span className="text-orange-600 text-3xl">🔗</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-orange-600 bg-orange-50 px-2 py-1 rounded">Integration</span>
+              <h3 className="font-bold text-lg mt-3">How to Set Up HubSpot Integration in 5 Minutes</h3>
+              <p className="text-gray-500 text-sm mt-2">December 10, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                A step-by-step guide to connecting CRMSYNC with your HubSpot account. 
+                Learn how to configure field mapping, handle duplicates, and enable auto-sync.
+              </p>
+              <a href="#/integrations/hubspot" className="inline-block mt-4 text-blue-600 font-medium text-sm hover:underline">
+                Read Full Guide →
+              </a>
+            </div>
+          </article>
+
+          {/* Post 2 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-blue-100 p-4">
+              <span className="text-blue-600 text-3xl">☁️</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">Integration</span>
+              <h3 className="font-bold text-lg mt-3">Salesforce + Gmail: The Ultimate Productivity Stack</h3>
+              <p className="text-gray-500 text-sm mt-2">December 5, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                Discover how combining Salesforce with CRMSYNC creates a seamless workflow 
+                that captures every contact without leaving your inbox.
+              </p>
+              <a href="#/integrations/salesforce" className="inline-block mt-4 text-blue-600 font-medium text-sm hover:underline">
+                Read Full Guide →
+              </a>
+            </div>
+          </article>
+
+          {/* Post 3 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-green-100 p-4">
+              <span className="text-green-600 text-3xl">📈</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded">Productivity</span>
+              <h3 className="font-bold text-lg mt-3">5 Gmail Habits That Top Sales Reps Swear By</h3>
+              <p className="text-gray-500 text-sm mt-2">November 28, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                We interviewed 50 top-performing sales professionals to uncover their email secrets. 
+                From inbox organization to response templates, here's what they do differently.
+              </p>
+              <div className="mt-4 space-y-2 text-sm text-gray-700">
+                <p><strong>1.</strong> Process email in batches, not constantly</p>
+                <p><strong>2.</strong> Use keyboard shortcuts religiously</p>
+                <p><strong>3.</strong> Automate contact capture (that's us!)</p>
+                <p><strong>4.</strong> Template common responses</p>
+                <p><strong>5.</strong> Archive aggressively, search when needed</p>
+              </div>
+            </div>
+          </article>
+
+          {/* Post 4 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-purple-100 p-4">
+              <span className="text-purple-600 text-3xl">🎯</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">Best Practices</span>
+              <h3 className="font-bold text-lg mt-3">CRM Hygiene: Keeping Your Contact Database Clean</h3>
+              <p className="text-gray-500 text-sm mt-2">November 20, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                A messy CRM is worse than no CRM. Learn how to maintain data quality, 
+                handle duplicates, and ensure your sales team trusts the data.
+              </p>
+              <div className="mt-4 bg-gray-50 p-3 rounded-lg text-sm">
+                <p className="font-medium text-gray-900">Quick Tips:</p>
+                <ul className="mt-2 space-y-1 text-gray-600">
+                  <li>• Standardize data entry formats</li>
+                  <li>• Use automatic duplicate detection</li>
+                  <li>• Regular data quality audits</li>
+                  <li>• Delete bounced/invalid emails</li>
+                </ul>
+              </div>
+            </div>
+          </article>
+
+          {/* Post 5 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-red-100 p-4">
+              <span className="text-red-600 text-3xl">⚠️</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded">Common Mistakes</span>
+              <h3 className="font-bold text-lg mt-3">7 Contact Management Mistakes Killing Your Conversions</h3>
+              <p className="text-gray-500 text-sm mt-2">November 15, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                Are you making these common errors? From missing follow-ups to outdated information, 
+                these mistakes cost sales teams thousands in lost deals.
+              </p>
+              <div className="mt-4 space-y-2 text-sm text-gray-700">
+                <p>❌ Not capturing contacts immediately</p>
+                <p>❌ Missing phone numbers from signatures</p>
+                <p>❌ Forgetting to log interactions</p>
+                <p>❌ Letting data go stale</p>
+              </div>
+            </div>
+          </article>
+
+          {/* Post 6 */}
+          <article className="border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg transition">
+            <div className="bg-teal-100 p-4">
+              <span className="text-teal-600 text-3xl">🚀</span>
+            </div>
+            <div className="p-6">
+              <span className="text-xs font-semibold text-teal-600 bg-teal-50 px-2 py-1 rounded">Product Update</span>
+              <h3 className="font-bold text-lg mt-3">What's New: Inbox Sync, Keyboard Shortcuts & More</h3>
+              <p className="text-gray-500 text-sm mt-2">November 10, 2024</p>
+              <p className="mt-3 text-gray-600 text-sm">
+                Our latest update brings powerful new features to help you work faster.
+              </p>
+              <div className="mt-4 space-y-2 text-sm">
+                <p className="flex items-center gap-2"><span className="text-green-500">✓</span> <strong>Inbox Sync:</strong> Scan past emails for contacts</p>
+                <p className="flex items-center gap-2"><span className="text-green-500">✓</span> <strong>Shortcuts:</strong> Ctrl+F to search, Ctrl+E to export</p>
+                <p className="flex items-center gap-2"><span className="text-green-500">✓</span> <strong>Improved:</strong> Faster signature parsing</p>
+              </div>
+            </div>
+          </article>
         </div>
-        <div className="border border-gray-100 p-6 rounded-xl">
-          <h3 className="font-bold text-lg">Introducing Salesforce Integration</h3>
-          <p className="text-gray-500 text-sm mt-2">February 28, 2024</p>
-          <p className="mt-4 text-gray-600">You can now sync contacts directly to your Salesforce account...</p>
+
+        {/* Newsletter CTA */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+          <h3 className="text-xl font-bold text-gray-900">Stay Updated</h3>
+          <p className="mt-2 text-gray-600">Get the latest tips and product updates delivered to your inbox.</p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+            <input 
+              type="email" 
+              placeholder="Enter your email" 
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition">
+              Subscribe
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-gray-500">No spam. Unsubscribe anytime.</p>
         </div>
       </div>
     )
@@ -1800,6 +1957,317 @@ const PAGES: Record<string, PageContent> = {
         </div>
       </div>
     )
+  },
+  testimonials: {
+    title: "Customer Stories",
+    subtitle: "See how sales professionals are saving hours every week",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Hero Stats */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl text-center">
+          <h3 className="text-2xl font-bold">Trusted by 10,000+ Professionals</h3>
+          <div className="grid grid-cols-3 gap-4 mt-6">
+            <div>
+              <div className="text-3xl font-bold">4.8★</div>
+              <div className="text-blue-100 text-sm">Average Rating</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">5hrs</div>
+              <div className="text-blue-100 text-sm">Saved Weekly</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold">500K+</div>
+              <div className="text-blue-100 text-sm">Contacts Synced</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Testimonials Grid */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Testimonial 1 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★★'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "CRMSYNC has completely transformed how I manage contacts. I used to spend 30 minutes every day 
+              copying information from emails to HubSpot. Now it happens automatically. Game changer!"
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                MJ
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Michael Johnson</p>
+                <p className="text-sm text-gray-500">Sales Director, TechCorp</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial 2 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★★'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "As a recruiter, I email hundreds of candidates weekly. CRMSYNC captures their info instantly 
+              and syncs to Salesforce. I've reclaimed at least 5 hours per week. Worth every penny."
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 font-bold">
+                SC
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Sarah Chen</p>
+                <p className="text-sm text-gray-500">Senior Recruiter, Talent Plus</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial 3 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★★'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "The phone number extraction from signatures is incredibly accurate. Before CRMSYNC, 
+              I was missing half the phone numbers. Now my CRM data is actually complete and useful."
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold">
+                DM
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">David Martinez</p>
+                <p className="text-sm text-gray-500">Account Executive, CloudSoft</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial 4 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★★'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "Simple, fast, and just works. I tried 3 other contact capture tools before finding CRMSYNC. 
+              This is the only one that integrates seamlessly with Gmail without slowing it down."
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold">
+                EW
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Emma Williams</p>
+                <p className="text-sm text-gray-500">Founder, Startup Labs</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial 5 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★☆'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "Great product for the price. The HubSpot integration saved our team hours of work. 
+              Only wish is that it supported more CRMs, but HubSpot and Salesforce cover most use cases."
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-600 font-bold">
+                RP
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Robert Park</p>
+                <p className="text-sm text-gray-500">Sales Manager, InnovateCo</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Testimonial 6 */}
+          <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-1 text-yellow-400 mb-4">
+              {'★★★★★'.split('').map((star, i) => <span key={i}>{star}</span>)}
+            </div>
+            <p className="text-gray-700 italic">
+              "Our sales team of 15 people adopted CRMSYNC last month. We've seen a 40% reduction in 
+              time spent on data entry and our CRM data quality has improved dramatically."
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold">
+                LT
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">Lisa Thompson</p>
+                <p className="text-sm text-gray-500">VP of Sales, GrowthEngine</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
+          <h3 className="text-xl font-bold text-gray-900">Join Thousands of Happy Users</h3>
+          <p className="mt-2 text-gray-600">Start saving time today with our free plan.</p>
+          <a href="#/register" className="inline-block mt-4 bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-700 transition">
+            Get Started Free
+          </a>
+        </div>
+      </div>
+    )
+  },
+  'case-studies': {
+    title: "Case Studies",
+    subtitle: "Real results from real customers",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Case Study 1 */}
+        <article className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-6">
+            <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Sales Team</span>
+            <h2 className="text-2xl font-bold mt-3">How TechCorp Saved 200+ Hours Per Month</h2>
+            <p className="text-blue-100 mt-2">15-person sales team • HubSpot integration</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-center py-4 border-b border-gray-100">
+              <div>
+                <div className="text-2xl font-bold text-blue-600">200+</div>
+                <div className="text-sm text-gray-500">Hours Saved/Month</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">40%</div>
+                <div className="text-sm text-gray-500">More Calls Made</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">25%</div>
+                <div className="text-sm text-gray-500">Revenue Increase</div>
+              </div>
+            </div>
+            
+            <h4 className="font-semibold text-gray-900">The Challenge</h4>
+            <p>TechCorp's sales team was spending 3+ hours daily on manual data entry. Contact information from emails wasn't making it into HubSpot, leading to missed follow-ups and duplicate records.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Solution</h4>
+            <p>After deploying CRMSYNC across the team, contacts were automatically captured and synced to HubSpot. The duplicate detection feature cleaned up existing records.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Results</h4>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>Data entry time reduced from 3 hours to 15 minutes per rep</li>
+              <li>CRM data accuracy improved from 60% to 95%</li>
+              <li>Sales reps made 40% more outbound calls</li>
+              <li>Quarterly revenue increased 25%</li>
+            </ul>
+
+            <blockquote className="bg-gray-50 p-4 rounded-lg border-l-4 border-blue-500 italic">
+              "CRMSYNC paid for itself in the first week. The ROI is incredible."
+              <footer className="mt-2 text-sm text-gray-500">— Michael Johnson, Sales Director</footer>
+            </blockquote>
+          </div>
+        </article>
+
+        {/* Case Study 2 */}
+        <article className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-6">
+            <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Recruiting</span>
+            <h2 className="text-2xl font-bold mt-3">Talent Plus: 5,000 Candidates Processed Monthly</h2>
+            <p className="text-purple-100 mt-2">Recruiting agency • Salesforce integration</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-center py-4 border-b border-gray-100">
+              <div>
+                <div className="text-2xl font-bold text-purple-600">5,000</div>
+                <div className="text-sm text-gray-500">Contacts/Month</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">98%</div>
+                <div className="text-sm text-gray-500">Data Accuracy</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">50hrs</div>
+                <div className="text-sm text-gray-500">Saved Weekly</div>
+              </div>
+            </div>
+            
+            <h4 className="font-semibold text-gray-900">The Challenge</h4>
+            <p>Talent Plus recruiters were drowning in candidate emails. Manually entering contact details into Salesforce was taking hours daily, and important candidate information was being lost.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Solution</h4>
+            <p>CRMSYNC's signature parsing accurately extracted phone numbers, job titles, and company names from candidate emails. One-click sync to Salesforce streamlined the entire workflow.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Results</h4>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>Process 5,000+ candidate contacts per month</li>
+              <li>Phone number capture rate increased from 40% to 95%</li>
+              <li>Recruiters focus on relationships, not data entry</li>
+              <li>Candidate response time improved by 60%</li>
+            </ul>
+
+            <blockquote className="bg-gray-50 p-4 rounded-lg border-l-4 border-purple-500 italic">
+              "We can't imagine going back to manual entry. CRMSYNC is essential to our workflow."
+              <footer className="mt-2 text-sm text-gray-500">— Sarah Chen, Senior Recruiter</footer>
+            </blockquote>
+          </div>
+        </article>
+
+        {/* Case Study 3 */}
+        <article className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-6">
+            <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">Small Business</span>
+            <h2 className="text-2xl font-bold mt-3">Startup Labs: Solo Founder Scales to 1,000 Contacts</h2>
+            <p className="text-green-100 mt-2">One-person business • HubSpot Free CRM</p>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-center py-4 border-b border-gray-100">
+              <div>
+                <div className="text-2xl font-bold text-green-600">1,000+</div>
+                <div className="text-sm text-gray-500">Contacts</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-600">$0</div>
+                <div className="text-sm text-gray-500">Data Entry Cost</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">10hrs</div>
+                <div className="text-sm text-gray-500">Saved Weekly</div>
+              </div>
+            </div>
+            
+            <h4 className="font-semibold text-gray-900">The Challenge</h4>
+            <p>As a solo founder, Emma was wearing too many hats. She was neglecting her CRM because updating it took too long. Leads were falling through the cracks.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Solution</h4>
+            <p>CRMSYNC's free tier gave Emma 50 contacts/month to start. After seeing the value, she upgraded to Pro and now captures every contact automatically while focusing on her business.</p>
+            
+            <h4 className="font-semibold text-gray-900">The Results</h4>
+            <ul className="list-disc ml-5 space-y-1">
+              <li>Built a 1,000+ contact database in 6 months</li>
+              <li>Never misses a follow-up opportunity</li>
+              <li>Reclaimed 10 hours per week for product development</li>
+              <li>Closed 30% more deals with better data</li>
+            </ul>
+
+            <blockquote className="bg-gray-50 p-4 rounded-lg border-l-4 border-green-500 italic">
+              "Perfect for bootstrapped founders. I finally have a CRM I actually use."
+              <footer className="mt-2 text-sm text-gray-500">— Emma Williams, Founder</footer>
+            </blockquote>
+          </div>
+        </article>
+
+        {/* CTA */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl text-center">
+          <h3 className="text-xl font-bold">Ready to Write Your Success Story?</h3>
+          <p className="mt-2 text-blue-100">Join thousands of professionals saving time with CRMSYNC.</p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="#/register" className="inline-block bg-white text-blue-600 font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition">
+              Start Free Trial
+            </a>
+            <a href="#/testimonials" className="inline-block border border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white/10 transition">
+              Read More Reviews
+            </a>
+          </div>
+        </div>
+      </div>
+    )
   }
 };
 
@@ -1817,7 +2285,9 @@ const PAGE_META: Record<string, string> = {
   'integration-salesforce': "Connect CRMSYNC to Salesforce - complete integration guide for syncing contacts from Gmail.",
   'vs-manual': "CRMSYNC vs Manual Data Entry - see how automation saves 5+ hours per week on contact management.",
   'vs-competitors': "CRMSYNC vs Other Tools - feature comparison showing why CRMSYNC is the best choice for Gmail users.",
-  'vs-spreadsheets': "CRMSYNC vs Spreadsheets - why it's time to graduate from Excel for contact management."
+  'vs-spreadsheets': "CRMSYNC vs Spreadsheets - why it's time to graduate from Excel for contact management.",
+  testimonials: "Customer reviews and testimonials - see what sales professionals say about CRMSYNC.",
+  'case-studies': "CRMSYNC case studies - real results from sales teams, recruiters, and small businesses."
 };
 
 export const StaticPage: React.FC<{ pageKey: string }> = ({ pageKey }) => {

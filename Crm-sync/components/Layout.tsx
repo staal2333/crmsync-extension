@@ -157,6 +157,8 @@ export const Footer: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
               <li><span onClick={() => onNavigate('docs')} className="hover:text-primary transition-colors cursor-pointer">Documentation</span></li>
               <li><span onClick={() => onNavigate('support')} className="hover:text-primary transition-colors cursor-pointer">Support</span></li>
               <li><span onClick={() => onNavigate('blog')} className="hover:text-primary transition-colors cursor-pointer">Blog</span></li>
+              <li><span onClick={() => onNavigate('testimonials')} className="hover:text-primary transition-colors cursor-pointer">Testimonials</span></li>
+              <li><span onClick={() => onNavigate('case-studies')} className="hover:text-primary transition-colors cursor-pointer">Case Studies</span></li>
             </ul>
           </div>
 

@@ -217,8 +217,18 @@ class IntegrationManager {
   // =====================================================
   
   async syncAllContacts(platform) {
+    // Get the sync button and show loading state
+    const syncBtn = document.getElementById(`${platform}-sync-all-btn`);
+    const originalHTML = syncBtn ? syncBtn.innerHTML : '';
+    
     try {
       console.log(`⬆️ Pushing contacts to ${platform}...`);
+      
+      // Show loading state on button
+      if (syncBtn) {
+        syncBtn.disabled = true;
+        syncBtn.innerHTML = '<span class="button-spinner"></span> Syncing...';
+      }
       
       const token = await window.CRMSyncAuth.getAuthToken();
       if (!token) {
@@ -231,12 +241,19 @@ class IntegrationManager {
       // Use the sync.js manager if available
       if (window.syncManager) {
         await window.syncManager.manualSync();
+        this.showNotification(`Successfully synced to ${platform}!`, 'success');
       } else {
         this.showNotification('Sync manager not available', 'error');
       }
     } catch (error) {
       console.error(`❌ Failed to sync to ${platform}:`, error);
-      this.showNotification(`Failed to sync to ${platform}`, 'error');
+      this.showNotification(`Failed to sync to ${platform}: ${error.message || 'Unknown error'}`, 'error');
+    } finally {
+      // Reset button state
+      if (syncBtn) {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = originalHTML;
+      }
     }
   }
   

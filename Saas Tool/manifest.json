@@ -5,7 +5,6 @@
   "description": "Automatically sync Gmail contacts to HubSpot & Salesforce. AI-powered detection, zero manual entry. Free forever plan.",
   "author": "CRMSYNC",
   "homepage_url": "https://crm-sync.net",
-  "privacy_policy_url": "https://crm-sync.net/privacy",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

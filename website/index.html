@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRMSYNC - Auto-Sync Gmail Contacts to HubSpot & Salesforce</title>
+  <meta name="description" content="Stop manually entering contacts. CRMSYNC automatically captures contacts from Gmail and syncs to your CRM. Free Chrome extension.">
+  <meta name="keywords" content="gmail crm sync, hubspot gmail extension, salesforce gmail integration, auto capture contacts">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="CRMSYNC - Auto-Sync Gmail Contacts to Your CRM">
+  <meta property="og:description" content="Stop manually entering contacts. Automatically capture from Gmail and sync to HubSpot & Salesforce.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://crm-sync.net">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --primary-light: #818cf8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --text-lighter: #94a3b8;
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      padding: 16px 0;
+    }
+    
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+    
+    .nav-links a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .btn-large {
+      padding: 16px 32px;
+      font-size: 1.1rem;
+    }
+    
+    /* Hero Section */
+    .hero {
+      padding: 160px 0 100px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    }
+    
+    .hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .hero .subtitle {
+      font-size: 1.25rem;
+      color: var(--text-light);
+      max-width: 600px;
+      margin: 0 auto 40px;
+    }
+    
+    .hero-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .hero-image {
+      margin-top: 60px;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .hero-image img {
+      width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    }
+    
+    .hero-placeholder {
+      width: 100%;
+      height: 400px;
+      background: var(--gradient);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    /* Trust Badges */
+    .trust {
+      padding: 40px 0;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .trust p {
+      color: var(--text-lighter);
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+    
+    .trust-logos {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .trust-logo {
+      height: 32px;
+      opacity: 0.5;
+      filter: grayscale(100%);
+      transition: all 0.2s;
+    }
+    
+    .trust-logo:hover {
+      opacity: 1;
+      filter: grayscale(0%);
+    }
+    
+    /* Features Section */
+    .features {
+      padding: 100px 0;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    
+    .section-header h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .section-header p {
+      font-size: 1.1rem;
+      color: var(--text-light);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 32px;
+    }
+    
+    .feature-card {
+      background: var(--surface);
+      padding: 32px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      transition: all 0.3s;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+      border-color: var(--primary-light);
+    }
+    
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--gradient);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    
+    .feature-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .feature-card p {
+      color: var(--text-light);
+      font-size: 0.95rem;
+    }
+    
+    /* How It Works */
+    .how-it-works {
+      padding: 100px 0;
+      background: var(--surface);
+    }
+    
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      margin-top: 60px;
+    }
+    
+    .step {
+      text-align: center;
+      position: relative;
+    }
+    
+    .step-number {
+      width: 60px;
+      height: 60px;
+      background: var(--gradient);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0 auto 24px;
+    }
+    
+    .step h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .step p {
+      color: var(--text-light);
+      font-size: 0.95rem;
+    }
+    
+    /* Pricing Preview */
+    .pricing-preview {
+      padding: 100px 0;
+    }
+    
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .pricing-card {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    
+    .pricing-card.featured {
+      border-color: var(--primary);
+      box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+      transform: scale(1.02);
+    }
+    
+    .pricing-card .badge {
+      background: var(--gradient);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+      margin-bottom: 16px;
+    }
+    
+    .pricing-card h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-card .price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-card .price span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-light);
+    }
+    
+    .pricing-card .description {
+      color: var(--text-light);
+      margin-bottom: 24px;
+    }
+    
+    .pricing-card ul {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 24px;
+    }
+    
+    .pricing-card li {
+      padding: 8px 0;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .pricing-card li::before {
+      content: "✓";
+      color: var(--success);
+      font-weight: 600;
+    }
+    
+    /* CTA Section */
+    .cta {
+      padding: 100px 0;
+      background: var(--gradient);
+      text-align: center;
+      color: white;
+    }
+    
+    .cta h2 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    .cta p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 32px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .cta .btn {
+      background: white;
+      color: var(--primary);
+    }
+    
+    .cta .btn:hover {
+      background: var(--surface);
+    }
+    
+    /* Footer */
+    footer {
+      padding: 60px 0 40px;
+      background: var(--text);
+      color: white;
+    }
+    
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+    
+    .footer-brand .logo {
+      margin-bottom: 16px;
+      -webkit-text-fill-color: white;
+    }
+    
+    .footer-brand p {
+      color: var(--text-lighter);
+      font-size: 0.9rem;
+    }
+    
+    .footer-links h4 {
+      font-weight: 600;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .footer-links ul {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 10px;
+    }
+    
+    .footer-links a {
+      color: var(--text-lighter);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: white;
+    }
+    
+    .footer-bottom {
+      padding-top: 40px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .footer-bottom p {
+      color: var(--text-lighter);
+      font-size: 0.85rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+      
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+      
+      .steps {
+        grid-template-columns: 1fr;
+      }
+      
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .hero h1 {
+        font-size: 2rem;
+      }
+      
+      .hero-buttons {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <div class="container">
+      <div class="logo">CRMSYNC</div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How It Works</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/login" class="btn btn-secondary">Log In</a>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Stop Typing Contacts<br>Into Your CRM</h1>
+      <p class="subtitle">
+        CRMSYNC automatically captures contacts from Gmail and syncs them to HubSpot & Salesforce. Zero manual entry. Start free.
+      </p>
+      <div class="hero-buttons">
+        <a href="https://chrome.google.com/webstore/detail/crmsync" class="btn btn-primary btn-large">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.6 0 12 0zm0 19.2c-3.98 0-7.2-3.22-7.2-7.2S8.02 4.8 12 4.8s7.2 3.22 7.2 7.2-3.22 7.2-7.2 7.2z"/></svg>
+          Install Free Extension
+        </a>
+        <a href="#how-it-works" class="btn btn-secondary btn-large">See How It Works</a>
+      </div>
+      <div class="hero-image">
+        <div class="hero-placeholder">
+          📧 → 📇 → 💼<br>
+          Gmail to CRM in seconds
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Trust Badges -->
+  <section class="trust">
+    <div class="container">
+      <p>Trusted by 10,000+ sales professionals</p>
+      <div class="trust-logos">
+        <span style="font-weight: 600; color: var(--text-light);">Works with:</span>
+        <span style="font-weight: 700; color: #ff7a59;">HubSpot</span>
+        <span style="font-weight: 700; color: #00a1e0;">Salesforce</span>
+        <span style="font-weight: 700; color: #ea4335;">Gmail</span>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Everything You Need</h2>
+        <p>Powerful features to automate your contact management workflow</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📧</div>
+          <h3>Gmail Integration</h3>
+          <p>Automatically detects contacts from every email you view. Names, emails, phone numbers, and companies extracted instantly.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔄</div>
+          <h3>One-Click Sync</h3>
+          <p>Push contacts to HubSpot or Salesforce with a single click. Duplicate detection prevents messy CRM data.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h3>Smart Detection</h3>
+          <p>AI-powered extraction finds contact details in email signatures, headers, and body text.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Real-Time Updates</h3>
+          <p>See contacts appear as you browse emails. Manual approval or auto-approve modes available.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Privacy First</h3>
+          <p>Your data stays private. We only process emails you actively view. Enterprise-grade security.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h3>Analytics</h3>
+          <p>Track your contact collection with detailed statistics. See synced contacts, pending approvals, and more.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- How It Works -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-header">
+        <h2>How It Works</h2>
+        <p>Get started in under 2 minutes</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Install Extension</h3>
+          <p>Add CRMSYNC to Chrome from the Web Store. Takes 30 seconds.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Connect Your CRM</h3>
+          <p>Authorize HubSpot or Salesforce with secure OAuth. One-time setup.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Start Syncing</h3>
+          <p>Open Gmail and watch contacts flow. Approve or auto-sync to your CRM.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Pricing Preview -->
+  <section class="pricing-preview" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <h2>Simple, Transparent Pricing</h2>
+        <p>Start free, upgrade when you need more</p>
+      </div>
+      <div class="pricing-cards">
+        <div class="pricing-card">
+          <h3>Free</h3>
+          <div class="price">$0</div>
+          <p class="description">Perfect for getting started</p>
+          <ul>
+            <li>50 contacts per month</li>
+            <li>Gmail integration</li>
+            <li>1 CRM connection</li>
+            <li>Basic support</li>
+          </ul>
+          <a href="https://chrome.google.com/webstore/detail/crmsync" class="btn btn-secondary" style="width: 100%;">Get Started Free</a>
+        </div>
+        <div class="pricing-card featured">
+          <span class="badge">MOST POPULAR</span>
+          <h3>Pro</h3>
+          <div class="price">$9<span>/month</span></div>
+          <p class="description">For active sales professionals</p>
+          <ul>
+            <li>Unlimited contacts</li>
+            <li>All CRM integrations</li>
+            <li>Cloud backup & sync</li>
+            <li>Priority support</li>
+            <li>Advanced analytics</li>
+          </ul>
+          <a href="/pricing" class="btn btn-primary" style="width: 100%;">Start 7-Day Trial</a>
+        </div>
+      </div>
+      <p style="text-align: center; margin-top: 24px; color: var(--text-light);">
+        <a href="/pricing">View full pricing details →</a>
+      </p>
+    </div>
+  </section>
+  
+  <!-- CTA Section -->
+  <section class="cta">
+    <div class="container">
+      <h2>Ready to Save Hours Every Week?</h2>
+      <p>Join thousands of sales professionals who've automated their contact management</p>
+      <a href="https://chrome.google.com/webstore/detail/crmsync" class="btn btn-large">Install Free Extension</a>
+    </div>
+  </section>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="logo">CRMSYNC</div>
+          <p>Automatically sync Gmail contacts to your CRM. Stop typing, start selling.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Product</h4>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="/pricing">Pricing</a></li>
+            <li><a href="/docs">Documentation</a></li>
+            <li><a href="https://chrome.google.com/webstore/detail/crmsync">Chrome Extension</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/about">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+            <li><a href="/support">Support</a></li>
+            <li><a href="mailto:hello@crm-sync.net">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="/privacy">Privacy Policy</a></li>
+            <li><a href="/terms">Terms of Service</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 CRMSYNC. All rights reserved.</p>
+        <p>Made with ❤️ for sales teams everywhere</p>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

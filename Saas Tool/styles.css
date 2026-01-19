@@ -1526,6 +1526,20 @@ body.crmsync-sidebar-open #contact-extractor-widget {
   right: calc(24px + var(--sidebar-width, 320px));
 }
 
+/* Docked sidebar mode (Apollo-style) */
+body.crmsync-sidebar-open {
+  padding-right: var(--sidebar-width, 320px);
+  box-sizing: border-box;
+}
+
+#contact-extractor-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  z-index: 9999;
+}
+
 body.crmsync-sidebar-open .contact-approval-panel,
 body.crmsync-sidebar-open .notification-panel,
 body.crmsync-sidebar-open .reminder-notification {

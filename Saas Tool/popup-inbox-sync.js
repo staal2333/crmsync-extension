@@ -3,8 +3,7 @@
  * Add to popup.js
  */
 
-// Inbox Sync Event Listeners
-document.addEventListener('DOMContentLoaded', () => {
+function initInboxSyncUI() {
   const startInboxSyncBtn = document.getElementById('startInboxSyncBtn');
   const inboxSyncSettingsBtn = document.getElementById('inboxSyncSettingsBtn');
   const inboxSyncOptions = document.getElementById('inboxSyncOptions');
@@ -97,7 +96,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Load sync options on page load
   loadInboxSyncOptions();
-});
+}
+
+// Inbox Sync Event Listeners
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initInboxSyncUI);
+} else {
+  initInboxSyncUI();
+}
 
 /**
  * Load saved inbox sync options

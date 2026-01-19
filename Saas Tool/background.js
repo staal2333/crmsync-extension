@@ -413,6 +413,37 @@ async function handleWebsiteAuth(data) {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('📨 Background received message:', request.action || request.type);
   
+  // Handle website bridge messages (bidirectional logout sync)
+  if (request.action === 'WEBSITE_LOGOUT') {
+    // Website logged out, clear extension auth
+    handleWebsiteLogout().then(() => {
+      sendResponse({ success: true });
+    }).catch(error => {
+      console.error('Error handling website logout:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  } else if (request.action === 'WEBSITE_LOGIN') {
+    // Website logged in, sync to extension
+    handleWebsiteLogin(request.userData).then(() => {
+      sendResponse({ success: true });
+    }).catch(error => {
+      console.error('Error handling website login:', error);
+      sendResponse({ success: false, error: error.message });
+    });
+    return true;
+  } else if (request.action === 'REFRESH_USER_PROFILE') {
+    // Website subscription changed, refresh profile
+    (async () => {
+      const { authToken } = await chrome.storage.local.get(['authToken']);
+      if (authToken) {
+        await refreshUserProfile(authToken);
+      }
+      sendResponse({ success: true });
+    })();
+    return true;
+  }
+  
   // Legacy action-based messages
   if (request.action === 'saveContact') {
     saveContact(request.contact).then(() => {
@@ -2615,16 +2646,19 @@ async function initializeAuthAndSync() {
       'authToken',
       'isGuest'
     ]);
-    
+
     if (isAuthenticated && authToken) {
       console.log('✅ User authenticated');
-      
+
+      // CRITICAL: Fetch fresh user profile to get latest tier
+      await refreshUserProfile(authToken);
+
       // Fetch user exclusions from backend
       await fetchUserExclusions(authToken);
-      
+
       // Check for HubSpot connection and start auto-sync
       await checkAndStartHubSpotSync(authToken);
-      
+
       // Set up periodic subscription check (every 5 minutes)
       chrome.alarms.create('subscription-check', {
         periodInMinutes: 5
@@ -2636,6 +2670,49 @@ async function initializeAuthAndSync() {
     }
   } catch (error) {
     console.error('Auth check error:', error);
+  }
+}
+
+/**
+ * Refresh user profile from backend to get latest tier/subscription
+ * This ensures the extension always has the correct tier information
+ */
+async function refreshUserProfile(authToken) {
+  try {
+    console.log('🔄 Refreshing user profile...');
+    
+    const API_URL = 'https://crmsync-api.onrender.com/api';
+    const response = await fetch(`${API_URL}/auth/me`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user profile: ${response.status}`);
+    }
+
+    const userData = await response.json();
+    console.log('✅ User profile refreshed:', {
+      email: userData.email,
+      tier: userData.tier || userData.subscriptionTier,
+      displayName: userData.displayName
+    });
+
+    // Update stored user data
+    await chrome.storage.local.set({
+      user: {
+        ...userData,
+        tier: userData.tier || userData.subscriptionTier || 'free'
+      }
+    });
+
+    console.log('✅ User profile updated in storage');
+  } catch (error) {
+    console.error('❌ Failed to refresh user profile:', error);
+    // Don't throw - extension should still work with cached data
   }
 }
 
@@ -3015,12 +3092,35 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'token-refresh') {
     console.log('⏰ Checking if token needs refresh...');
     
-    const { isAuthenticated, refreshToken } = await chrome.storage.local.get(['isAuthenticated', 'refreshToken']);
+    const { isAuthenticated, authToken, refreshToken } = await chrome.storage.local.get([
+      'isAuthenticated', 
+      'authToken', 
+      'refreshToken'
+    ]);
     
-    if (isAuthenticated && refreshToken) {
+    if (isAuthenticated && authToken && refreshToken) {
       try {
-        await refreshAccessToken(refreshToken, false);
-        console.log('✅ Token refreshed automatically');
+        // Decode JWT to check expiry
+        const tokenParts = authToken.split('.');
+        if (tokenParts.length === 3) {
+          const payload = JSON.parse(atob(tokenParts[1]));
+          const expiresAt = payload.exp * 1000; // Convert to milliseconds
+          const now = Date.now();
+          const timeUntilExpiry = expiresAt - now;
+          
+          // Only refresh if expires in less than 5 minutes or already expired
+          if (timeUntilExpiry < 300000) { // 5 minutes = 300000ms
+            console.log(`🔄 Token expires in ${Math.round(timeUntilExpiry / 1000)}s, refreshing...`);
+            await refreshAccessToken(refreshToken, false);
+            console.log('✅ Token refreshed automatically');
+          } else {
+            console.log(`✓ Token still valid (expires in ${Math.round(timeUntilExpiry / 60000)} minutes)`);
+          }
+        } else {
+          // Not a JWT, refresh anyway
+          await refreshAccessToken(refreshToken, false);
+          console.log('✅ Token refreshed automatically');
+        }
       } catch (error) {
         console.error('❌ Automatic token refresh failed:', error);
         // Don't log user out - let them continue working
@@ -3047,3 +3147,67 @@ chrome.alarms.create('token-refresh', {
 });
 
 console.log('✅ Background script initialized with keep-alive and token-refresh');
+
+/**
+ * Handle logout from website - clear extension auth
+ */
+async function handleWebsiteLogout() {
+  try {
+    console.log('🚪 Website logged out, clearing extension data...');
+    
+    // Clear ALL auth data from extension
+    await chrome.storage.local.remove([
+      'authToken',
+      'refreshToken',
+      'user',
+      'isAuthenticated',
+      'authMethod',
+      'googleToken',
+      'lastSyncAt',
+      'subscription',
+      'accessToken',
+      'lastActivity'
+    ]);
+
+    await chrome.storage.sync.remove([
+      'authToken',
+      'refreshToken',
+      'user',
+      'isAuthenticated'
+    ]).catch(() => {
+      // Ignore errors
+    });
+
+    console.log('✅ Extension logged out from website trigger');
+  } catch (error) {
+    console.error('❌ Error handling website logout:', error);
+    throw error;
+  }
+}
+
+/**
+ * Handle login from website - sync auth to extension
+ */
+async function handleWebsiteLogin(userData) {
+  try {
+    console.log('🔐 Website logged in, syncing to extension...');
+    
+    if (userData && userData.token) {
+      // Store auth data in extension
+      await chrome.storage.local.set({
+        authToken: userData.token,
+        refreshToken: userData.refreshToken,
+        user: userData.user || userData,
+        isAuthenticated: true
+      });
+
+      console.log('✅ Extension synced with website login');
+      
+      // Refresh user profile to get latest tier
+      await refreshUserProfile(userData.token);
+    }
+  } catch (error) {
+    console.error('❌ Error handling website login:', error);
+    throw error;
+  }
+}

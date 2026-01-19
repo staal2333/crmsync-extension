@@ -65,6 +65,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initAuth();
+
+    // ✅ NEW: Listen for logout from extension (bidirectional sync)
+    const handleExtensionLogout = () => {
+      console.log('📥 Extension logged out, logging out website...');
+      logout();
+    };
+
+    window.addEventListener('crmsync-logout-from-extension', handleExtensionLogout);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('crmsync-logout-from-extension', handleExtensionLogout);
+    };
   }, []);
 
   const login = (newToken: string, newUser: User, refreshToken?: string) => {
@@ -81,26 +94,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
     console.log('✅ AuthContext: User logged in and stored:', newUser.email);
     
-    // Also store in extension if it's installed
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.set({
-        authToken: newToken,
-        refreshToken: refreshToken || null,
-        user: {
-          email: newUser.email,
-          name: newUser.name || newUser.displayName || '',
-          firstName: newUser.firstName || '',
-          lastName: newUser.lastName || '',
-          tier: newUser.tier || newUser.subscriptionTier || 'free',
-          avatar: newUser.avatarUrl || ''
-        },
-        isAuthenticated: true,
-        authTimestamp: Date.now()
-      }).then(() => {
-        console.log('✅ Auth data synced to extension');
-      }).catch(err => {
-        console.log('Extension not installed or cannot sync:', err.message);
-      });
+    // Notify extension about login (bidirectional sync)
+    if (typeof window !== 'undefined' && (window as any).CRMSyncExtension) {
+      try {
+        console.log('📤 Notifying extension of website login');
+        (window as any).CRMSyncExtension.notifyLogin({
+          token: newToken,
+          refreshToken: refreshToken,
+          user: newUser
+        });
+      } catch (error) {
+        console.error('Failed to notify extension:', error);
+      }
     }
   };
 
@@ -112,9 +117,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     console.log('🔓 AuthContext: User logged out');
     
-    // Also clear extension storage
-    if (typeof chrome !== 'undefined' && chrome.storage) {
-      chrome.storage.local.remove(['authToken', 'refreshToken', 'user', 'isAuthenticated']).catch(() => {});
+    // Notify extension about logout (bidirectional sync)
+    if (typeof window !== 'undefined' && (window as any).CRMSyncExtension) {
+      try {
+        console.log('📤 Notifying extension of website logout');
+        (window as any).CRMSyncExtension.notifyLogout();
+      } catch (error) {
+        console.error('Failed to notify extension:', error);
+      }
     }
   };
 

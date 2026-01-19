@@ -60,22 +60,25 @@ window.addEventListener('offline', () => {
   showToast('⚠️ You are offline. Changes will sync when reconnected.', false);
 });
 
-// AUTO-REFRESH SYSTEM
-// Listen for storage changes to auto-refresh popup when data changes
+// AUTO-REFRESH SYSTEM with debouncing
+// Prevents excessive refreshes when multiple storage changes occur rapidly
+let storageRefreshTimeout = null;
+let pendingChanges = {};
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local') {
-    let shouldRefresh = false;
-    
     // Check if important data changed
     if (changes.contacts || changes.user || changes.token) {
-      console.log('🔄 Data changed, refreshing popup...', Object.keys(changes));
-      shouldRefresh = true;
-    }
-    
-    if (shouldRefresh) {
-      // Delay slightly to ensure data is fully written
-      setTimeout(() => {
-        console.log('♻️ Auto-refreshing popup UI...');
+      // Accumulate changes
+      Object.assign(pendingChanges, changes);
+      
+      // Debounce: clear existing timeout and set new one
+      if (storageRefreshTimeout) {
+        clearTimeout(storageRefreshTimeout);
+      }
+      
+      storageRefreshTimeout = setTimeout(() => {
+        console.log('♻️ Debounced refresh triggered for:', Object.keys(pendingChanges));
         
         // Reload contacts list if available
         if (typeof loadAllContacts === 'function') {
@@ -83,7 +86,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         }
         
         // Re-initialize auth if user data changed
-        if (changes.user && typeof window.CRMSyncAuth !== 'undefined') {
+        if (pendingChanges.user && typeof window.CRMSyncAuth !== 'undefined') {
           window.CRMSyncAuth.checkAuth().catch(err => console.error('Failed to check auth:', err));
         }
         
@@ -91,7 +94,49 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         if (typeof window.integrationManager !== 'undefined') {
           window.integrationManager.checkIntegrationStatus(true).catch(err => console.error('Failed to check integrations:', err));
         }
-      }, 500);
+        
+        // Clear pending changes
+        pendingChanges = {};
+        storageRefreshTimeout = null;
+      }, 300); // 300ms debounce
+    }
+  }
+});
+
+// KEYBOARD SHORTCUTS for power users
+document.addEventListener('keydown', (e) => {
+  // Ctrl+F or Cmd+F to focus search
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    e.preventDefault();
+    const searchInput = document.getElementById('contactSearchInput');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.select();
+    }
+  }
+  
+  // Escape to clear search or close modals
+  if (e.key === 'Escape') {
+    const searchInput = document.getElementById('contactSearchInput');
+    if (searchInput && searchInput.value) {
+      searchInput.value = '';
+      searchInput.dispatchEvent(new Event('input'));
+      return;
+    }
+    
+    // Close any open modals
+    const openModal = document.querySelector('.modal-overlay:not(.hidden)');
+    if (openModal) {
+      openModal.classList.add('hidden');
+    }
+  }
+  
+  // Ctrl+E or Cmd+E to export
+  if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+    e.preventDefault();
+    const exportBtn = document.getElementById('exportContactsBtn');
+    if (exportBtn) {
+      exportBtn.click();
     }
   }
 });
@@ -141,6 +186,14 @@ setInterval(() => {
 async function checkForWebsiteAuth() {
   try {
     console.log('🔍 Checking for website auth completion...');
+    
+    // Check if we just logged out (skip auto-import)
+    const { justLoggedOut } = await chrome.storage.local.get(['justLoggedOut']);
+    if (justLoggedOut) {
+      console.log('⏭️ Skipping website auth check - user just logged out');
+      await chrome.storage.local.remove(['justLoggedOut']);
+      return false;
+    }
     
     // Method 1: Check chrome.storage for pending auth
     const { pendingWebsiteAuth } = await chrome.storage.local.get(['pendingWebsiteAuth']);
@@ -481,6 +534,35 @@ async function updateUIForConnectedPlatforms() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('📄 DOM Content Loaded - Full initialization starting...');
+
+  // Lazy-load optional enhancement scripts for faster startup
+  const loadScriptOnce = (() => {
+    const loaded = new Set();
+    return async (src) => {
+      if (loaded.has(src)) return;
+      loaded.add(src);
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.body.appendChild(script);
+      });
+    };
+  })();
+
+  const idleLoad = (fn) => {
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(fn, { timeout: 1200 });
+    } else {
+      setTimeout(fn, 800);
+    }
+  };
+
+  idleLoad(() => {
+    loadScriptOnce('quickActions.js').catch(() => {});
+    loadScriptOnce('analytics.js').catch(() => {});
+  });
   
   // STEP 1: Make sure UI is visible immediately (synchronous)
   try {
@@ -517,10 +599,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!authFound) {
       console.log('🔄 No auth found, will retry in 1 second...');
       setTimeout(async () => {
+        // Check if user just logged out before retrying
+        const { justLoggedOut } = await chrome.storage.local.get(['justLoggedOut']);
+        if (justLoggedOut) {
+          console.log('⏭️ Skipping retry - user just logged out');
+          return;
+        }
+        
         const retryFound = await checkForWebsiteAuth();
         if (retryFound) {
-          console.log('✅ Auth found on retry! Reloading UI...');
-          await loadInitialData();
+          console.log('✅ Auth found on retry! Reloading popup...');
+          location.reload(); // Just reload the entire popup
         }
       }, 1000);
     }
@@ -1121,7 +1210,17 @@ function showFirstTimeUserPrompt() {
 /**
  * Show auth banner for logged in users
  */
+let authBannerSetup = false; // Track if banner has been set up
+
 function showAuthBanner(user) {
+  console.log('🎯 showAuthBanner called for user:', user.email, 'already setup:', authBannerSetup);
+  
+  // Only setup once - prevent multiple calls from destroying the banner
+  if (authBannerSetup) {
+    console.log('⏭️ Auth banner already set up, skipping');
+    return;
+  }
+  
   // Remove existing banner first to prevent duplicates
   const existingBanner = document.getElementById('authBanner');
   if (existingBanner) {
@@ -1184,14 +1283,140 @@ function showAuthBanner(user) {
     }
   });
   
-  document.getElementById('signOutBtn').addEventListener('click', async () => {
+  console.log('🔍 Setting up top-right signOutBtn event listener...');
+  const signOutBtnElement = document.getElementById('signOutBtn');
+  console.log('🔍 signOutBtn element found:', !!signOutBtnElement);
+  
+  if (!signOutBtnElement) {
+    console.error('❌ signOutBtn element not found! The button does not exist in the DOM.');
+    return;
+  }
+  
+  // Debug: Check button's computed styles and position
+  const styles = window.getComputedStyle(signOutBtnElement);
+  console.log('🔍 signOutBtn styles:', {
+    display: styles.display,
+    visibility: styles.visibility,
+    pointerEvents: styles.pointerEvents,
+    zIndex: styles.zIndex,
+    position: styles.position,
+    opacity: styles.opacity
+  });
+  
+  // Test: Add a simple test handler first
+  signOutBtnElement.addEventListener('mousedown', (e) => {
+    console.log('🖱️ MOUSEDOWN detected on signOutBtn!', e);
+  });
+  
+  signOutBtnElement.addEventListener('mouseup', (e) => {
+    console.log('🖱️ MOUSEUP detected on signOutBtn!', e);
+  });
+  
+  signOutBtnElement.addEventListener('click', async (e) => {
+    console.log('🖱️ Top-right Sign Out button clicked!', e);
+    console.log('🖱️ Click event details:', {
+      target: e.target,
+      currentTarget: e.currentTarget,
+      button: e.button,
+      buttons: e.buttons
+    });
     if (confirm('Sign out? Your local data will remain on this device.')) {
-      if (typeof CRMSyncAuth !== 'undefined') {
-        await CRMSyncAuth.signOut();
+      try {
+        console.log('🚪 Signing out...');
+        
+        // Set flag to prevent auto re-import
+        console.log('🚩 Setting justLoggedOut flag...');
+        await chrome.storage.local.set({ justLoggedOut: true });
+        
+        // First, query for all website tabs and clear their auth
+        console.log('🌐 Clearing website auth first...');
+        const tabs = await chrome.tabs.query({ url: ['https://www.crm-sync.net/*', 'https://crm-sync.net/*'] });
+        
+        if (tabs && tabs.length > 0) {
+          console.log(`📡 Found ${tabs.length} website tab(s), clearing their auth...`);
+          for (const tab of tabs) {
+            try {
+              await chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => {
+                  console.log('🧹 Clearing auth from website localStorage...');
+                  localStorage.removeItem('token');  // Main auth token
+                  localStorage.removeItem('refreshToken');
+                  localStorage.removeItem('user');
+                  localStorage.removeItem('crmsync_onboarding_complete');
+                  console.log('✅ Website auth cleared');
+                }
+              });
+              console.log(`✅ Cleared auth from tab ${tab.id}`);
+            } catch (err) {
+              console.log(`⚠️ Could not clear auth from tab ${tab.id}:`, err.message);
+            }
+          }
+          
+          // Wait for website to process
+          console.log('⏳ Waiting for website to process logout...');
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          console.log('ℹ️ No website tabs open');
+        }
+        
+        // Now clear extension storage (but keep justLoggedOut flag)
+        console.log('🧹 Clearing extension storage...');
+        if (typeof signOut === 'function') {
+          console.log('📞 Calling signOut() function...');
+          await signOut();
+          console.log('✅ Sign out complete from auth.js');
+        } else {
+          console.log('⚠️ signOut function not found, clearing storage manually');
+          // Fallback: clear auth data manually (but NOT justLoggedOut)
+          await chrome.storage.local.remove([
+            'accessToken', 
+            'refreshToken', 
+            'user', 
+            'isAuthenticated',
+            'authToken',
+            'authMethod',
+            'googleToken',
+            'lastSyncAt',
+            'subscription',
+            'lastActivity',
+            'pendingWebsiteAuth'
+            // NOTE: NOT removing 'justLoggedOut' - we need it after reload!
+          ]);
+          
+          await chrome.storage.sync.remove([
+            'authToken',
+            'refreshToken',
+            'user',
+            'isAuthenticated'
+          ]).catch(() => {});
+          
+          console.log('✅ Storage cleared manually');
+        }
+        
+        // Restore the justLoggedOut flag in case signOut() cleared it
+        console.log('🚩 Ensuring justLoggedOut flag is set...');
+        await chrome.storage.local.set({ justLoggedOut: true });
+        
+        // Wait for cleanup to finish
+        console.log('⏳ Waiting for final cleanup...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload popup
+        console.log('🔄 Reloading popup...');
+        location.reload();
+      } catch (error) {
+        console.error('❌ Sign out error:', error);
+        alert('Error signing out. Please try again.');
       }
-      location.reload();
+    } else {
+      console.log('❌ User cancelled sign out');
     }
   });
+  
+  // Mark banner as set up
+  authBannerSetup = true;
+  console.log('✅ Auth banner fully set up with event listeners');
   
   // Update sync status periodically
   setInterval(updateSyncStatus, 30000);
@@ -1535,24 +1760,7 @@ function showAccountSettings(user) {
     headerBadge.classList.add(`tier-${user.tier.toLowerCase()}`);
   }
   
-  // Show/hide upgrade button based on tier
-  const upgradeBtn = document.getElementById('upgradeBtn');
-  const manageSubBtn = document.getElementById('manageSubscriptionBtn');
-  if (upgradeBtn) {
-    if (user.tier === 'free') {
-      upgradeBtn.style.display = 'block';
-      setupUpgradeButton();
-    } else {
-      upgradeBtn.style.display = 'none';
-    }
-  }
-  if (manageSubBtn) {
-    if (user.tier !== 'free') {
-      manageSubBtn.style.display = 'block';
-    } else {
-      manageSubBtn.style.display = 'none';
-    }
-  }
+  // Account settings only shows Sign Out now (subscription actions live below)
   
   // Setup sign out button (only once)
   setupSignOutButton();
@@ -1772,57 +1980,105 @@ async function updateContactLimitProgress(currentCount) {
   }
 }
 
-/**
- * Setup upgrade button event listener
- */
-function setupUpgradeButton() {
-  const upgradeBtn = document.getElementById('upgradeBtn');
-  if (!upgradeBtn) return;
-  
-  // Remove existing listener by cloning
-  const newUpgradeBtn = upgradeBtn.cloneNode(true);
-  upgradeBtn.parentNode.replaceChild(newUpgradeBtn, upgradeBtn);
-  
-  newUpgradeBtn.addEventListener('click', () => {
-    // Open website pricing page
-    const websiteUrl = window.CONFIG?.WEBSITE_URL || 'https://www.crm-sync.net';
-    const pricingPath = window.CONFIG?.AUTH?.PRICING || '/#/pricing';
-    
-    // For hash routing, put params BEFORE the hash
-    const pricingUrl = `${websiteUrl}?source=extension${pricingPath}`;
-    chrome.tabs.create({ url: pricingUrl });
-  });
-}
+// setupUpgradeButton removed: Account Settings upgrade button deprecated.
 
 /**
  * Setup sign out button event listener
  */
+// Track if sign out button has been set up
+let signOutButtonSetup = false;
+
 function setupSignOutButton() {
   const signOutBtn = document.getElementById('settingsSignOutBtn');
-  if (!signOutBtn) return;
+  console.log('🔍 Setting up sign out button, found:', !!signOutBtn, 'already setup:', signOutButtonSetup);
   
+  if (!signOutBtn) {
+    console.error('❌ Sign out button not found! ID: settingsSignOutBtn');
+    return;
+  }
+
+  // Only setup once - don't clone and lose the listener
+  if (signOutButtonSetup) {
+    console.log('⏭️ Sign out button already set up, skipping');
+    return;
+  }
+
   // Remove existing listener by cloning
   const newSignOutBtn = signOutBtn.cloneNode(true);
   signOutBtn.parentNode.replaceChild(newSignOutBtn, signOutBtn);
+  console.log('✅ Sign out button cloned and replaced');
   
   newSignOutBtn.addEventListener('click', async () => {
+    console.log('🖱️ Sign out button clicked!');
     if (confirm('Sign out? Your local data will remain on this device.')) {
       try {
-        console.log('Signing out...');
+        console.log('🚪 Signing out...');
+        
+        // Show loading state
+        newSignOutBtn.disabled = true;
+        newSignOutBtn.textContent = 'Signing out...';
+        
+        // Set flag to prevent auto re-import
+        console.log('🚩 Setting justLoggedOut flag...');
+        await chrome.storage.local.set({ justLoggedOut: true });
+        
         // Use auth.js signOut if available
         if (typeof signOut === 'function') {
+          console.log('📞 Calling signOut() function...');
           await signOut();
+          console.log('✅ Sign out complete from auth.js');
         } else {
-          // Fallback: clear auth data manually
-          await chrome.storage.local.remove(['accessToken', 'refreshToken', 'user', 'isAuthenticated']);
+          // Fallback: clear auth data manually (but NOT justLoggedOut)
+          console.log('⚠️ signOut function not found, using fallback');
+          await chrome.storage.local.remove([
+            'accessToken', 
+            'refreshToken', 
+            'user', 
+            'isAuthenticated',
+            'authToken',
+            'authMethod',
+            'googleToken',
+            'lastSyncAt',
+            'subscription',
+            'lastActivity',
+            'pendingWebsiteAuth'
+            // NOTE: NOT removing 'justLoggedOut' - we need it after reload!
+          ]);
+          
+          await chrome.storage.sync.remove([
+            'authToken',
+            'refreshToken',
+            'user',
+            'isAuthenticated'
+          ]).catch(() => {});
+          
+          console.log('✅ Storage cleared manually');
         }
+        
+        // Restore the justLoggedOut flag in case signOut() cleared it
+        console.log('🚩 Ensuring justLoggedOut flag is set...');
+        await chrome.storage.local.set({ justLoggedOut: true });
+        
+        // Wait a moment for all cleanup to finish
+        console.log('⏳ Waiting for cleanup to finish...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reload popup
+        console.log('🔄 Reloading popup...');
         location.reload();
       } catch (error) {
-        console.error('Sign out error:', error);
+        console.error('❌ Sign out error:', error);
         alert('Error signing out. Please try again.');
+        newSignOutBtn.disabled = false;
+        newSignOutBtn.textContent = '🚪 Sign Out';
       }
+    } else {
+      console.log('❌ User cancelled sign out');
     }
   });
+  
+  signOutButtonSetup = true;
+  console.log('✅ Sign out button event listener attached');
 }
 
 /**
@@ -1863,6 +2119,23 @@ function setupTabs() {
     console.log(`📊 Refreshing data for tab: ${targetTab}`);
     if (targetTab === 'all-contacts') {
       loadAllContacts();
+    }
+
+    if (targetTab === 'integrations') {
+      // Lazy-load inbox sync modules when CRM tab opens
+      if (!window._inboxSyncLoaded) {
+        window._inboxSyncLoaded = true;
+        const loadScriptOnce = (src) => new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+        loadScriptOnce('inboxSyncManager.js')
+          .then(() => loadScriptOnce('popup-inbox-sync.js'))
+          .catch(() => {});
+      }
     }
   };
 
@@ -2801,6 +3074,7 @@ let filteredContacts = [];
 let currentPage = 1;
 const contactsPerPage = 20;
 let currentSort = { field: 'lastContact', direction: 'desc' };
+let tableListenersAttached = false;
 
 async function loadAllContacts() {
   console.log('📋 Loading all contacts...');
@@ -2816,6 +3090,9 @@ async function loadAllContacts() {
     console.log('📦 Reading contacts from chrome.storage.local...');
     const result = await chrome.storage.local.get(['contacts']);
     allContactsData = result.contacts || [];
+
+    // Update onboarding checklist state
+    updateOnboardingChecklist(allContactsData.length).catch(() => {});
     
     console.log(`✅ Loaded ${allContactsData.length} contacts from storage`);
     
@@ -2935,6 +3212,44 @@ async function loadAllContacts() {
     if (typeof refreshSubscriptionDisplay === 'function') {
       await refreshSubscriptionDisplay().catch(err => console.error('Subscription display error:', err));
     }
+  }
+}
+
+async function updateOnboardingChecklist(contactCount) {
+  const checklist = document.getElementById('onboardingChecklist');
+  if (!checklist) return;
+
+  const { onboardingChecklistDismissed, isAuthenticated } = await chrome.storage.local.get([
+    'onboardingChecklistDismissed',
+    'isAuthenticated'
+  ]);
+
+  if (onboardingChecklistDismissed) {
+    checklist.style.display = 'none';
+    return;
+  }
+
+  const connectedPlatforms = window.connectedPlatforms || {};
+  const isConnected = !!(connectedPlatforms.hubspot || connectedPlatforms.salesforce);
+
+  const signInStep = document.getElementById('onboardingStepSignIn');
+  const connectStep = document.getElementById('onboardingStepConnect');
+  const contactsStep = document.getElementById('onboardingStepContacts');
+
+  if (signInStep) signInStep.classList.toggle('done', !!isAuthenticated);
+  if (connectStep) connectStep.classList.toggle('done', !!isConnected);
+  if (contactsStep) contactsStep.classList.toggle('done', contactCount > 0);
+
+  const allDone = !!isAuthenticated && !!isConnected && contactCount > 0;
+  checklist.style.display = allDone ? 'none' : 'block';
+
+  const dismissBtn = document.getElementById('dismissOnboarding');
+  if (dismissBtn && !dismissBtn.dataset.bound) {
+    dismissBtn.dataset.bound = 'true';
+    dismissBtn.addEventListener('click', async () => {
+      await chrome.storage.local.set({ onboardingChecklistDismissed: true });
+      checklist.style.display = 'none';
+    });
   }
 }
 
@@ -3103,8 +3418,12 @@ function renderContactsTable() {
   const startIndex = (currentPage - 1) * contactsPerPage;
   const endIndex = startIndex + contactsPerPage;
   const pageContacts = filteredContacts.slice(startIndex, endIndex);
+  const connectedPlatforms = window.connectedPlatforms || { hubspot: true, salesforce: true };
   
-  tbody.innerHTML = pageContacts.map((contact, index) => {
+  tbody.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+
+  pageContacts.forEach((contact, index) => {
     const statusClass = getStatusClass(contact.status);
     const rowIndex = startIndex + index;
     const fullName = getFullName(contact.firstName, contact.lastName) || contact.email || 'Unknown';
@@ -3118,89 +3437,93 @@ function renderContactsTable() {
     const source = contact.source || contact.crmSource || 'crm-sync';
     let sourceBadge = '';
     if (source === 'hubspot') {
-      sourceBadge = '<span class="crm-icon" style="background: #ff7a59; color: white; font-size: 8px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From HubSpot">H</span>';
+      sourceBadge = '<span class="source-badge source-hubspot" title="From HubSpot">H</span>';
     } else if (source === 'salesforce') {
-      sourceBadge = '<span class="crm-icon" style="background: #00a1e0; color: white; font-size: 8px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From Salesforce">S</span>';
+      sourceBadge = '<span class="source-badge source-salesforce" title="From Salesforce">S</span>';
     } else {
-      sourceBadge = '<span class="crm-icon" style="background: #667eea; color: white; font-size: 7px; width: 18px; height: 18px; line-height: 18px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-weight: 600;" title="From CRM-Sync">C</span>';
+      sourceBadge = '<span class="source-badge source-crmsync" title="From CRM-Sync">C</span>';
     }
     
     // CRM Sync Status - Show which platforms have this contact (filtered by connected platforms)
-    const connectedPlatforms = window.connectedPlatforms || { hubspot: true, salesforce: true };
     let crmStatus = '';
     if (inHubSpot || inSalesforce) {
       let badges = [];
       // Only show HubSpot badge if user is connected to HubSpot
       if (inHubSpot && connectedPlatforms.hubspot) {
-        badges.push('<span class="crm-sync-badge" style="background: #ff7a59; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to HubSpot">✓H</span>');
+        badges.push('<span class="crm-sync-badge crm-hubspot" title="Synced to HubSpot">✓H</span>');
       }
       // Only show Salesforce badge if user is connected to Salesforce
       if (inSalesforce && connectedPlatforms.salesforce) {
-        badges.push('<span class="crm-sync-badge" style="background: #00a1e0; color: white; font-size: 7px; width: 16px; height: 16px; line-height: 16px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 2px;" title="Synced to Salesforce">✓S</span>');
+        badges.push('<span class="crm-sync-badge crm-salesforce" title="Synced to Salesforce">✓S</span>');
       }
       if (badges.length > 0) {
-        crmStatus = '<div style="display: flex; gap: 2px; justify-content: center;">' + badges.join('') + '</div>';
+        crmStatus = '<div class="crm-status">' + badges.join('') + '</div>';
       } else {
-        crmStatus = '<span style="color: var(--text-secondary); opacity: 0.4; font-size: 10px;" title="Not synced to connected CRM">—</span>';
+        crmStatus = '<span class="crm-status-empty" title="Not synced to connected CRM">—</span>';
       }
     } else {
-      crmStatus = '<span style="color: var(--text-secondary); opacity: 0.4; font-size: 10px;" title="Not synced to any CRM">—</span>';
+      crmStatus = '<span class="crm-status-empty" title="Not synced to any CRM">—</span>';
     }
     
     // Status indicator - green dot for approved, yellow for pending, gray for others
     let statusDot = '';
     const status = (contact.status || 'approved').toLowerCase();
     if (status === 'approved') {
-      statusDot = '<span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block;" title="Approved"></span>';
+      statusDot = '<span class="status-dot status-approved" title="Approved"></span>';
     } else if (status === 'pending') {
-      statusDot = '<span style="width: 8px; height: 8px; background: #eab308; border-radius: 50%; display: inline-block;" title="Pending"></span>';
+      statusDot = '<span class="status-dot status-pending" title="Pending"></span>';
     } else {
-      statusDot = '<span style="width: 8px; height: 8px; background: #94a3b8; border-radius: 50%; display: inline-block;" title="' + status + '"></span>';
+      statusDot = `<span class="status-dot status-muted" title="${status}"></span>`;
     }
-    
-    return `
-      <tr class="contact-row ${isChecked ? 'row-selected' : ''}" data-email="${contact.email || ''}" data-row-index="${rowIndex}" style="border-bottom: 1px solid var(--border);">
-        <td class="checkbox-col" style="padding: 8px 6px; text-align: center;">
-          <input type="checkbox" class="contact-checkbox" data-email="${contact.email || ''}" ${isChecked ? 'checked' : ''}>
-        </td>
-        <td style="padding: 8px 10px; max-width: 200px;">
-          <div style="font-weight: 500; color: var(--text); margin-bottom: 2px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${fullName}
-          </div>
-          <div style="font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${contact.company || '-'}
-          </div>
-        </td>
-        <td style="padding: 8px 10px; color: var(--text-secondary); font-size: 11px; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-          ${contact.email || '-'}
-        </td>
-        <td style="padding: 8px 10px; text-align: center; width: 50px;">
-          ${statusDot}
-        </td>
-        <td style="padding: 8px 10px; text-align: center; width: 50px;">
-          ${sourceBadge}
-        </td>
-        <td style="padding: 8px 6px; text-align: center; width: 60px;">
-          ${crmStatus}
-        </td>
-        <td style="padding: 8px 6px; text-align: center; width: 36px;" class="action-cell">
-          <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="View & Edit Details" style="background: transparent; border: none; cursor: pointer; font-size: 14px; opacity: 0.6; transition: opacity 0.2s;">
-            ✏️
-          </button>
-        </td>
-      </tr>
+
+    const row = document.createElement('tr');
+    row.className = `contact-row ${isChecked ? 'row-selected' : ''}`;
+    row.dataset.email = contact.email || '';
+    row.dataset.rowIndex = rowIndex;
+    row.innerHTML = `
+      <td class="checkbox-col">
+        <input type="checkbox" class="contact-checkbox" data-email="${contact.email || ''}" ${isChecked ? 'checked' : ''}>
+      </td>
+      <td class="contact-cell">
+        <div class="contact-name">${fullName}</div>
+        <div class="contact-meta">${contact.company || '-'}</div>
+      </td>
+      <td class="contact-email">${contact.email || '-'}</td>
+      <td class="status-cell">
+        ${statusDot}
+      </td>
+      <td class="source-cell">${sourceBadge}</td>
+      <td class="crm-cell">${crmStatus}</td>
+      <td class="action-cell">
+        <button class="btn-small edit-contact-btn" data-email="${contact.email || ''}" title="View & Edit Details">
+          ✏️
+        </button>
+      </td>
     `;
-  }).join('');
-  
-  // Attach event listeners to rows
-  tbody.querySelectorAll('.contact-row').forEach(row => {
-    row.addEventListener('click', (e) => {
-      // Don't trigger if clicking on action button or edit button
-      if (e.target.closest('.action-cell') || e.target.closest('.edit-contact-btn')) return;
-      
-      // If clicking checkbox column, toggle the checkbox
+    fragment.appendChild(row);
+  });
+
+  tbody.appendChild(fragment);
+
+  if (!tableListenersAttached) {
+    tableListenersAttached = true;
+    tbody.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('.edit-contact-btn');
+      if (editBtn) {
+        e.stopPropagation();
+        const email = editBtn.getAttribute('data-email');
+        const contact = filteredContacts.find(c => c.email === email);
+        if (contact) {
+          showContactDetailsPopup(contact);
+        }
+        return;
+      }
+
+      const row = e.target.closest('.contact-row');
+      if (!row) return;
+
+      if (e.target.closest('.action-cell')) return;
       const isCheckboxClick = e.target.closest('.checkbox-col') || e.target.classList.contains('contact-checkbox');
-      
       if (isCheckboxClick) {
         const checkbox = row.querySelector('.contact-checkbox');
         if (checkbox) {
@@ -3209,27 +3532,14 @@ function renderContactsTable() {
         }
         return;
       }
-      
-      // Clicking row toggles the checkbox for selection
+
       const checkbox = row.querySelector('.contact-checkbox');
       if (checkbox) {
         checkbox.checked = !checkbox.checked;
         checkbox.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
-  });
-  
-  // Attach event listeners to edit buttons - open contact details
-  tbody.querySelectorAll('.edit-contact-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const email = btn.getAttribute('data-email');
-      const contact = filteredContacts.find(c => c.email === email);
-      if (contact) {
-        showContactDetailsPopup(contact);
-      }
-    });
-  });
+  }
   
   // Update showing count
   const showingEl = document.getElementById('contactsShowing');
@@ -3776,57 +4086,53 @@ function setupEventListeners() {
     });
   }
 
-  // Today's Contacts - Toggle collapse/expand
-  const todayContactsHeader = document.getElementById('todayContactsHeader');
-  const todayContactsContent = document.getElementById('todayContactsContent');
-  const todayContactsToggle = document.getElementById('todayContactsToggle');
-  
-  if (todayContactsHeader && todayContactsContent && todayContactsToggle) {
-    todayContactsHeader.addEventListener('click', () => {
-      const isHidden = todayContactsContent.style.display === 'none';
-      todayContactsContent.style.display = isHidden ? 'block' : 'none';
-      todayContactsToggle.textContent = isHidden ? '▼' : '▶';
+  const setupCollapsibleSection = (sectionId, headerId, contentId, toggleId) => {
+    const section = document.getElementById(sectionId);
+    const header = document.getElementById(headerId);
+    const content = document.getElementById(contentId);
+    const toggle = document.getElementById(toggleId);
+
+    if (!section || !header || !content || !toggle) return;
+
+    if (content.style.display === 'none') {
+      section.classList.add('is-collapsed');
+      content.style.display = '';
+    } else {
+      section.classList.remove('is-collapsed');
+    }
+
+    toggle.textContent = section.classList.contains('is-collapsed') ? '▶' : '▼';
+
+    header.addEventListener('click', () => {
+      const isCollapsed = section.classList.toggle('is-collapsed');
+      toggle.textContent = isCollapsed ? '▶' : '▼';
     });
-  }
-  
-  // Pending Approvals - Toggle collapse/expand
-  const pendingApprovalsHeader = document.getElementById('pendingApprovalsHeader');
-  const pendingApprovalsContent = document.getElementById('pendingApprovalsContent');
-  const pendingApprovalsToggle = document.getElementById('pendingApprovalsToggle');
-  
-  if (pendingApprovalsHeader && pendingApprovalsContent && pendingApprovalsToggle) {
-    pendingApprovalsHeader.addEventListener('click', () => {
-      const isHidden = pendingApprovalsContent.style.display === 'none';
-      pendingApprovalsContent.style.display = isHidden ? 'block' : 'none';
-      pendingApprovalsToggle.textContent = isHidden ? '▼' : '▶';
-    });
-  }
-  
-  // Recent Contacts - Toggle collapse/expand
-  const recentContactsHeader = document.getElementById('recentContactsHeader');
-  const recentContactsContent = document.getElementById('recentContactsContent');
-  const recentContactsToggle = document.getElementById('recentContactsToggle');
-  
-  if (recentContactsHeader && recentContactsContent && recentContactsToggle) {
-    recentContactsHeader.addEventListener('click', () => {
-      const isHidden = recentContactsContent.style.display === 'none';
-      recentContactsContent.style.display = isHidden ? 'block' : 'none';
-      recentContactsToggle.textContent = isHidden ? '▼' : '▶';
-    });
-  }
-  
-  // Rejected Contacts - Toggle collapse/expand
-  const rejectedContactsHeader = document.getElementById('rejectedContactsHeader');
-  const rejectedContactsContent = document.getElementById('rejectedContactsContent');
-  const rejectedContactsToggle = document.getElementById('rejectedContactsToggle');
-  
-  if (rejectedContactsHeader && rejectedContactsContent && rejectedContactsToggle) {
-    rejectedContactsHeader.addEventListener('click', () => {
-      const isHidden = rejectedContactsContent.style.display === 'none';
-      rejectedContactsContent.style.display = isHidden ? 'block' : 'none';
-      rejectedContactsToggle.textContent = isHidden ? '▼' : '▶';
-    });
-  }
+  };
+
+  setupCollapsibleSection(
+    'todayContactsSection',
+    'todayContactsHeader',
+    'todayContactsContent',
+    'todayContactsToggle'
+  );
+  setupCollapsibleSection(
+    'pendingApprovalsSection',
+    'pendingApprovalsHeader',
+    'pendingApprovalsContent',
+    'pendingApprovalsToggle'
+  );
+  setupCollapsibleSection(
+    'recentContactsSection',
+    'recentContactsHeader',
+    'recentContactsContent',
+    'recentContactsToggle'
+  );
+  setupCollapsibleSection(
+    'rejectedContactsSection',
+    'rejectedContactsHeader',
+    'rejectedContactsContent',
+    'rejectedContactsToggle'
+  );
   
   // Export Today's Contacts button
   const exportTodayBtn = document.getElementById('exportTodayContacts');
@@ -3872,51 +4178,6 @@ function setupEventListeners() {
     });
   }
 
-  // Actions
-  const exportCSVBtn = document.getElementById('exportCSV');
-  if (exportCSVBtn) {
-    exportCSVBtn.addEventListener('click', async () => {
-      const btn = exportCSVBtn;
-      const originalText = btn.textContent;
-
-      try {
-        btn.disabled = true;
-        btn.textContent = 'Exporting...';
-
-        const response = await chrome.runtime.sendMessage({ type: 'EXPORT_CSV_TODAY' });
-        if (response && response.success) {
-          btn.textContent = '✓ Exported';
-          showToast('CSV export started for today\'s CRM activity.');
-        } else {
-          btn.textContent = 'Retry Export';
-          showToast(response && response.message ? response.message : 'Export failed. Please try again.', true);
-        }
-      } catch (error) {
-        console.error('Export CSV error in popup:', error);
-        btn.textContent = 'Retry Export';
-        showToast('Export failed due to an unexpected error.', true);
-      } finally {
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.disabled = false;
-        }, 2500);
-      }
-    });
-  }
-
-  const viewDashboardBtn = document.getElementById('viewDashboard');
-  if (viewDashboardBtn) {
-    viewDashboardBtn.addEventListener('click', () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0] && tabs[0].url?.includes('mail.google.com')) {
-          chrome.tabs.sendMessage(tabs[0].id, { action: 'showSidebar' });
-        } else {
-          chrome.tabs.create({ url: 'https://mail.google.com' });
-        }
-      });
-    });
-  }
-
   // Clear all contacts
   const clearBtn = document.getElementById('clearContacts');
   if (clearBtn) {
@@ -3944,6 +4205,47 @@ function setupEventListeners() {
           clearBtn.disabled = false;
           clearBtn.textContent = originalText;
         }, 1500);
+      }
+    });
+  }
+
+  // Clear all data (contacts only)
+  const clearAllDataBtn = document.getElementById('clearAllData');
+  if (clearAllDataBtn) {
+    clearAllDataBtn.addEventListener('click', async () => {
+      const confirmMessage =
+        'This will remove ALL contacts and related history from CRMSYNC. Your login and settings will stay. Continue?';
+      if (!confirm(confirmMessage)) {
+        return;
+      }
+
+      clearAllDataBtn.disabled = true;
+      const originalText = clearAllDataBtn.textContent;
+      clearAllDataBtn.textContent = 'Clearing...';
+
+      try {
+        await chrome.storage.local.remove([
+          'contacts',
+          'contactCount',
+          'pendingContacts',
+          'pendingUpdates',
+          'rejectedContacts',
+          'recentlyUpdatedContacts',
+          'recentContacts',
+          'syncHistory',
+          'lastSyncAt',
+          'lastSeenCountAtSidebarOpen',
+          'sessionFoundCount'
+        ]);
+        showToast('✅ All contacts cleared. Reloading...');
+        setTimeout(() => {
+          location.reload();
+        }, 500);
+      } catch (error) {
+        console.error('Error clearing all data:', error);
+        showToast('Failed to clear contacts.', true);
+        clearAllDataBtn.textContent = originalText;
+        clearAllDataBtn.disabled = false;
       }
     });
   }
@@ -4234,30 +4536,6 @@ function setupAllContactsListeners() {
     });
   }
 
-  const exportFilteredBtn = document.getElementById('exportFilteredCSV');
-  if (exportFilteredBtn) {
-    exportFilteredBtn.addEventListener('click', async () => {
-      try {
-        exportFilteredBtn.disabled = true;
-        exportFilteredBtn.textContent = 'Exporting...';
-        const response = await chrome.runtime.sendMessage({ 
-          type: 'EXPORT_CSV_CUSTOM', 
-          payload: { contacts: filteredContacts } 
-        });
-        if (response && response.success) {
-          showToast(`Exported ${filteredContacts.length} contacts to CSV.`);
-        } else {
-          showToast('Export failed.', true);
-        }
-      } catch (error) {
-        console.error('Export error:', error);
-        showToast('Export failed.', true);
-      } finally {
-        exportFilteredBtn.disabled = false;
-        exportFilteredBtn.textContent = 'Export Filtered';
-      }
-    });
-  }
 }
 
 function updateSortIndicators() {
@@ -4284,17 +4562,7 @@ function showToast(message, isError) {
   const toast = document.createElement('div');
   toast.id = 'popup-toast';
   toast.textContent = message;
-  toast.className = 'popup-toast';
-  toast.style.position = 'fixed';
-  toast.style.bottom = '8px';
-  toast.style.left = '50%';
-  toast.style.transform = 'translateX(-50%)';
-  toast.style.padding = '6px 12px';
-  toast.style.borderRadius = '999px';
-  toast.style.fontSize = '12px';
-  toast.style.zIndex = '1000';
-  toast.style.color = '#fff';
-  toast.style.backgroundColor = isError ? '#c62828' : '#2e7d32';
+  toast.className = `popup-toast ${isError ? 'toast-error' : 'toast-success'}`;
 
   document.body.appendChild(toast);
 
@@ -4531,6 +4799,8 @@ function initBulkActions() {
   const bulkPushHubSpotBtn = document.getElementById('bulkPushHubSpot');
   const bulkPushSalesforceBtn = document.getElementById('bulkPushSalesforce');
   const bulkDeleteBtn = document.getElementById('bulkDelete');
+  const bulkActionsPanel = document.getElementById('bulkActionsPanel');
+  const bulkActionsToggle = document.getElementById('toggleBulkActions');
   
   // Select all checkbox handler
   if (selectAllCheckbox) {
@@ -4579,6 +4849,24 @@ function initBulkActions() {
       window.bulkSelectedContacts.clear();
       applyFiltersAndRender();
       updateBulkToolbar();
+    });
+  }
+
+  if (bulkActionsToggle && bulkActionsPanel) {
+    bulkActionsToggle.addEventListener('click', (e) => {
+      e.preventDefault();
+      const isOpen = bulkActionsPanel.style.display === 'grid';
+      bulkActionsPanel.style.display = isOpen ? 'none' : 'grid';
+      bulkActionsToggle.textContent = isOpen ? 'More actions ▾' : 'Hide actions ▴';
+    });
+
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (bulkActionsPanel.contains(target) || bulkActionsToggle.contains(target)) return;
+      if (bulkActionsPanel.style.display === 'grid') {
+        bulkActionsPanel.style.display = 'none';
+        bulkActionsToggle.textContent = 'More actions ▾';
+      }
     });
   }
   

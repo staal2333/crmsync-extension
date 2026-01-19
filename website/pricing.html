@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - CRMSYNC</title>
+  <meta name="description" content="CRMSYNC pricing plans. Start free, upgrade for unlimited contacts and premium features.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --primary-light: #818cf8;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --text-lighter: #94a3b8;
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      padding: 16px 0;
+    }
+    
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 32px;
+      align-items: center;
+    }
+    
+    .nav-links a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+    
+    .nav-links a:hover {
+      color: var(--primary);
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    
+    .btn-primary {
+      background: var(--gradient);
+      color: white;
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    /* Hero */
+    .pricing-hero {
+      padding: 140px 0 80px;
+      text-align: center;
+      background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+    }
+    
+    .pricing-hero h1 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+    
+    .pricing-hero p {
+      font-size: 1.2rem;
+      color: var(--text-light);
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    
+    /* Toggle */
+    .billing-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin: 40px 0;
+    }
+    
+    .billing-toggle span {
+      font-weight: 500;
+      color: var(--text-light);
+    }
+    
+    .billing-toggle span.active {
+      color: var(--text);
+    }
+    
+    .toggle-switch {
+      width: 56px;
+      height: 30px;
+      background: var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.3s;
+    }
+    
+    .toggle-switch.active {
+      background: var(--primary);
+    }
+    
+    .toggle-switch::after {
+      content: "";
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform 0.3s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+    
+    .save-badge {
+      background: var(--success);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    
+    /* Pricing Cards */
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto 80px;
+    }
+    
+    .pricing-card {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 40px 32px;
+      text-align: center;
+      transition: all 0.3s;
+      position: relative;
+    }
+    
+    .pricing-card:hover {
+      border-color: var(--primary-light);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+    }
+    
+    .pricing-card.featured {
+      border-color: var(--primary);
+      box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+      transform: scale(1.02);
+    }
+    
+    .pricing-card .badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--gradient);
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .pricing-card h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-card .description {
+      color: var(--text-light);
+      font-size: 0.95rem;
+      margin-bottom: 24px;
+    }
+    
+    .pricing-card .price {
+      font-size: 3.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1;
+    }
+    
+    .pricing-card .price span {
+      font-size: 1rem;
+      font-weight: 400;
+      color: var(--text-light);
+    }
+    
+    .pricing-card .billed {
+      color: var(--text-lighter);
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+    }
+    
+    .pricing-card ul {
+      list-style: none;
+      text-align: left;
+      margin: 24px 0;
+      padding: 24px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .pricing-card li {
+      padding: 10px 0;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.95rem;
+    }
+    
+    .pricing-card li.disabled {
+      color: var(--text-lighter);
+    }
+    
+    .check {
+      width: 20px;
+      height: 20px;
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+    
+    .check.disabled {
+      background: var(--surface);
+      color: var(--text-lighter);
+    }
+    
+    .pricing-card .btn {
+      width: 100%;
+      justify-content: center;
+    }
+    
+    /* FAQ Section */
+    .faq-section {
+      padding: 80px 0;
+      background: var(--surface);
+    }
+    
+    .faq-section h2 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 48px;
+    }
+    
+    .faq-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .faq-item {
+      background: var(--bg);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    
+    .faq-item h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    
+    .faq-item p {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+    
+    /* Footer */
+    footer {
+      padding: 40px 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+    
+    footer p {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+    
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    /* Responsive */
+    @media (max-width: 968px) {
+      .pricing-cards {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+      }
+      
+      .pricing-card.featured {
+        transform: none;
+      }
+      
+      .faq-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .nav-links {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav>
+    <div class="container">
+      <a href="/" class="logo">CRMSYNC</a>
+      <div class="nav-links">
+        <a href="/#features">Features</a>
+        <a href="/#how-it-works">How It Works</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/login" class="btn btn-secondary">Log In</a>
+      </div>
+    </div>
+  </nav>
+  
+  <!-- Pricing Hero -->
+  <section class="pricing-hero">
+    <div class="container">
+      <h1>Simple, Transparent Pricing</h1>
+      <p>Start free. Upgrade when you need unlimited contacts and premium features.</p>
+      
+      <div class="billing-toggle">
+        <span class="active" id="monthlyLabel">Monthly</span>
+        <div class="toggle-switch" id="billingToggle" onclick="toggleBilling()"></div>
+        <span id="yearlyLabel">Yearly</span>
+        <span class="save-badge">Save 20%</span>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Pricing Cards -->
+  <section class="container">
+    <div class="pricing-cards">
+      <!-- Free Plan -->
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <p class="description">For getting started</p>
+        <div class="price">$0</div>
+        <p class="billed">Free forever</p>
+        <ul>
+          <li><span class="check">✓</span> 50 contacts per month</li>
+          <li><span class="check">✓</span> Gmail integration</li>
+          <li><span class="check">✓</span> 1 CRM connection</li>
+          <li><span class="check">✓</span> Manual approval mode</li>
+          <li><span class="check">✓</span> Basic contact extraction</li>
+          <li class="disabled"><span class="check disabled">✗</span> Cloud backup</li>
+          <li class="disabled"><span class="check disabled">✗</span> Priority support</li>
+        </ul>
+        <a href="https://chrome.google.com/webstore/detail/crmsync" class="btn btn-secondary">Get Started Free</a>
+      </div>
+      
+      <!-- Pro Plan -->
+      <div class="pricing-card featured">
+        <span class="badge">Most Popular</span>
+        <h3>Pro</h3>
+        <p class="description">For active sales professionals</p>
+        <div class="price" id="proPrice">$9<span>/month</span></div>
+        <p class="billed" id="proBilled">Billed monthly</p>
+        <ul>
+          <li><span class="check">✓</span> <strong>Unlimited</strong> contacts</li>
+          <li><span class="check">✓</span> Gmail integration</li>
+          <li><span class="check">✓</span> All CRM integrations</li>
+          <li><span class="check">✓</span> Auto-approve mode</li>
+          <li><span class="check">✓</span> Advanced extraction</li>
+          <li><span class="check">✓</span> Cloud backup & sync</li>
+          <li><span class="check">✓</span> Priority support</li>
+        </ul>
+        <a href="/signup?plan=pro" class="btn btn-primary">Start 7-Day Free Trial</a>
+      </div>
+      
+      <!-- Business Plan -->
+      <div class="pricing-card">
+        <h3>Business</h3>
+        <p class="description">For teams and power users</p>
+        <div class="price" id="businessPrice">$29<span>/month</span></div>
+        <p class="billed" id="businessBilled">Billed monthly</p>
+        <ul>
+          <li><span class="check">✓</span> Everything in Pro</li>
+          <li><span class="check">✓</span> Team collaboration</li>
+          <li><span class="check">✓</span> Shared contact lists</li>
+          <li><span class="check">✓</span> Admin dashboard</li>
+          <li><span class="check">✓</span> API access</li>
+          <li><span class="check">✓</span> Custom integrations</li>
+          <li><span class="check">✓</span> Dedicated support</li>
+        </ul>
+        <a href="/contact-sales" class="btn btn-secondary">Contact Sales</a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- FAQ Section -->
+  <section class="faq-section">
+    <div class="container">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h3>Can I try Pro before paying?</h3>
+          <p>Yes! All paid plans come with a 7-day free trial. No credit card required to start. Cancel anytime during the trial.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What happens when I hit the free limit?</h3>
+          <p>You'll see a prompt to upgrade. Your existing contacts are safe - you just can't add new ones until next month or you upgrade.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Can I cancel anytime?</h3>
+          <p>Absolutely. Cancel with one click from your account settings. You'll keep access until the end of your billing period.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Do you offer refunds?</h3>
+          <p>Yes, we offer full refunds within 14 days of purchase if you're not satisfied. Just contact support.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is my data secure?</h3>
+          <p>We use enterprise-grade encryption, secure OAuth for CRM connections, and never store your email content. See our privacy policy for details.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What CRMs do you support?</h3>
+          <p>Currently HubSpot and Salesforce. We're adding more CRMs based on user demand. Request yours via support!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>&copy; 2024 CRMSYNC. All rights reserved. | <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    </div>
+  </footer>
+  
+  <script>
+    let isYearly = false;
+    
+    function toggleBilling() {
+      isYearly = !isYearly;
+      const toggle = document.getElementById('billingToggle');
+      const monthlyLabel = document.getElementById('monthlyLabel');
+      const yearlyLabel = document.getElementById('yearlyLabel');
+      const proPrice = document.getElementById('proPrice');
+      const proBilled = document.getElementById('proBilled');
+      const businessPrice = document.getElementById('businessPrice');
+      const businessBilled = document.getElementById('businessBilled');
+      
+      if (isYearly) {
+        toggle.classList.add('active');
+        monthlyLabel.classList.remove('active');
+        yearlyLabel.classList.add('active');
+        proPrice.innerHTML = '$7<span>/month</span>';
+        proBilled.textContent = 'Billed $84/year';
+        businessPrice.innerHTML = '$23<span>/month</span>';
+        businessBilled.textContent = 'Billed $276/year';
+      } else {
+        toggle.classList.remove('active');
+        monthlyLabel.classList.add('active');
+        yearlyLabel.classList.remove('active');
+        proPrice.innerHTML = '$9<span>/month</span>';
+        proBilled.textContent = 'Billed monthly';
+        businessPrice.innerHTML = '$29<span>/month</span>';
+        businessBilled.textContent = 'Billed monthly';
+      }
+    }
+  </script>
+</body>
+</html>

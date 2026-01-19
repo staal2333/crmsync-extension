@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -40,9 +40,9 @@
     <!-- All Contacts Tab -->
     <div class="tab-content active" id="all-contacts-tab">
       <!-- Limit Warning Banner -->
-      <div id="limitWarningBanner" style="display: none; background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); color: white; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; font-size: 13px; font-weight: 500;">
-        <div style="margin-bottom: 8px;">⚠️ <span id="limitWarningText">You're at your contact limit!</span></div>
-        <button id="upgradeLimitBtn" style="background: white; color: #ef4444; border: none; padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
+      <div id="limitWarningBanner" class="limit-warning-banner" style="display: none;">
+        <div class="limit-warning-text">⚠️ <span id="limitWarningText">You're at your contact limit!</span></div>
+        <button id="upgradeLimitBtn" class="limit-warning-btn">
           ✨ Upgrade to Pro
         </button>
       </div>
@@ -63,37 +63,60 @@
         </div>
       </div>
 
+      <!-- Onboarding Checklist -->
+      <div class="onboarding-card" id="onboardingChecklist" style="display: none;">
+        <div class="onboarding-header">
+          <div class="onboarding-title">Getting Started</div>
+          <button class="onboarding-dismiss" id="dismissOnboarding" title="Hide checklist">×</button>
+        </div>
+        <div class="onboarding-subtitle">Complete these steps to unlock the full value:</div>
+        <div class="onboarding-steps">
+          <div class="onboarding-step" id="onboardingStepSignIn">
+            <span class="onboarding-check">1</span>
+            <span>Sign in to sync across devices</span>
+          </div>
+          <div class="onboarding-step" id="onboardingStepConnect">
+            <span class="onboarding-check">2</span>
+            <span>Connect HubSpot or Salesforce</span>
+          </div>
+          <div class="onboarding-step" id="onboardingStepContacts">
+            <span class="onboarding-check">3</span>
+            <span>Add your first contact from Gmail</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Contact Limit Progress Bar -->
-      <div id="contactLimitProgress" style="margin: 12px 0; padding: 12px; background: var(--surface); border-radius: 8px; border: 1px solid var(--border);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+      <div id="contactLimitProgress" class="limit-progress">
+        <div class="limit-progress-header">
           <span style="font-size: 12px; font-weight: 600; color: var(--text);" id="limitProgressText">0 / 50 contacts</span>
           <span style="font-size: 11px; color: var(--text-secondary);" id="limitProgressPercent">0%</span>
         </div>
-        <div style="width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
-          <div id="limitProgressBar" style="height: 100%; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s ease, background 0.3s ease;"></div>
+        <div class="limit-progress-track">
+          <div id="limitProgressBar" class="limit-progress-bar"></div>
         </div>
-        <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px; display: none;" id="limitProgressWarning">
+        <div id="limitProgressWarning" class="limit-progress-warning" style="display: none;">
           ⚠️ <span id="limitProgressWarningText">Approaching limit</span>
         </div>
       </div>
 
       <!-- Search and Filters -->
-      <div class="search-section">
+      <div class="search-section search-section-premium">
         <input type="text" id="contactSearchInput" placeholder="Search contacts..." class="search-input">
-        <div class="filter-row">
-          <select id="sourceFilter" class="select-input" style="flex: 1;">
+        <div class="filter-row filter-row-premium">
+          <select id="sourceFilter" class="select-input">
             <option value="">All Sources</option>
             <option value="gmail">📧 Gmail</option>
             <option value="hubspot">H HubSpot</option>
             <option value="salesforce">S Salesforce</option>
           </select>
-          <select id="statusFilter" class="select-input" style="flex: 1;">
+          <select id="statusFilter" class="select-input">
             <option value="">All Status</option>
             <option value="approved">Approved</option>
             <option value="pending">Pending</option>
             <option value="archived">Archived</option>
           </select>
-          <select id="sortBy" class="select-input" style="flex: 1;">
+          <select id="sortBy" class="select-input">
             <option value="lastContact">Recent</option>
             <option value="name">Name</option>
             <option value="company">Company</option>
@@ -101,28 +124,34 @@
         </div>
       </div>
 
-      <!-- Bulk Actions Toolbar - Compact & Subtle -->
-      <div class="bulk-actions-toolbar" id="bulkActionsToolbar" style="padding: 6px 12px; background: var(--bg); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-        <div class="bulk-actions-left" style="display: flex; gap: 12px; align-items: center;">
-          <span class="bulk-count" id="bulkSelectedCount" style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">0 selected</span>
-          <button class="btn-text" id="bulkSelectAll" style="font-size: 11px; padding: 3px 6px; color: var(--primary); background: none; border: none; cursor: pointer; font-weight: 500;">Select All</button>
-          <button class="btn-text" id="bulkDeselectAll" style="font-size: 11px; padding: 3px 6px; color: var(--text-secondary); background: none; border: none; cursor: pointer; font-weight: 500;">Clear</button>
+      <!-- Bulk Actions Toolbar -->
+      <div class="bulk-actions-toolbar" id="bulkActionsToolbar">
+        <div class="bulk-actions-left">
+          <span class="bulk-count" id="bulkSelectedCount">0 selected</span>
+          <button class="btn-text" id="bulkSelectAll">Select All</button>
+          <button class="btn-text" id="bulkDeselectAll">Clear</button>
         </div>
-        <div class="bulk-actions-right" style="display: flex; gap: 6px; align-items: center;">
-          <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push selected to HubSpot" style="font-size: 11px; padding: 4px 8px; gap: 3px; min-width: auto; background: #FF7A59; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center;">
-            <span style="font-size: 10px;">H</span>
-          </button>
-          <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push selected to Salesforce" style="font-size: 11px; padding: 4px 8px; gap: 3px; min-width: auto; background: #00A1E0; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center;">
-            <span style="font-size: 10px;">S</span>
-          </button>
-          <button class="btn-icon-text" id="bulkExport" title="Export selected to CSV" style="font-size: 11px; padding: 4px 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 3px;">
-            <span style="font-size: 10px;">📥</span>
-            <span>Export</span>
-          </button>
-          <button class="btn-icon-text" id="bulkDelete" title="Delete selected contacts" style="font-size: 11px; padding: 4px 8px; background: transparent; color: #ef4444; border: 1px solid #ef4444; border-radius: 4px; cursor: pointer; font-weight: 500; display: flex; align-items: center; gap: 3px;">
-            <span style="font-size: 10px;">🗑️</span>
-          </button>
-        </div>
+        <button class="btn-text bulk-actions-toggle" id="toggleBulkActions">
+          More actions ▾
+        </button>
+      </div>
+      <div class="bulk-actions-panel" id="bulkActionsPanel" style="display: none;">
+        <button class="btn-icon-text btn-hubspot hidden" id="bulkPushHubSpot" title="Push selected to HubSpot">
+          <span style="font-size: 10px;">H</span>
+          <span>HubSpot</span>
+        </button>
+        <button class="btn-icon-text btn-salesforce hidden" id="bulkPushSalesforce" title="Push selected to Salesforce">
+          <span style="font-size: 10px;">S</span>
+          <span>Salesforce</span>
+        </button>
+        <button class="btn-icon-text" id="bulkExport" title="Export selected to CSV">
+          <span style="font-size: 10px;">📥</span>
+          <span>Export</span>
+        </button>
+        <button class="btn-icon-text" id="bulkDelete" title="Delete selected contacts">
+          <span style="font-size: 10px;">🗑️</span>
+          <span>Delete</span>
+        </button>
       </div>
 
       <!-- Contacts Table -->
@@ -155,11 +184,11 @@
       </div>
 
       <!-- Actions -->
-      <div class="actions-row">
-        <button class="btn-secondary" id="exportAllContactsCSV">
+      <div class="actions-row actions-row-premium">
+        <button class="btn-secondary action-btn" id="exportAllContactsCSV">
           Export CSV
         </button>
-        <button class="btn-secondary" id="refreshAllContacts">
+        <button class="btn-secondary action-btn" id="refreshAllContacts">
           Refresh
         </button>
       </div>
@@ -168,32 +197,32 @@
       <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
         
         <!-- Today's Contacts -->
-        <div class="section" id="todayContactsSection" style="display: none; margin-bottom: 12px;">
-          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="todayContactsHeader">
-            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">📅 Today (<span id="todayContactsCount">0</span>) <span style="font-size: 11px; color: var(--text-secondary); font-weight: 400; margin-left: 4px;">Gmail only</span></h4>
-            <span id="todayContactsToggle" style="font-size: 14px;">▶</span>
+        <div class="section collapsible-section" id="todayContactsSection" style="display: none;">
+          <div class="section-header collapsible-header" id="todayContactsHeader">
+            <h4 class="collapsible-title">📅 Today (<span id="todayContactsCount">0</span>) <span class="section-note">Gmail only</span></h4>
+            <span id="todayContactsToggle" class="collapsible-toggle">▶</span>
           </div>
-          <div id="todayContactsContent" style="display: none; margin-top: 8px;">
-            <div id="todayContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+          <div id="todayContactsContent" class="collapsible-content">
+            <div id="todayContactsList" class="contacts-list contacts-list-compact">
               <div class="empty-state">
                 <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No new Gmail contacts today</p>
                 <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">💡 Send an email to automatically detect contacts</p>
               </div>
             </div>
-            <button class="btn-secondary" id="exportTodayContacts" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 6px;">
+            <button class="btn-secondary section-action-btn" id="exportTodayContacts">
               📥 Export Today's Contacts
             </button>
           </div>
         </div>
 
         <!-- Pending Approvals -->
-        <div class="section" id="pendingApprovalsSection" style="display: none; margin-bottom: 12px;">
-          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="pendingApprovalsHeader">
-            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">⏳ Pending (<span id="pendingApprovalsCount">0</span>)</h4>
-            <span id="pendingApprovalsToggle" style="font-size: 14px;">▶</span>
+        <div class="section collapsible-section" id="pendingApprovalsSection" style="display: none;">
+          <div class="section-header collapsible-header" id="pendingApprovalsHeader">
+            <h4 class="collapsible-title">⏳ Pending (<span id="pendingApprovalsCount">0</span>)</h4>
+            <span id="pendingApprovalsToggle" class="collapsible-toggle">▶</span>
           </div>
-          <div id="pendingApprovalsContent" style="display: none; margin-top: 8px;">
-            <div id="pendingList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+          <div id="pendingApprovalsContent" class="collapsible-content">
+            <div id="pendingList" class="contacts-list contacts-list-compact">
               <div class="empty-state">
                 <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No contacts pending approval</p>
                 <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">✅ All contacts are approved!</p>
@@ -203,35 +232,35 @@
         </div>
 
         <!-- Recent Contacts -->
-        <div class="section" id="recentContactsSection" style="display: none; margin-bottom: 12px;">
-          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="recentContactsHeader">
-            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">🕒 Recent (<span id="recentContactsCount">0</span>)</h4>
-            <span id="recentContactsToggle" style="font-size: 14px;">▶</span>
+        <div class="section collapsible-section" id="recentContactsSection" style="display: none;">
+          <div class="section-header collapsible-header" id="recentContactsHeader">
+            <h4 class="collapsible-title">🕒 Recent (<span id="recentContactsCount">0</span>)</h4>
+            <span id="recentContactsToggle" class="collapsible-toggle">▶</span>
           </div>
-          <div id="recentContactsContent" style="display: none; margin-top: 8px;">
-            <div id="recentContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+          <div id="recentContactsContent" class="collapsible-content">
+            <div id="recentContactsList" class="contacts-list contacts-list-compact">
               <div class="empty-state">
                 <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No recent contacts</p>
                 <p style="margin: 4px 0; font-size: 11px; color: var(--text-secondary);">💬 Contacts you've emailed recently will appear here</p>
               </div>
             </div>
-            <button class="btn-text" id="clearContacts" style="width: 100%; margin-top: 8px; font-size: 12px;">Clear All</button>
+            <button class="btn-text section-action-btn" id="clearContacts">Clear All</button>
           </div>
         </div>
 
         <!-- Rejected Contacts -->
-        <div class="section" id="rejectedContactsSection" style="display: none; margin-bottom: 12px;">
-          <div class="section-header" style="cursor: pointer; padding: 8px 12px; background: var(--surface); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;" id="rejectedContactsHeader">
-            <h4 style="margin: 0; font-size: 13px; font-weight: 600;">🚫 Rejected (<span id="rejectedContactsCount">0</span>)</h4>
-            <span id="rejectedContactsToggle" style="font-size: 14px;">▶</span>
+        <div class="section collapsible-section" id="rejectedContactsSection" style="display: none;">
+          <div class="section-header collapsible-header" id="rejectedContactsHeader">
+            <h4 class="collapsible-title">🚫 Rejected (<span id="rejectedContactsCount">0</span>)</h4>
+            <span id="rejectedContactsToggle" class="collapsible-toggle">▶</span>
           </div>
-          <div id="rejectedContactsContent" style="display: none; margin-top: 8px;">
-            <div id="rejectedContactsList" class="contacts-list" style="max-height: 200px; overflow-y: auto;">
+          <div id="rejectedContactsContent" class="collapsible-content">
+            <div id="rejectedContactsList" class="contacts-list contacts-list-compact">
               <div class="empty-state">
                 <p style="margin: 8px 0; color: var(--text-secondary); font-size: 12px;">No rejected contacts</p>
               </div>
             </div>
-            <button class="btn-text" id="clearRejected" style="width: 100%; margin-top: 8px; font-size: 12px;">Clear All</button>
+            <button class="btn-text section-action-btn" id="clearRejected">Clear All</button>
           </div>
         </div>
 
@@ -333,26 +362,90 @@
           </div>
 
           <!-- Account Settings -->
-          <div class="setting-item-full" id="accountSettingsContainer" style="margin-top: 24px; display: none;">
+          <div class="setting-item-full settings-card" id="accountSettingsContainer" style="margin-top: 24px; display: none;">
             <label class="setting-label">👤 Account Settings</label>
-            <div style="background: var(--surface); padding: 16px; border-radius: 12px; margin-top: 8px; border: 1px solid var(--border);">
-              <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                  <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 16px;" id="accountAvatar">U</div>
-                  <div style="flex: 1;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <div style="font-weight: 600; font-size: 14px; color: var(--text);" id="accountName">Loading...</div>
-                      <span id="accountTier" style="font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; background: #10b981; color: white;">FREE</span>
+            <div class="settings-card-body">
+              <div class="settings-stack">
+                <div class="settings-profile">
+                  <div class="settings-avatar" id="accountAvatar">U</div>
+                  <div class="settings-profile-meta">
+                    <div class="settings-profile-row">
+                      <div class="settings-profile-name" id="accountName">Loading...</div>
+                      <span id="accountTier" class="settings-tier-badge">FREE</span>
                     </div>
-                    <div style="font-size: 12px; color: var(--text-secondary);" id="accountEmail">Loading...</div>
+                    <div class="settings-profile-email" id="accountEmail">Loading...</div>
                   </div>
                 </div>
-                <button class="btn-secondary" id="upgradeBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; margin-bottom: 8px; display: none;">
-                  ✨ Upgrade to Pro
-                </button>
-                <button class="btn-secondary" id="settingsSignOutBtn" style="width: 100%; padding: 10px; border-radius: 8px; font-weight: 500; background: #ef4444; color: white; border: none;">
+                <button class="btn-secondary settings-signout" id="settingsSignOutBtn">
                   🚪 Sign Out
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subscription Management Section -->
+          <div class="setting-item-full settings-card" id="subscriptionManagementContainer" style="margin-top: 24px; display: none;">
+            <label class="setting-label">💳 Subscription & Billing</label>
+            <div class="settings-card-body">
+              <div class="settings-stack">
+                
+                <!-- Current Plan Info -->
+                <div class="subscription-plan-row">
+                  <div>
+                    <div class="subscription-plan-label">Current Plan</div>
+                    <div class="subscription-plan-name" id="subscriptionPlanName">Free Plan</div>
+                  </div>
+                  <div id="subscriptionStatusBadge" class="subscription-status-badge">
+                    ACTIVE
+                  </div>
+                </div>
+
+                <!-- Contact Limit Info -->
+                <div class="subscription-limit-card">
+                  <div class="subscription-limit-row">
+                    <span class="subscription-limit-label">Contact Limit</span>
+                    <span id="subscriptionContactLimit" class="subscription-limit-value">50</span>
+                  </div>
+                  <div class="subscription-limit-description" id="subscriptionLimitDescription">
+                    Upgrade to Pro for unlimited contacts
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="subscription-actions">
+                  <button class="btn-secondary subscription-upgrade" id="upgradeProBtn" style="display: none;">
+                    ✨ Upgrade Now
+                  </button>
+                  <button class="btn-secondary subscription-manage" id="manageBillingBtn" style="display: none;">
+                    💳 Manage Billing
+                  </button>
+                </div>
+
+                <!-- Upgrade Features (for free users) -->
+                <div id="upgradeFeaturesList" class="subscription-features" style="display: none;">
+                  <div class="subscription-features-title">
+                    Pro Features:
+                  </div>
+                  <div class="subscription-features-list">
+                    <div class="subscription-feature">
+                      <span style="color: #10b981;">✓</span>
+                      <span>Unlimited contacts & storage</span>
+                    </div>
+                    <div class="subscription-feature">
+                      <span style="color: #10b981;">✓</span>
+                      <span>Cloud sync across devices</span>
+                    </div>
+                    <div class="subscription-feature">
+                      <span style="color: #10b981;">✓</span>
+                      <span>Automatic contact enrichment</span>
+                    </div>
+                    <div class="subscription-feature">
+                      <span style="color: #10b981;">✓</span>
+                      <span>Priority support & API access</span>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
           </div>
@@ -788,52 +881,52 @@
       </div>
 
       <!-- Sync History & Logs -->
-      <div class="sync-history-section" id="syncHistorySection" style="margin-top: 24px;">
-        <div class="history-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-          <h3 style="font-size: 16px; font-weight: 600; color: var(--text);">📋 Recent Sync Operations</h3>
-          <button class="btn-text" id="clearHistoryBtn" style="font-size: 12px; color: var(--text-secondary);">Clear History</button>
+      <div class="sync-history-section" id="syncHistorySection">
+        <div class="history-header">
+          <h3 class="history-title">📋 Recent Sync Operations</h3>
+          <button class="btn-text history-clear-btn" id="clearHistoryBtn">Clear History</button>
         </div>
         
-        <div class="history-filters" style="display: flex; gap: 8px; margin-bottom: 12px;">
-          <select id="historyPlatformFilter" class="select-input" style="flex: 1;">
+        <div class="history-filters">
+          <select id="historyPlatformFilter" class="select-input history-filter">
             <option value="">All Platforms</option>
             <option value="hubspot">HubSpot</option>
             <option value="salesforce">Salesforce</option>
           </select>
-          <select id="historyResultFilter" class="select-input" style="flex: 1;">
+          <select id="historyResultFilter" class="select-input history-filter">
             <option value="">All Results</option>
             <option value="success">Success</option>
             <option value="error">Error</option>
           </select>
         </div>
         
-        <div class="sync-history-table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px;">
-          <table class="sync-history-table" style="width: 100%; border-collapse: collapse;">
-            <thead style="position: sticky; top: 0; background: var(--surface); z-index: 1;">
+        <div class="sync-history-table-wrapper">
+          <table class="sync-history-table">
+            <thead>
               <tr>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Time</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Platform</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Contact</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Action</th>
-                <th style="padding: 10px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border);">Result</th>
+                <th>Time</th>
+                <th>Platform</th>
+                <th>Contact</th>
+                <th>Action</th>
+                <th>Result</th>
               </tr>
             </thead>
             <tbody id="syncHistoryTableBody">
               <tr>
-                <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-secondary);">
-                  <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
-                  <div style="font-size: 14px;">No sync history yet</div>
-                  <div style="font-size: 12px; margin-top: 4px;">Sync operations will appear here</div>
+                <td colspan="5" class="sync-history-empty">
+                  <div class="sync-history-empty-icon">📭</div>
+                  <div class="sync-history-empty-title">No sync history yet</div>
+                  <div class="sync-history-empty-subtitle">Sync operations will appear here</div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
         
-        <div class="history-stats" style="display: flex; justify-content: space-between; margin-top: 12px; padding: 12px; background: var(--surface); border-radius: 8px; font-size: 12px;">
-          <span style="color: var(--text-secondary);">Total: <strong id="historyTotal" style="color: var(--text);">0</strong></span>
-          <span style="color: var(--success);">Success: <strong id="historySuccess">0</strong></span>
-          <span style="color: var(--error);">Failed: <strong id="historyFailed">0</strong></span>
+        <div class="history-stats">
+          <span class="history-stat-label">Total: <strong id="historyTotal" class="history-stat-value">0</strong></span>
+          <span class="history-stat-success">Success: <strong id="historySuccess">0</strong></span>
+          <span class="history-stat-failed">Failed: <strong id="historyFailed">0</strong></span>
         </div>
       </div>
 
@@ -856,157 +949,55 @@
 
   <!-- Data Merge Dialog -->
   <div id="dataMergeDialog" class="data-merge-overlay">
-    <div style="background: white; padding: 32px; border-radius: 16px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-      <div style="text-align: center; margin-bottom: 24px;">
-        <div style="font-size: 48px; margin-bottom: 12px;">🔄</div>
-        <h2 style="margin: 0 0 8px 0; font-size: 22px; color: #1e293b;">Welcome Back!</h2>
-        <p style="margin: 0; color: #64748b; font-size: 14px; line-height: 1.5;">
+    <div class="data-merge-card">
+      <div class="data-merge-header">
+        <div class="data-merge-icon">🔄</div>
+        <h2 class="data-merge-title">Welcome Back!</h2>
+        <p class="data-merge-description">
           You have <strong id="localContactCount">0</strong> contacts saved locally. Would you like to keep them or use your synced data?
         </p>
       </div>
       
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <button id="keepLocalDataBtn" class="data-merge-btn-primary" style="padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+      <div class="data-merge-actions">
+        <button id="keepLocalDataBtn" class="data-merge-btn data-merge-btn-primary">
           📦 Keep My Local Data
-          <div style="font-size: 12px; font-weight: 400; opacity: 0.9; margin-top: 4px;">
+          <div class="data-merge-btn-subtitle">
             Merge local contacts with cloud data
           </div>
         </button>
         
-        <button id="useSyncedDataBtn" class="data-merge-btn-secondary" style="padding: 16px; background: white; color: #475569; border: 2px solid #e2e8f0; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: all 0.2s;">
+        <button id="useSyncedDataBtn" class="data-merge-btn data-merge-btn-secondary">
           ☁️ Use Synced Data
-          <div style="font-size: 12px; font-weight: 400; opacity: 0.8; margin-top: 4px;">
+          <div class="data-merge-btn-subtitle">
             Replace local data with cloud data
           </div>
         </button>
         
-        <button id="cancelMergeBtn" class="data-merge-btn-cancel" style="padding: 12px; background: transparent; color: #94a3b8; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s;">
+        <button id="cancelMergeBtn" class="data-merge-btn data-merge-btn-cancel">
           Decide Later
         </button>
       </div>
     </div>
   </div>
-  
-  <style>
-    .data-merge-btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-    }
-    .data-merge-btn-secondary:hover {
-      background: #f8fafc;
-      border-color: #cbd5e1;
-    }
-    .data-merge-btn-cancel:hover {
-      color: #64748b;
-    }
-    
-    /* Loading Overlay */
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 99999;
-      backdrop-filter: blur(4px);
-    }
-    
-    .loading-overlay.hidden {
-      display: none;
-    }
-    
-    .loading-spinner-container {
-      background: var(--surface, white);
-      padding: 32px;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    }
-    
-    .loading-spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid var(--border, #e2e8f0);
-      border-top-color: var(--primary, #667eea);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 16px;
-    }
-    
-    .loading-message {
-      margin: 0;
-      color: var(--text, #1e293b);
-      font-size: 14px;
-      font-weight: 500;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    /* CRITICAL FIX: Ensure tab content expands to show all contacts */
-    .tab-content {
-      min-height: 400px !important;
-      max-height: 500px !important;
-      height: auto !important;
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-    }
-    
-    /* Inline Loading */
-    .inline-loading {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 24px;
-      color: var(--text-secondary, #64748b);
-      font-size: 13px;
-    }
-    
-    .loading-spinner-small {
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--border, #e2e8f0);
-      border-top-color: var(--primary, #667eea);
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-    }
-    
-    /* Button Loading */
-    .button-spinner {
-      display: inline-block;
-      width: 14px;
-      height: 14px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 0.6s linear infinite;
-      vertical-align: middle;
-      margin-right: 4px;
-    }
-  </style>
 
   <!-- Core Scripts -->
   <script src="config.js"></script>
+  <script src="constants.js"></script>
   <script src="logger.js"></script>
   <script src="error-handler.js"></script>
   <script src="loading-manager.js"></script>
+  <script src="sanitizer.js"></script>
   <script src="auth.js"></script>
+  <script src="payment.js"></script>
+  <script src="api-fetch.js"></script>
   <script src="sync.js"></script>
   <script src="integrations.js"></script>
-  <script src="inboxSyncManager.js"></script>
-  <script src="popup-inbox-sync.js"></script>
+  <!-- Inbox sync scripts are lazy-loaded -->
   
   <!-- UX Enhancement Scripts -->
   <script src="toast.js"></script>
   <script src="darkMode.js"></script>
-  <script src="quickActions.js"></script>
-  <script src="analytics.js"></script>
+  <!-- Optional enhancement scripts are lazy-loaded -->
   
   <!-- Feature Scripts -->
   <script src="guest-mode-banner.js"></script>

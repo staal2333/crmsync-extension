@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation - CRMSYNC</title>
+  <meta name="description" content="CRMSYNC documentation and getting started guide.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --success: #10b981;
+      --text: #1e293b;
+      --text-light: #64748b;
+      --bg: #ffffff;
+      --surface: #f8fafc;
+      --border: #e2e8f0;
+      --gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      line-height: 1.7;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      z-index: 1000;
+      padding: 16px 0;
+    }
+    
+    nav .container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: var(--gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+    
+    .nav-links a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+    
+    .nav-links a:hover { color: var(--primary); }
+    
+    .docs-layout {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 40px;
+      padding: 100px 20px 60px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .docs-sidebar {
+      position: sticky;
+      top: 100px;
+      height: fit-content;
+    }
+    
+    .docs-sidebar h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-light);
+      margin: 24px 0 12px;
+    }
+    
+    .docs-sidebar h3:first-child { margin-top: 0; }
+    
+    .docs-sidebar ul {
+      list-style: none;
+    }
+    
+    .docs-sidebar li {
+      margin-bottom: 8px;
+    }
+    
+    .docs-sidebar a {
+      color: var(--text-light);
+      text-decoration: none;
+      font-size: 0.9rem;
+      display: block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    
+    .docs-sidebar a:hover {
+      background: var(--surface);
+      color: var(--primary);
+    }
+    
+    .docs-sidebar a.active {
+      background: var(--surface);
+      color: var(--primary);
+      font-weight: 500;
+    }
+    
+    .docs-content h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+    
+    .docs-content h2 {
+      font-size: 1.5rem;
+      margin: 48px 0 20px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .docs-content h3 {
+      font-size: 1.2rem;
+      margin: 32px 0 16px;
+    }
+    
+    .docs-content p {
+      color: var(--text-light);
+      margin-bottom: 16px;
+    }
+    
+    .docs-content ul, .docs-content ol {
+      margin: 16px 0;
+      padding-left: 24px;
+      color: var(--text-light);
+    }
+    
+    .docs-content li {
+      margin-bottom: 8px;
+    }
+    
+    .docs-content code {
+      background: var(--surface);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    
+    .docs-content pre {
+      background: var(--text);
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 10px;
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+    
+    .docs-content pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+    
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px 0;
+    }
+    
+    .step-card h4 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .step-number {
+      width: 28px;
+      height: 28px;
+      background: var(--gradient);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    
+    .step-card p {
+      margin: 0;
+    }
+    
+    .callout {
+      background: #eff6ff;
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
+      margin: 20px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .callout.warning {
+      background: #fef3c7;
+      border-color: var(--warning);
+    }
+    
+    .callout.success {
+      background: #d1fae5;
+      border-color: var(--success);
+    }
+    
+    .callout p {
+      margin: 0;
+      color: var(--text);
+    }
+    
+    footer {
+      padding: 40px 0;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+    
+    footer p {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+    
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    
+    @media (max-width: 768px) {
+      .docs-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .docs-sidebar {
+        position: static;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 24px;
+        margin-bottom: 24px;
+      }
+      
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container">
+      <a href="/" class="logo">CRMSYNC</a>
+      <div class="nav-links">
+        <a href="/#features">Features</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Docs</a>
+        <a href="/login">Log In</a>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <h3>Getting Started</h3>
+      <ul>
+        <li><a href="#installation" class="active">Installation</a></li>
+        <li><a href="#create-account">Create Account</a></li>
+        <li><a href="#first-contact">Your First Contact</a></li>
+      </ul>
+      
+      <h3>CRM Setup</h3>
+      <ul>
+        <li><a href="#hubspot">HubSpot Integration</a></li>
+        <li><a href="#salesforce">Salesforce Integration</a></li>
+      </ul>
+      
+      <h3>Features</h3>
+      <ul>
+        <li><a href="#auto-detect">Auto-Detection</a></li>
+        <li><a href="#exclusions">Exclusions</a></li>
+        <li><a href="#export">Export Contacts</a></li>
+      </ul>
+      
+      <h3>Troubleshooting</h3>
+      <ul>
+        <li><a href="#not-detecting">Contacts Not Detected</a></li>
+        <li><a href="#sync-errors">Sync Errors</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </aside>
+    
+    <main class="docs-content">
+      <h1>Getting Started with CRMSYNC</h1>
+      <p>Welcome! This guide will help you set up CRMSYNC and start syncing contacts from Gmail to your CRM in just a few minutes.</p>
+      
+      <h2 id="installation">Installation</h2>
+      
+      <div class="step-card">
+        <h4><span class="step-number">1</span> Install the Chrome Extension</h4>
+        <p>Visit the <a href="https://chrome.google.com/webstore/detail/crmsync">Chrome Web Store</a> and click "Add to Chrome". The extension will install in about 30 seconds.</p>
+      </div>
+      
+      <div class="step-card">
+        <h4><span class="step-number">2</span> Pin the Extension</h4>
+        <p>Click the puzzle icon in Chrome's toolbar, then click the pin icon next to CRMSYNC. This keeps the extension easily accessible.</p>
+      </div>
+      
+      <div class="step-card">
+        <h4><span class="step-number">3</span> Open Gmail</h4>
+        <p>Navigate to <a href="https://mail.google.com">Gmail</a>. CRMSYNC will automatically activate and start detecting contacts.</p>
+      </div>
+      
+      <h2 id="create-account">Create Your Account</h2>
+      <p>While you can use CRMSYNC without an account (guest mode), creating an account unlocks:</p>
+      <ul>
+        <li>Cloud backup of your contacts</li>
+        <li>Sync across multiple devices</li>
+        <li>CRM integrations (HubSpot, Salesforce)</li>
+        <li>Higher contact limits</li>
+      </ul>
+      
+      <div class="callout">
+        <p><strong>Tip:</strong> Sign up with Google for the fastest setup - just one click!</p>
+      </div>
+      
+      <h2 id="first-contact">Capturing Your First Contact</h2>
+      <ol>
+        <li>Open any email in Gmail</li>
+        <li>CRMSYNC will detect the sender's contact information</li>
+        <li>A notification appears: "New Contact Found"</li>
+        <li>Click <strong>Approve</strong> to save, or <strong>Reject</strong> to skip</li>
+        <li>Your contact is now saved!</li>
+      </ol>
+      
+      <div class="callout success">
+        <p><strong>Pro Tip:</strong> Enable "Auto-Approve" in settings to skip the manual approval step for trusted contacts.</p>
+      </div>
+      
+      <h2 id="hubspot">HubSpot Integration</h2>
+      <p>Connect HubSpot to sync contacts directly to your CRM:</p>
+      <ol>
+        <li>Click the CRMSYNC extension icon</li>
+        <li>Go to the <strong>Integrations</strong> tab</li>
+        <li>Click <strong>Connect HubSpot</strong></li>
+        <li>Authorize access in the popup window</li>
+        <li>Done! You can now push contacts to HubSpot</li>
+      </ol>
+      
+      <h2 id="salesforce">Salesforce Integration</h2>
+      <p>Connect Salesforce to sync contacts:</p>
+      <ol>
+        <li>Click the CRMSYNC extension icon</li>
+        <li>Go to the <strong>Integrations</strong> tab</li>
+        <li>Click <strong>Connect Salesforce</strong></li>
+        <li>Log in to your Salesforce account</li>
+        <li>Authorize the connection</li>
+      </ol>
+      
+      <h2 id="auto-detect">Auto-Detection Settings</h2>
+      <p>CRMSYNC automatically extracts:</p>
+      <ul>
+        <li><strong>Names</strong> - From email headers and signatures</li>
+        <li><strong>Email addresses</strong> - From sender info</li>
+        <li><strong>Phone numbers</strong> - From signatures</li>
+        <li><strong>Company names</strong> - From signatures and email domains</li>
+        <li><strong>Job titles</strong> - From signatures</li>
+      </ul>
+      
+      <h2 id="exclusions">Exclusions</h2>
+      <p>Block specific contacts from being tracked:</p>
+      <ul>
+        <li><strong>Exclude Domains:</strong> Block all emails from a domain (e.g., your own company)</li>
+        <li><strong>Exclude Names:</strong> Block specific people</li>
+        <li><strong>Exclude Phones:</strong> Block specific phone numbers</li>
+      </ul>
+      
+      <div class="callout warning">
+        <p><strong>Important:</strong> Add your own email domain to exclusions to avoid tracking your coworkers!</p>
+      </div>
+      
+      <h2 id="export">Exporting Contacts</h2>
+      <p>Export your contacts as CSV:</p>
+      <ol>
+        <li>Open the extension popup</li>
+        <li>Click the <strong>Export</strong> button</li>
+        <li>Choose which contacts to export (all, today, etc.)</li>
+        <li>A CSV file will download automatically</li>
+      </ol>
+      
+      <h2 id="not-detecting">Troubleshooting: Contacts Not Detected</h2>
+      <p>If CRMSYNC isn't detecting contacts:</p>
+      <ul>
+        <li>Make sure you're on Gmail (mail.google.com)</li>
+        <li>Refresh the Gmail page</li>
+        <li>Check that the extension is enabled in Chrome</li>
+        <li>Ensure the contact isn't in your exclusion list</li>
+        <li>Try clicking on the email to open it fully</li>
+      </ul>
+      
+      <h2 id="sync-errors">Troubleshooting: Sync Errors</h2>
+      <p>If you see sync errors:</p>
+      <ul>
+        <li>Check your internet connection</li>
+        <li>Re-authenticate your CRM connection</li>
+        <li>Wait a few minutes (you may have hit rate limits)</li>
+        <li>Contact support if the issue persists</li>
+      </ul>
+      
+      <h2 id="faq">Frequently Asked Questions</h2>
+      
+      <h3>Is my email content stored?</h3>
+      <p>No. We only extract contact information. Your email content is never stored or transmitted.</p>
+      
+      <h3>Can I use CRMSYNC on multiple computers?</h3>
+      <p>Yes! Sign in with your account and your contacts will sync across devices.</p>
+      
+      <h3>What happens if I uninstall?</h3>
+      <p>If you have an account, your contacts are safely stored in the cloud. Just reinstall and sign in to get them back.</p>
+      
+      <h3>Need more help?</h3>
+      <p>Contact us at <a href="mailto:support@crm-sync.net">support@crm-sync.net</a></p>
+    </main>
+  </div>
+  
+  <footer>
+    <p>&copy; 2024 CRMSYNC. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · <a href="mailto:support@crm-sync.net">Contact Support</a></p>
+  </footer>
+</body>
+</html>

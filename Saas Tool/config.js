@@ -31,10 +31,10 @@ const CONFIG = {
     },
     pro: {
       name: 'Pro',
-      contactLimit: 1000,
+      contactLimit: -1, // -1 = unlimited
       exportLimit: -1, // -1 = unlimited
       features: [
-        'Extract up to 1,000 contacts',
+        'Unlimited contacts',
         'Unlimited exports',
         'Advanced analytics',
         'Priority support'
@@ -42,7 +42,7 @@ const CONFIG = {
     },
     business: {
       name: 'Business',
-      contactLimit: 1000,
+      contactLimit: -1, // -1 = unlimited
       exportLimit: -1, // -1 = unlimited
       features: [
         'Extract up to 1,000 contacts',

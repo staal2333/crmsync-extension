@@ -11,6 +11,7 @@ import { ConnectCRM } from './pages/ConnectCRM';
 import { Exclusions } from './pages/Exclusions';
 import { Install } from './pages/Install';
 import { Done } from './pages/Done';
+import Logout from './pages/Logout';
 import { AuthProvider } from './context/AuthContext';
 
 const App: React.FC = () => {
@@ -77,6 +78,8 @@ const App: React.FC = () => {
         return <Install />;
       case 'done':
         return <Done />;
+      case 'logout':
+        return <Logout />;
       case 'docs':
       case 'blog':
       case 'about':

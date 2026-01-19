@@ -89,44 +89,60 @@
       
       hotkeysEnabled = settings.hotkeysEnabled === true;
       // Initialize counters from storage
-      const stored = await chrome.storage.local.get(['lastSeenCountAtSidebarOpen', 'sessionFoundCount']);
-      if (typeof stored.lastSeenCountAtSidebarOpen === 'number') {
-        lastSeenCountAtSidebarOpen = stored.lastSeenCountAtSidebarOpen;
-      } else {
-        lastSeenCountAtSidebarOpen = contacts.length || 0;
-        chrome.storage.local.set({ lastSeenCountAtSidebarOpen });
-      }
-      if (typeof stored.sessionFoundCount === 'number') {
-        sessionFoundCount = stored.sessionFoundCount;
-      } else {
-        sessionFoundCount = 0;
-        chrome.storage.local.set({ sessionFoundCount });
+      try {
+        const stored = await chrome.storage.local.get(['lastSeenCountAtSidebarOpen', 'sessionFoundCount']);
+        if (typeof stored.lastSeenCountAtSidebarOpen === 'number') {
+          lastSeenCountAtSidebarOpen = stored.lastSeenCountAtSidebarOpen;
+        } else {
+          lastSeenCountAtSidebarOpen = contacts.length || 0;
+          chrome.storage.local.set({ lastSeenCountAtSidebarOpen });
+        }
+        if (typeof stored.sessionFoundCount === 'number') {
+          sessionFoundCount = stored.sessionFoundCount;
+        } else {
+          sessionFoundCount = 0;
+          chrome.storage.local.set({ sessionFoundCount });
+        }
+      } catch (error) {
+        console.error('CRMSYNC: Error loading counters:', error);
       }
 
       // Load rejected contacts (so they don't reappear)
-      const storedRejected = await chrome.storage.local.get(['rejectedEmails']);
-      if (Array.isArray(storedRejected.rejectedEmails)) {
-        rejectedEmails = new Set(
-          storedRejected.rejectedEmails
-            .map(e => (e || '').toLowerCase())
-            .filter(Boolean)
-        );
+      try {
+        const storedRejected = await chrome.storage.local.get(['rejectedEmails']);
+        if (Array.isArray(storedRejected.rejectedEmails)) {
+          rejectedEmails = new Set(
+            storedRejected.rejectedEmails
+              .map(e => (e || '').toLowerCase())
+              .filter(Boolean)
+          );
+        }
+      } catch (error) {
+        console.error('CRMSYNC: Error loading rejected emails:', error);
       }
 
       // Load stored user emails
-      const storedEmails = await chrome.storage.local.get(['userEmails', 'userEmail']);
-      if (Array.isArray(storedEmails.userEmails) && storedEmails.userEmails.length > 0) {
-        userEmails = storedEmails.userEmails.map(e => (e || '').toLowerCase()).filter(Boolean);
-        userEmail = userEmails[0] || null;
-      } else if (storedEmails.userEmail) {
-        userEmail = (storedEmails.userEmail || '').toLowerCase();
-        userEmails = userEmail ? [userEmail] : [];
+      try {
+        const storedEmails = await chrome.storage.local.get(['userEmails', 'userEmail']);
+        if (Array.isArray(storedEmails.userEmails) && storedEmails.userEmails.length > 0) {
+          userEmails = storedEmails.userEmails.map(e => (e || '').toLowerCase()).filter(Boolean);
+          userEmail = userEmails[0] || null;
+        } else if (storedEmails.userEmail) {
+          userEmail = (storedEmails.userEmail || '').toLowerCase();
+          userEmails = userEmail ? [userEmail] : [];
+        }
+      } catch (error) {
+        console.error('CRMSYNC: Error loading user emails:', error);
       }
       
       // Load saved sidebar width
-      const savedWidth = await chrome.storage.local.get(['sidebarWidth']);
-      if (savedWidth.sidebarWidth) {
-        sidebarWidth = savedWidth.sidebarWidth;
+      try {
+        const savedWidth = await chrome.storage.local.get(['sidebarWidth']);
+        if (savedWidth.sidebarWidth) {
+          sidebarWidth = savedWidth.sidebarWidth;
+        }
+      } catch (error) {
+        console.error('CRMSYNC: Error loading sidebar width:', error);
       }
       applySidebarWidthCSS();
       
@@ -213,6 +229,7 @@
 
   function applySidebarWidthCSS() {
     document.documentElement.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
+    document.body.style.setProperty('--sidebar-width', `${sidebarWidth}px`);
   }
 
   async function updateFloatingWidgetPosition() {
@@ -3080,6 +3097,36 @@
       const style = document.createElement('style');
       style.id = 'crmsync-sidebar-styles';
       style.textContent = `
+        #contact-extractor-sidebar {
+          background: var(--bg, #ffffff);
+          border-left: 1px solid var(--border, #e5e7eb);
+          box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .sidebar-resize-handle {
+          width: 6px;
+          cursor: col-resize;
+          position: absolute;
+          left: -3px;
+          top: 0;
+          bottom: 0;
+          background: transparent;
+          transition: background 0.2s ease;
+        }
+
+        .sidebar-resize-handle:hover {
+          background: rgba(102, 126, 234, 0.25);
+        }
+
+        .sidebar-fab {
+          box-shadow: 0 8px 16px rgba(102, 126, 234, 0.25);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sidebar-fab:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
         /* Compact Sidebar Styles */
         
         /* Collapsed Stats */
@@ -3630,8 +3677,15 @@
     async function handleExportClick() {
       try {
         // Get contacts directly
-        const result = await chrome.storage.local.get(['contacts']);
-        const contactsToExport = result.contacts || [];
+        let contactsToExport = [];
+        try {
+          const result = await chrome.storage.local.get(['contacts']);
+          contactsToExport = result.contacts || [];
+        } catch (error) {
+          console.error('CRMSYNC: Error loading contacts for export:', error);
+          showNotification('Failed to load contacts. Please try again.', 'error');
+          return;
+        }
         
         if (contactsToExport.length === 0) {
           showNotification('No contacts to export.');
@@ -4272,8 +4326,14 @@
   // Load and display pending updates in sidebar
   async function loadPendingUpdates() {
     try {
-      const result = await chrome.storage.local.get(['pendingUpdates']);
-      const updates = result.pendingUpdates || [];
+      let updates = [];
+      try {
+        const result = await chrome.storage.local.get(['pendingUpdates']);
+        updates = result.pendingUpdates || [];
+      } catch (error) {
+        console.error('CRMSYNC: Error loading pending updates:', error);
+        return;
+      }
       
       const updatesSection = document.getElementById('sidebar-updates-section');
       const updatesList = document.getElementById('sidebar-updates-list');
@@ -4374,8 +4434,15 @@
       console.log(`✅ Approving update for ${update.email}:`, update.newFields);
       
       // Get current contacts
-      const result = await chrome.storage.local.get(['contacts']);
-      const contacts = result.contacts || [];
+      let contacts = [];
+      try {
+        const result = await chrome.storage.local.get(['contacts']);
+        contacts = result.contacts || [];
+      } catch (error) {
+        console.error('CRMSYNC: Error loading contacts for update:', error);
+        showNotification('Failed to load contacts. Please try again.', 'error');
+        return;
+      }
       
       // Find and update the contact
       const contactIndex = contacts.findIndex(c => c.email === update.email);
@@ -4388,13 +4455,23 @@
         };
         
         // Save updated contacts
-        await chrome.storage.local.set({ contacts });
+        try {
+          await chrome.storage.local.set({ contacts });
+        } catch (error) {
+          console.error('CRMSYNC: Error saving updated contact:', error);
+          showNotification('Failed to save update. Please try again.', 'error');
+          return;
+        }
         
         // Remove from pending updates
-        const pendingResult = await chrome.storage.local.get(['pendingUpdates']);
-        const pendingUpdates = pendingResult.pendingUpdates || [];
-        const filteredUpdates = pendingUpdates.filter(u => u.email !== update.email);
-        await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+        try {
+          const pendingResult = await chrome.storage.local.get(['pendingUpdates']);
+          const pendingUpdates = pendingResult.pendingUpdates || [];
+          const filteredUpdates = pendingUpdates.filter(u => u.email !== update.email);
+          await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+        } catch (error) {
+          console.error('CRMSYNC: Error updating pending list:', error);
+        }
         
         console.log(`✅ Update approved for ${update.email}`);
         showNotification(`Updated ${update.name || update.email}`, 'success');
@@ -4411,10 +4488,16 @@
       console.log(`❌ Rejecting update for ${email}`);
       
       // Remove from pending updates
-      const result = await chrome.storage.local.get(['pendingUpdates']);
-      const pendingUpdates = result.pendingUpdates || [];
-      const filteredUpdates = pendingUpdates.filter(u => u.email !== email);
-      await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+      try {
+        const result = await chrome.storage.local.get(['pendingUpdates']);
+        const pendingUpdates = result.pendingUpdates || [];
+        const filteredUpdates = pendingUpdates.filter(u => u.email !== email);
+        await chrome.storage.local.set({ pendingUpdates: filteredUpdates });
+      } catch (error) {
+        console.error('CRMSYNC: Error removing pending update:', error);
+        showNotification('Failed to reject update. Please try again.', 'error');
+        return;
+      }
       
       console.log(`❌ Update rejected for ${email}`);
       showNotification('Update rejected', 'info');
@@ -4577,8 +4660,13 @@
     `;
 
     // Load saved position or use default
-    const savedPosition = await chrome.storage.local.get(['widgetPosition']);
-    const position = savedPosition.widgetPosition || { bottom: 24, right: 24 };
+    let position = { bottom: 24, right: 24 };
+    try {
+      const savedPosition = await chrome.storage.local.get(['widgetPosition']);
+      position = savedPosition.widgetPosition || { bottom: 24, right: 24 };
+    } catch (error) {
+      console.error('CRMSYNC: Error loading widget position:', error);
+    }
 
     // Ensure widget is always visible with inline styles
     widgetContainer.style.position = 'fixed';
@@ -4666,8 +4754,12 @@
           bottom: parseInt(widgetContainer.style.bottom),
           right: parseInt(widgetContainer.style.right)
         };
-        await chrome.storage.local.set({ widgetPosition: newPosition });
-        console.log('📍 Widget position saved:', newPosition);
+        try {
+          await chrome.storage.local.set({ widgetPosition: newPosition });
+          console.log('📍 Widget position saved:', newPosition);
+        } catch (error) {
+          console.error('CRMSYNC: Error saving widget position:', error);
+        }
       }
     });
 
@@ -4941,9 +5033,13 @@
       console.log(`📝 CRMSYNC: Opening sidebar for ${candidate.email}`);
       
       // Store the pending update in chrome.storage for the sidebar to display
-      await chrome.storage.local.set({ 
-        pendingUpdates: [candidate] // Array of update candidates
-      });
+      try {
+        await chrome.storage.local.set({ 
+          pendingUpdates: [candidate] // Array of update candidates
+        });
+      } catch (error) {
+        console.error('CRMSYNC: Error storing pending update:', error);
+      }
       
       // Open the sidebar
       toggleSidebar(true); // Force open
@@ -5884,13 +5980,21 @@
       sendResponse({ success: true });
     } else if (request.action === 'UPDATE_CANDIDATES_AVAILABLE') {
       // Background detected pending updates, check and show notification
-      chrome.storage.local.get(['pendingUpdates'], (result) => {
-        const updates = result.pendingUpdates || [];
-        if (updates.length > 0) {
-          console.log('📬 Received update notification, showing in Gmail');
-          showContactUpdateNotification(updates);
-        }
-      });
+      try {
+        chrome.storage.local.get(['pendingUpdates'], (result) => {
+          if (chrome.runtime.lastError) {
+            console.error('CRMSYNC: Error getting pending updates:', chrome.runtime.lastError);
+            return;
+          }
+          const updates = result.pendingUpdates || [];
+          if (updates.length > 0) {
+            console.log('📬 Received update notification, showing in Gmail');
+            showContactUpdateNotification(updates);
+          }
+        });
+      } catch (error) {
+        console.error('CRMSYNC: Extension context invalidated in UPDATE_CANDIDATES_AVAILABLE:', error);
+      }
       sendResponse({ success: true });
     } else if (request.action === 'showWidget') {
       // Show the widget (floating action button) and return it to top right
@@ -6129,26 +6233,43 @@
     
     if (!firstLower && !lastLower) return false;
     
+    console.log(`🔍 CRMSYNC: Checking name exclusion - firstName: "${firstLower}", lastName: "${lastLower}", fullName: "${fullNameLower}"`);
+    
     return settings.excludeNames.some(excludedName => {
       const excludedLower = excludedName.trim().toLowerCase();
+      console.log(`  → Comparing against excluded: "${excludedLower}"`);
       
       // Check if excluded name contains a space (indicates firstName + lastName combo)
       if (excludedLower.includes(' ')) {
         const parts = excludedLower.split(/\s+/);
         if (parts.length >= 2) {
-          // Match ONLY if BOTH first and last names match
           const excludedFirst = parts.slice(0, -1).join(' '); // Everything except last word
           const excludedLast = parts[parts.length - 1]; // Last word
           
-          return firstLower === excludedFirst && lastLower === excludedLast;
+          // Match EXACTLY: "Sebastian Møllegaard" + "Staal"
+          const exactMatch = firstLower === excludedFirst && lastLower === excludedLast;
+          
+          // Match PARTIAL: "Sebastian" in "Sebastian Møllegaard" AND "Staal" === "Staal"
+          // This handles middle names: "Sebastian Staal" should match "Sebastian Møllegaard Staal"
+          const partialMatch = excludedFirst.startsWith(firstLower + ' ') && lastLower === excludedLast;
+          
+          // Match FIRST WORD: First word of excluded matches detected first name
+          const firstWordMatch = parts[0] === firstLower && lastLower === excludedLast;
+          
+          console.log(`    Exact: ${exactMatch}, Partial: ${partialMatch}, FirstWord: ${firstWordMatch}`);
+          
+          return exactMatch || partialMatch || firstWordMatch;
         }
       }
       
       // For single-word exclusions, match against either first name, last name, or full name
-      return firstLower === excludedLower || 
+      const singleWordMatch = firstLower === excludedLower || 
              lastLower === excludedLower || 
              fullNameLower === excludedLower ||
              fullNameLower.includes(excludedLower);
+      
+      console.log(`    Single word match: ${singleWordMatch}`);
+      return singleWordMatch;
     });
   }
 
@@ -6230,8 +6351,12 @@
               if (cleanEmail) {
                 userEmails = [cleanEmail.toLowerCase()];
                 userEmail = userEmails[0];
-                await chrome.storage.local.set({ userEmails, userEmail });
-                console.log(`✅ CRMSYNC: Auto-detected user email: ${userEmail}`);
+                try {
+                  await chrome.storage.local.set({ userEmails, userEmail });
+                  console.log(`✅ CRMSYNC: Auto-detected user email: ${userEmail}`);
+                } catch (error) {
+                  console.error('CRMSYNC: Error saving user email:', error);
+                }
                 break;
               }
             }
@@ -6320,6 +6445,17 @@
             contactEmail = email;
             contactName = extractNameFromElement(element, messageContainer);
             console.log(`   ✅ Selected contact email: ${contactEmail}, name: ${contactName || 'none'}`);
+            
+            // NEW: Check if the extracted name matches excluded names
+            // This prevents showing "Sebastian Staal" even when it's extracted from email body
+            if (contactName) {
+              const { firstName, lastName } = splitName(contactName);
+              if (isExcludedName(firstName, lastName)) {
+                console.log(`⚠️ CRMSYNC: Extracted name "${contactName}" is excluded, clearing it`);
+                contactName = null; // Clear the name but keep the email
+              }
+            }
+            
             break;
           }
         }
@@ -6758,18 +6894,28 @@
           console.log(`✅ CRMSYNC: Contact ${contactEmail} approved and added to contacts`);
         } else {
           // CRITICAL: Check if contact limit reached BEFORE showing approval panel
-          const { user } = await chrome.storage.local.get(['user']);
-          const userTier = user?.tier || user?.subscriptionTier || 'free';
-          const tierLimits = window.CONFIG?.TIERS || {};
-          const tierConfig = tierLimits[userTier] || tierLimits['free'];
-          const limit = tierConfig?.contactLimit || 50;
+          let userTier = 'free';
+          let limit = 50;
+          
+          try {
+            const { user } = await chrome.storage.local.get(['user']);
+            userTier = user?.tier || user?.subscriptionTier || 'free';
+            const tierLimits = window.CONFIG?.TIERS || {};
+            const tierConfig = tierLimits[userTier] || tierLimits['free'];
+            limit = tierConfig?.contactLimit || 50;
+            console.log(`🔧 CRMSYNC: Config check - CONFIG exists: ${!!window.CONFIG}, tierConfig: ${!!tierConfig}, limit: ${limit}`);
+          } catch (error) {
+            console.error('CRMSYNC: Error checking subscription tier:', error);
+            // Continue with free tier defaults
+          }
           
           // Count total contacts (saved + pending)
           const totalContacts = contacts.length + pendingContacts.length;
           
-          console.log(`📊 CRMSYNC: Limit check - Total: ${totalContacts}, Limit: ${limit}, Tier: ${userTier}`);
+          console.log(`📊 CRMSYNC: Limit check - Total: ${totalContacts}, Limit: ${limit === -1 ? 'Unlimited' : limit}, Tier: ${userTier}`);
           
-          if (totalContacts >= limit) {
+          // Only check limit if not unlimited (Pro/Business users have limit = -1)
+          if (limit !== -1 && totalContacts >= limit) {
             console.log(`🚫 CRMSYNC: Contact limit reached (${totalContacts}/${limit}), showing upgrade panel`);
             
             // Add to tracking set to prevent refresh glitch

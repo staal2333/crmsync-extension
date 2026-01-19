@@ -1,9 +1,15 @@
 // Authentication module for CRMSYNC Extension
 // Handles email/password and Google OAuth authentication
 
-// Use window scope to share API_URL across modules
-window.API_URL = window.API_URL || window.CONFIG?.API_URL || 'https://crmsync-api.onrender.com/api';
-const API_URL = window.API_URL;
+// API_URL - works in both popup and service worker contexts
+const API_URL = (typeof window !== 'undefined' && window.CONFIG?.API_URL) || 
+                (typeof self !== 'undefined' && self.CONFIG?.API_URL) ||
+                'https://crmsync-api.onrender.com/api';
+
+// Export to window if available (popup context)
+if (typeof window !== 'undefined') {
+  window.API_URL = API_URL;
+}
 
 /**
  * Sign in with email and password
@@ -161,7 +167,7 @@ async function signInWithGoogle() {
 async function signOut() {
   try {
     const { authToken, authMethod } = await chrome.storage.local.get(['authToken', 'authMethod']);
-    
+
     // Call backend logout endpoint
     if (authToken) {
       try {
@@ -173,15 +179,15 @@ async function signOut() {
         console.error('Logout API error:', error);
       }
     }
-    
+
     // Clear Google OAuth token if applicable
     if (authMethod === 'google') {
       chrome.identity.clearAllCachedAuthTokens(() => {
         console.log('Google tokens cleared');
       });
     }
-    
-    // Clear local storage
+
+    // Clear ALL authentication and user data from storage
     await chrome.storage.local.remove([
       'authToken',
       'refreshToken',
@@ -189,10 +195,60 @@ async function signOut() {
       'isAuthenticated',
       'authMethod',
       'googleToken',
-      'lastSyncAt'
+      'lastSyncAt',
+      'subscription',
+      'accessToken',
+      'lastActivity',
+      'contacts',  // Clear all contacts
+      'contactCount',  // Clear contact count
+      'recentlyUpdatedContacts',  // Clear recent updates
+      'pendingUpdates',  // Clear pending updates
+      'syncHistory',  // Clear sync history
+      'lastSeenCountAtSidebarOpen',  // Clear sidebar notification state
+      'upgradePanel_lastDismissed'  // Clear upgrade panel dismissal
     ]);
-    
-    console.log('✅ User signed out');
+
+    // Also clear from sync storage if used
+    await chrome.storage.sync.remove([
+      'authToken',
+      'refreshToken',
+      'user',
+      'isAuthenticated'
+    ]).catch(() => {
+      // Ignore errors if nothing to remove
+    });
+
+    console.log('✅ User signed out from extension (auth, contacts, and sync data cleared)');
+
+    // ✅ Notify website about logout (bidirectional sync)
+    try {
+      // Find all website tabs and notify them
+      const tabs = await chrome.tabs.query({ 
+        url: ['https://www.crm-sync.net/*', 'https://crm-sync.net/*'] 
+      });
+      
+      if (tabs && tabs.length > 0) {
+        // User has website open, notify those tabs
+        for (const tab of tabs) {
+          try {
+            await chrome.tabs.sendMessage(tab.id, { 
+              action: 'EXTENSION_LOGGED_OUT' 
+            });
+            console.log('✅ Notified website tab of extension logout');
+          } catch (err) {
+            // Tab might not have content script loaded yet
+            console.log('Could not notify tab:', err.message);
+          }
+        }
+      } else {
+        // No website tabs open, that's fine - user is logged out from extension
+        console.log('ℹ️ No website tabs open to notify');
+      }
+    } catch (error) {
+      console.error('Error notifying website tabs:', error);
+    }
+
+    console.log('✅ Logout complete');
   } catch (error) {
     console.error('Sign out error:', error);
     throw error;

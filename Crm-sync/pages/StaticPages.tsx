@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SectionHeader } from '../components/Shared';
 
 interface PageContent {
   title: string;
   subtitle: string;
+  metaDescription?: string;
   content: React.ReactNode;
 }
 
@@ -1802,8 +1803,48 @@ const PAGES: Record<string, PageContent> = {
   }
 };
 
+// SEO meta descriptions for each page
+const PAGE_META: Record<string, string> = {
+  docs: "Complete CRMSYNC documentation - installation guide, Gmail integration, HubSpot and Salesforce setup, troubleshooting, and FAQ.",
+  about: "Learn about CRMSYNC - our mission to eliminate busywork and help professionals focus on building meaningful relationships.",
+  careers: "Join the CRMSYNC team - current job openings for engineers, designers, and more.",
+  terms: "CRMSYNC Terms of Service - usage guidelines, subscription terms, and legal information.",
+  privacy: "CRMSYNC Privacy Policy - how we protect your data, what we collect, and your rights.",
+  security: "CRMSYNC Security - enterprise-grade protection for your data, GDPR/CCPA compliance, and security practices.",
+  blog: "CRMSYNC Blog - tips for email management, sales productivity, and product updates.",
+  support: "CRMSYNC Support - get help with installation, troubleshooting, billing, and more.",
+  'integration-hubspot': "Connect CRMSYNC to HubSpot - step-by-step setup guide for syncing Gmail contacts to your HubSpot CRM.",
+  'integration-salesforce': "Connect CRMSYNC to Salesforce - complete integration guide for syncing contacts from Gmail.",
+  'vs-manual': "CRMSYNC vs Manual Data Entry - see how automation saves 5+ hours per week on contact management.",
+  'vs-competitors': "CRMSYNC vs Other Tools - feature comparison showing why CRMSYNC is the best choice for Gmail users.",
+  'vs-spreadsheets': "CRMSYNC vs Spreadsheets - why it's time to graduate from Excel for contact management."
+};
+
 export const StaticPage: React.FC<{ pageKey: string }> = ({ pageKey }) => {
   const page = PAGES[pageKey] || PAGES['about'];
+
+  // Update document title and meta description for SEO
+  useEffect(() => {
+    // Set page title
+    document.title = `${page.title} | CRMSYNC`;
+    
+    // Update meta description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', PAGE_META[pageKey] || page.subtitle);
+    }
+
+    // Update canonical URL
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (canonical) {
+      canonical.setAttribute('href', `https://crm-sync.net/#/${pageKey}`);
+    }
+
+    // Cleanup: restore default title on unmount
+    return () => {
+      document.title = 'CRMSYNC - Auto-Sync Gmail Contacts to HubSpot & Salesforce';
+    };
+  }, [pageKey, page.title, page.subtitle]);
 
   return (
     <div className="min-h-screen bg-white py-12">

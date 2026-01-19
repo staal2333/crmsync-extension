@@ -41,7 +41,7 @@ export const Navbar: React.FC<{ activePage: string; onNavigate: (page: string) =
             <span onClick={() => onNavigate('home')} className={navLinkClass('home')}>Features</span>
             <span onClick={() => onNavigate('pricing')} className={navLinkClass('pricing')}>Pricing</span>
             <span onClick={() => onNavigate('docs')} className={navLinkClass('docs')}>Docs</span>
-            <span onClick={() => onNavigate('blog')} className={navLinkClass('blog')}>Blog</span>
+            <span onClick={() => onNavigate('support')} className={navLinkClass('support')}>Support</span>
             
             <div className="flex items-center space-x-4 ml-4">
               {user ? (
@@ -87,6 +87,7 @@ export const Navbar: React.FC<{ activePage: string; onNavigate: (page: string) =
           <span onClick={() => { onNavigate('home'); setIsMobileMenuOpen(false); }} className="block py-2 text-base font-medium text-gray-700">Features</span>
           <span onClick={() => { onNavigate('pricing'); setIsMobileMenuOpen(false); }} className="block py-2 text-base font-medium text-gray-700">Pricing</span>
           <span onClick={() => { onNavigate('docs'); setIsMobileMenuOpen(false); }} className="block py-2 text-base font-medium text-gray-700">Docs</span>
+          <span onClick={() => { onNavigate('support'); setIsMobileMenuOpen(false); }} className="block py-2 text-base font-medium text-gray-700">Support</span>
           <div className="pt-4 border-t border-gray-100 flex flex-col space-y-3">
              {user ? (
                <>
@@ -115,8 +116,8 @@ export const Footer: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
   return (
     <footer className="bg-gray-50 pt-16 pb-8 border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          <div className="col-span-1 md:col-span-1">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 mb-12">
+          <div className="col-span-2">
             <div className="flex items-center mb-4">
               <div className="mr-2">
                 <LogoIcon className="h-6 w-6" />
@@ -124,7 +125,7 @@ export const Footer: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
               <span className="font-bold text-xl text-dark">CRMSYNC</span>
             </div>
             <p className="text-gray-500 text-sm mb-6">
-              Automated contact management for modern professionals.
+              Automated contact management for modern professionals. Save hours on data entry.
             </p>
             <div className="flex space-x-4">
               <Twitter className="h-5 w-5 text-gray-400 hover:text-primary cursor-pointer transition-colors" />
@@ -138,7 +139,15 @@ export const Footer: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
             <ul className="space-y-2 text-sm text-gray-600">
               <li><span onClick={() => onNavigate('home')} className="hover:text-primary transition-colors cursor-pointer">Features</span></li>
               <li><span onClick={() => onNavigate('pricing')} className="hover:text-primary transition-colors cursor-pointer">Pricing</span></li>
-              <li><span onClick={() => onNavigate('blog')} className="hover:text-primary transition-colors cursor-pointer">Blog</span></li>
+              <li><span onClick={() => onNavigate('security')} className="hover:text-primary transition-colors cursor-pointer">Security</span></li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 className="font-semibold text-dark mb-4">Integrations</h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li><span onClick={() => onNavigate('integrations/hubspot')} className="hover:text-primary transition-colors cursor-pointer">HubSpot</span></li>
+              <li><span onClick={() => onNavigate('integrations/salesforce')} className="hover:text-primary transition-colors cursor-pointer">Salesforce</span></li>
             </ul>
           </div>
 
@@ -146,16 +155,18 @@ export const Footer: React.FC<{ onNavigate: (page: string) => void }> = ({ onNav
             <h4 className="font-semibold text-dark mb-4">Resources</h4>
             <ul className="space-y-2 text-sm text-gray-600">
               <li><span onClick={() => onNavigate('docs')} className="hover:text-primary transition-colors cursor-pointer">Documentation</span></li>
-              <li><span onClick={() => onNavigate('about')} className="hover:text-primary transition-colors cursor-pointer">About</span></li>
+              <li><span onClick={() => onNavigate('support')} className="hover:text-primary transition-colors cursor-pointer">Support</span></li>
+              <li><span onClick={() => onNavigate('blog')} className="hover:text-primary transition-colors cursor-pointer">Blog</span></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-semibold text-dark mb-4">Company</h4>
             <ul className="space-y-2 text-sm text-gray-600">
+              <li><span onClick={() => onNavigate('about')} className="hover:text-primary transition-colors cursor-pointer">About Us</span></li>
               <li><span onClick={() => onNavigate('careers')} className="hover:text-primary transition-colors cursor-pointer">Careers</span></li>
-              <li><span onClick={() => onNavigate('privacy')} className="hover:text-primary transition-colors cursor-pointer">Privacy Policy</span></li>
-              <li><span onClick={() => onNavigate('terms')} className="hover:text-primary transition-colors cursor-pointer">Terms of Service</span></li>
+              <li><span onClick={() => onNavigate('privacy')} className="hover:text-primary transition-colors cursor-pointer">Privacy</span></li>
+              <li><span onClick={() => onNavigate('terms')} className="hover:text-primary transition-colors cursor-pointer">Terms</span></li>
             </ul>
           </div>
         </div>

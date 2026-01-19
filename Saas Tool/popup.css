@@ -3447,6 +3447,165 @@ body.bulk-mode .contact-checkbox {
 /* ========================================
    END OF INTEGRATIONS STYLES
    ======================================== */
+
+/* ========================================
+   COLLAPSIBLE SECTIONS
+   ======================================== */
+
+.collapsible-section {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: var(--surface);
+  transition: background var(--transition-fast) var(--ease-out);
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: var(--surface-hover);
+}
+
+.collapsible-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.collapsible-toggle {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast) var(--ease-out);
+}
+
+.collapsible-content {
+  padding: 0 16px 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+}
+
+/* Collapsed state - hide content */
+.collapsible-section.is-collapsed .collapsible-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.collapsible-section.is-collapsed .collapsible-toggle {
+  transform: rotate(0deg);
+}
+
+.collapsible-section:not(.is-collapsed) .collapsible-toggle {
+  transform: rotate(90deg);
+}
+
+/* Section action button */
+.section-action-btn {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+/* Section header styling */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ========================================
+   COLLAPSIBLE SECTIONS
+   ======================================== */
+
+.collapsible-section {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: var(--surface);
+  transition: background var(--transition-fast) var(--ease-out);
+  user-select: none;
+}
+
+.collapsible-header:hover {
+  background: var(--surface-hover);
+}
+
+.collapsible-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.collapsible-toggle {
+  font-size: 10px;
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast) var(--ease-out);
+}
+
+.collapsible-content {
+  padding: 0 16px 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  transition: max-height var(--transition-base) var(--ease-out),
+              padding var(--transition-base) var(--ease-out),
+              opacity var(--transition-base) var(--ease-out);
+}
+
+/* Collapsed state - hide content */
+.collapsible-section.is-collapsed .collapsible-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.collapsible-section.is-collapsed .collapsible-toggle {
+  transform: rotate(0deg);
+}
+
+.collapsible-section:not(.is-collapsed) .collapsible-toggle {
+  transform: rotate(90deg);
+}
+
+/* Section action button */
+.section-action-btn {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+/* Dark mode collapsible */
+[data-theme="dark"] .collapsible-section {
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+[data-theme="dark"] .collapsible-header:hover {
+  background: var(--surface-hover);
+}
  
  / *   = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =   * / 
  / *       I N B O X   S Y N C   M O D A L   S T Y L E S                             * / 

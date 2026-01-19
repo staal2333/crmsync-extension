@@ -1479,6 +1479,326 @@ const PAGES: Record<string, PageContent> = {
         </section>
       </div>
     )
+  },
+  // Comparison Pages
+  'vs-manual': {
+    title: "CRMSYNC vs Manual Data Entry",
+    subtitle: "Why automate your contact management?",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-6 rounded-xl">
+          <h3 className="text-xl font-bold">Stop Wasting Time on Data Entry</h3>
+          <p className="mt-2 text-red-100">Sales reps spend 5+ hours per week manually entering contacts. CRMSYNC eliminates this entirely.</p>
+        </div>
+
+        {/* Comparison Table */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Side-by-Side Comparison</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left p-4">Feature</th>
+                  <th className="text-left p-4 bg-red-50 text-red-700">Manual Entry</th>
+                  <th className="text-left p-4 bg-green-50 text-green-700">CRMSYNC</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr>
+                  <td className="p-4 font-medium">Time per contact</td>
+                  <td className="p-4 bg-red-50">2-3 minutes</td>
+                  <td className="p-4 bg-green-50">2 seconds (one click)</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-medium">Data accuracy</td>
+                  <td className="p-4 bg-red-50">Prone to typos</td>
+                  <td className="p-4 bg-green-50">Extracted directly from email</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-medium">Phone numbers</td>
+                  <td className="p-4 bg-red-50">Often missed</td>
+                  <td className="p-4 bg-green-50">Auto-detected from signatures</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-medium">Job titles</td>
+                  <td className="p-4 bg-red-50">Manually searched</td>
+                  <td className="p-4 bg-green-50">Auto-extracted</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-medium">CRM sync</td>
+                  <td className="p-4 bg-red-50">Copy-paste to HubSpot/Salesforce</td>
+                  <td className="p-4 bg-green-50">One-click sync</td>
+                </tr>
+                <tr>
+                  <td className="p-4 font-medium">Duplicates</td>
+                  <td className="p-4 bg-red-50">Easy to create</td>
+                  <td className="p-4 bg-green-50">Automatically detected</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Time Savings */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Calculate Your Time Savings</h3>
+          <div className="bg-blue-50 rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-3xl font-bold text-blue-600">50</div>
+                <div className="text-sm text-gray-600">Contacts per week</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-blue-600">×3 min</div>
+                <div className="text-sm text-gray-600">Manual entry time</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-green-600">=2.5 hrs</div>
+                <div className="text-sm text-gray-600">Saved weekly</div>
+              </div>
+            </div>
+            <p className="mt-4 text-center text-gray-700">That's <strong>130 hours per year</strong> you could spend closing deals instead!</p>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="text-center">
+          <a href="#/register" className="inline-block bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-blue-700 transition">
+            Start Saving Time Today
+          </a>
+        </div>
+      </div>
+    )
+  },
+  'vs-competitors': {
+    title: "CRMSYNC vs Other Tools",
+    subtitle: "See how CRMSYNC compares to alternatives",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Why CRMSYNC */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Why Choose CRMSYNC?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <h4 className="font-semibold text-green-800 flex items-center gap-2">
+                <span>✓</span> Gmail-Native
+              </h4>
+              <p className="text-sm mt-2">Works directly inside Gmail. No switching between apps or browser tabs.</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <h4 className="font-semibold text-green-800 flex items-center gap-2">
+                <span>✓</span> Privacy-First
+              </h4>
+              <p className="text-sm mt-2">Email content processed locally. We never see or store your emails.</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <h4 className="font-semibold text-green-800 flex items-center gap-2">
+                <span>✓</span> Affordable
+              </h4>
+              <p className="text-sm mt-2">Starting at $9/month. No per-seat pricing or expensive enterprise tiers.</p>
+            </div>
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <h4 className="font-semibold text-green-800 flex items-center gap-2">
+                <span>✓</span> Simple Setup
+              </h4>
+              <p className="text-sm mt-2">Install, connect your CRM, done. No complex configuration needed.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Comparison */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Feature Comparison</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="text-left p-3">Feature</th>
+                  <th className="text-center p-3 bg-blue-50">CRMSYNC</th>
+                  <th className="text-center p-3">Basic Tools</th>
+                  <th className="text-center p-3">Enterprise Solutions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr>
+                  <td className="p-3">Gmail integration</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                </tr>
+                <tr>
+                  <td className="p-3">Signature parsing</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                </tr>
+                <tr>
+                  <td className="p-3">HubSpot sync</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                </tr>
+                <tr>
+                  <td className="p-3">Salesforce sync</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                </tr>
+                <tr>
+                  <td className="p-3">Local processing</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                </tr>
+                <tr>
+                  <td className="p-3">Free tier</td>
+                  <td className="p-3 text-center bg-blue-50 text-green-600 font-bold">✓ (50/mo)</td>
+                  <td className="p-3 text-center text-green-600">✓</td>
+                  <td className="p-3 text-center text-red-600">✗</td>
+                </tr>
+                <tr>
+                  <td className="p-3">Price</td>
+                  <td className="p-3 text-center bg-blue-50 font-bold">$9/mo</td>
+                  <td className="p-3 text-center">Free</td>
+                  <td className="p-3 text-center">$50-200/mo</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Best For */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Who Is CRMSYNC Best For?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">💼</div>
+              <h4 className="font-semibold text-gray-900">Sales Professionals</h4>
+              <p className="text-sm mt-2">Save hours on data entry and keep your CRM up to date.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">🎯</div>
+              <h4 className="font-semibold text-gray-900">Recruiters</h4>
+              <p className="text-sm mt-2">Capture candidate details instantly from emails.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">🏢</div>
+              <h4 className="font-semibold text-gray-900">Small Businesses</h4>
+              <p className="text-sm mt-2">Enterprise CRM features at a fraction of the cost.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-xl text-center">
+          <h3 className="text-xl font-bold">Ready to Try CRMSYNC?</h3>
+          <p className="mt-2 text-blue-100">Start free with 50 contacts/month. No credit card required.</p>
+          <a href="#/register" className="inline-block mt-4 bg-white text-blue-600 font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition">
+            Get Started Free
+          </a>
+        </div>
+      </div>
+    )
+  },
+  'vs-spreadsheets': {
+    title: "CRMSYNC vs Spreadsheets",
+    subtitle: "Graduate from Excel and Google Sheets",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white p-6 rounded-xl">
+          <h3 className="text-xl font-bold">Spreadsheets Don't Scale</h3>
+          <p className="mt-2 text-green-100">Managing contacts in Excel or Google Sheets? Here's why it's time to upgrade.</p>
+        </div>
+
+        {/* Problems with Spreadsheets */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">The Problem with Spreadsheets</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 bg-red-50 p-4 rounded-lg">
+              <span className="text-red-500 text-xl">✗</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">Manual Everything</h4>
+                <p className="text-sm">Copy, paste, format, repeat. For every single contact.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-red-50 p-4 rounded-lg">
+              <span className="text-red-500 text-xl">✗</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">No CRM Sync</h4>
+                <p className="text-sm">Spreadsheets don't talk to HubSpot or Salesforce.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-red-50 p-4 rounded-lg">
+              <span className="text-red-500 text-xl">✗</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">Duplicate Chaos</h4>
+                <p className="text-sm">No automatic duplicate detection. Data gets messy fast.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-red-50 p-4 rounded-lg">
+              <span className="text-red-500 text-xl">✗</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">No Context</h4>
+                <p className="text-sm">Lose track of where contacts came from or when you last talked.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CRMSYNC Solution */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">The CRMSYNC Solution</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-lg">
+              <span className="text-green-500 text-xl">✓</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">Automatic Capture</h4>
+                <p className="text-sm">Contacts extracted from emails with one click.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-lg">
+              <span className="text-green-500 text-xl">✓</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">CRM Integration</h4>
+                <p className="text-sm">Sync directly to HubSpot and Salesforce.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-lg">
+              <span className="text-green-500 text-xl">✓</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">Smart Deduplication</h4>
+                <p className="text-sm">Automatically detects and merges duplicates.</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 bg-green-50 p-4 rounded-lg">
+              <span className="text-green-500 text-xl">✓</span>
+              <div>
+                <h4 className="font-semibold text-gray-900">Source Tracking</h4>
+                <p className="text-sm">Know exactly which email each contact came from.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Still Need Spreadsheets? */}
+        <section>
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 className="text-lg font-bold text-gray-900">Still Need a Spreadsheet?</h3>
+            <p className="mt-2">No problem! CRMSYNC lets you export all your contacts to CSV anytime. Use the best of both worlds.</p>
+            <p className="mt-2 text-sm text-gray-500">Export includes: Name, Email, Phone, Company, Title, Date Added, Source</p>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="text-center">
+          <a href="#/register" className="inline-block bg-green-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-green-700 transition">
+            Upgrade from Spreadsheets
+          </a>
+        </div>
+      </div>
+    )
   }
 };
 

@@ -463,12 +463,145 @@ const PAGES: Record<string, PageContent> = {
     )
   },
   about: {
-    title: "About Us",
+    title: "About CRMSYNC",
     subtitle: "Building the future of relationship management",
     content: (
-      <div className="space-y-6 text-gray-600">
-        <p>CRMSYNC was born out of frustration. Salespeople spend 20% of their time on data entry. We believe that time should be spent building relationships, not updating spreadsheets.</p>
-        <p>Founded in 2024, we help thousands of professionals automate their workflow directly within Gmail.</p>
+      <div className="space-y-8 text-gray-600">
+        {/* Mission Statement */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl">
+          <h3 className="text-2xl font-bold">Our Mission</h3>
+          <p className="mt-3 text-lg text-blue-100">
+            To eliminate busywork so professionals can focus on what matters most: building meaningful relationships.
+          </p>
+        </div>
+
+        {/* Story */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Our Story</h3>
+          <div className="space-y-4">
+            <p>
+              CRMSYNC was born out of frustration. As salespeople ourselves, we spent countless hours copying contact information from emails into our CRM. Name, email, phone, company, title — over and over again.
+            </p>
+            <p>
+              We calculated that sales professionals spend up to <strong>20% of their time on data entry</strong>. That's one full day every week not spent talking to customers, closing deals, or building relationships.
+            </p>
+            <p>
+              We built CRMSYNC to solve this problem. Our Chrome extension lives right inside Gmail, automatically extracting contact information from every email you read and syncing it to your CRM with a single click.
+            </p>
+            <p>
+              Founded in 2024, we now help thousands of sales professionals, recruiters, and business owners save hours every week.
+            </p>
+          </div>
+        </section>
+
+        {/* Stats */}
+        <section>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600">10K+</div>
+              <div className="text-sm text-gray-500 mt-1">Users</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600">500K+</div>
+              <div className="text-sm text-gray-500 mt-1">Contacts Synced</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600">5hrs</div>
+              <div className="text-sm text-gray-500 mt-1">Saved Per Week</div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6 text-center">
+              <div className="text-3xl font-bold text-blue-600">4.8★</div>
+              <div className="text-sm text-gray-500 mt-1">User Rating</div>
+            </div>
+          </div>
+        </section>
+
+        {/* Values */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Our Values</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">🔒</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Privacy First</h4>
+                <p className="text-sm mt-1">Your data belongs to you. We process emails locally and never sell your information.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">⚡</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Simplicity</h4>
+                <p className="text-sm mt-1">Complex tools don't get used. We build simple, focused solutions that just work.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">🤝</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">User-Centric</h4>
+                <p className="text-sm mt-1">Every feature we build starts with a real user problem. We listen before we code.</p>
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl">🚀</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Continuous Improvement</h4>
+                <p className="text-sm mt-1">We ship updates weekly and constantly improve based on user feedback.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Integrations */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Trusted Integrations</h3>
+          <p className="mb-4">CRMSYNC integrates with the tools you already use:</p>
+          <div className="flex flex-wrap gap-4">
+            <div className="bg-gray-50 px-6 py-3 rounded-lg font-medium text-gray-700">Gmail</div>
+            <div className="bg-gray-50 px-6 py-3 rounded-lg font-medium text-gray-700">HubSpot</div>
+            <div className="bg-gray-50 px-6 py-3 rounded-lg font-medium text-gray-700">Salesforce</div>
+            <div className="bg-gray-50 px-6 py-3 rounded-lg font-medium text-gray-700">Stripe</div>
+            <div className="bg-gray-50 px-6 py-3 rounded-lg font-medium text-gray-700">Google OAuth</div>
+          </div>
+        </section>
+
+        {/* Contact */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Get in Touch</h3>
+          <div className="bg-gray-50 rounded-xl p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="font-medium text-gray-900">General Inquiries</p>
+                <a href="mailto:hello@crm-sync.net" className="text-blue-600 hover:underline">hello@crm-sync.net</a>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Support</p>
+                <a href="mailto:support@crm-sync.net" className="text-blue-600 hover:underline">support@crm-sync.net</a>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Press</p>
+                <a href="mailto:press@crm-sync.net" className="text-blue-600 hover:underline">press@crm-sync.net</a>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Partnerships</p>
+                <a href="mailto:partners@crm-sync.net" className="text-blue-600 hover:underline">partners@crm-sync.net</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl text-center">
+          <h3 className="text-xl font-bold">Ready to save time?</h3>
+          <p className="mt-2 text-blue-100">Join thousands of professionals who've eliminated manual data entry.</p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="#/register" className="inline-block bg-white text-blue-600 font-semibold px-8 py-3 rounded-lg hover:bg-blue-50 transition">
+              Get Started Free
+            </a>
+            <a href="#/docs" className="inline-block border border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white/10 transition">
+              Read the Docs
+            </a>
+          </div>
+        </div>
       </div>
     )
   },
@@ -902,6 +1035,448 @@ const PAGES: Record<string, PageContent> = {
         <div className="text-center text-sm text-gray-500 pt-4 border-t border-gray-200">
           Last updated: December 2024
         </div>
+      </div>
+    )
+  },
+  // Integration Pages
+  'integration-hubspot': {
+    title: "HubSpot Integration Guide",
+    subtitle: "Connect CRMSYNC to HubSpot and sync contacts automatically",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white p-6 rounded-xl">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-lg">
+              <span className="text-3xl">🟠</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">HubSpot + CRMSYNC</h3>
+              <p className="text-orange-100">Automatically sync Gmail contacts to your HubSpot CRM</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Benefits */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Why Connect HubSpot?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">⏱️</div>
+              <h4 className="font-semibold text-gray-900">Save Time</h4>
+              <p className="text-sm mt-1">No more manual data entry. Contacts sync with one click.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">🔄</div>
+              <h4 className="font-semibold text-gray-900">Stay Updated</h4>
+              <p className="text-sm mt-1">Contact info updates automatically when details change.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">✅</div>
+              <h4 className="font-semibold text-gray-900">No Duplicates</h4>
+              <p className="text-sm mt-1">Smart matching prevents duplicate contacts.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Setup Steps */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Setup Guide</h3>
+          
+          <div className="space-y-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold">1</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Open CRMSYNC Settings</h4>
+                <p className="mt-1">Click the CRMSYNC icon in your Chrome toolbar, then navigate to the Settings tab.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold">2</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Click "Connect HubSpot"</h4>
+                <p className="mt-1">In the CRM Integrations section, click the orange "Connect HubSpot" button.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold">3</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Authorize Access</h4>
+                <p className="mt-1">Log in to your HubSpot account and grant CRMSYNC permission to manage contacts.</p>
+                <div className="mt-2 bg-yellow-50 border-l-4 border-yellow-500 p-3 rounded-r-lg text-sm">
+                  <p className="text-yellow-800">You'll need to be a HubSpot admin or have permission to install integrations.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center font-bold">4</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Start Syncing!</h4>
+                <p className="mt-1">You'll see "HubSpot Connected ✓" in your settings. Now you can sync contacts with one click.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Field Mapping */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Field Mapping</h3>
+          <p className="mb-4">CRMSYNC automatically maps contact fields to HubSpot properties:</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-orange-50">
+                <tr>
+                  <th className="text-left p-3">CRMSYNC Field</th>
+                  <th className="text-left p-3">HubSpot Property</th>
+                  <th className="text-left p-3">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr><td className="p-3">First Name</td><td className="p-3">firstname</td><td className="p-3">Parsed from full name</td></tr>
+                <tr><td className="p-3">Last Name</td><td className="p-3">lastname</td><td className="p-3">Parsed from full name</td></tr>
+                <tr><td className="p-3">Email</td><td className="p-3">email</td><td className="p-3">Primary identifier</td></tr>
+                <tr><td className="p-3">Phone</td><td className="p-3">phone</td><td className="p-3">From signature</td></tr>
+                <tr><td className="p-3">Company</td><td className="p-3">company</td><td className="p-3">From signature/domain</td></tr>
+                <tr><td className="p-3">Job Title</td><td className="p-3">jobtitle</td><td className="p-3">From signature</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Syncing Options */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Syncing Options</h3>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-900">Manual Sync (All Plans)</h4>
+              <p className="text-sm mt-1">Click the HubSpot icon next to any contact to sync it immediately.</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-900">Bulk Sync (Pro/Business)</h4>
+              <p className="text-sm mt-1">Select multiple contacts and click "Sync to HubSpot" to sync them all at once.</p>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-900">Auto-Sync (Business)</h4>
+              <p className="text-sm mt-1">New contacts are automatically synced to HubSpot in the background.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Troubleshooting */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Troubleshooting</h3>
+          <div className="space-y-4">
+            <div className="border-l-4 border-red-500 pl-4">
+              <h4 className="font-semibold text-gray-900">"Connection Failed" Error</h4>
+              <p className="text-sm mt-1">Try disconnecting and reconnecting HubSpot. Make sure pop-ups aren't blocked.</p>
+            </div>
+            <div className="border-l-4 border-red-500 pl-4">
+              <h4 className="font-semibold text-gray-900">"Permission Denied" Error</h4>
+              <p className="text-sm mt-1">You need admin access in HubSpot, or ask your admin to approve the integration.</p>
+            </div>
+            <div className="border-l-4 border-red-500 pl-4">
+              <h4 className="font-semibold text-gray-900">Contact Not Appearing in HubSpot</h4>
+              <p className="text-sm mt-1">Check that the contact has a valid email. HubSpot requires email as a unique identifier.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6 text-center">
+          <h3 className="text-lg font-bold text-gray-900">Ready to Connect?</h3>
+          <p className="mt-2 text-gray-600">Start syncing your Gmail contacts to HubSpot today.</p>
+          <a href="#/pricing" className="inline-block mt-4 bg-orange-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-orange-600 transition">
+            Get Started
+          </a>
+        </div>
+      </div>
+    )
+  },
+  'integration-salesforce': {
+    title: "Salesforce Integration Guide",
+    subtitle: "Connect CRMSYNC to Salesforce and streamline your workflow",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Hero */}
+        <div className="bg-gradient-to-r from-blue-500 to-cyan-500 text-white p-6 rounded-xl">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-lg">
+              <span className="text-3xl">☁️</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">Salesforce + CRMSYNC</h3>
+              <p className="text-blue-100">Automatically sync Gmail contacts to your Salesforce org</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Benefits */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Why Connect Salesforce?</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">🎯</div>
+              <h4 className="font-semibold text-gray-900">Accurate Data</h4>
+              <p className="text-sm mt-1">Contact info captured directly from email signatures.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">🔗</div>
+              <h4 className="font-semibold text-gray-900">Account Linking</h4>
+              <p className="text-sm mt-1">Contacts automatically linked to existing Accounts.</p>
+            </div>
+            <div className="border border-gray-200 rounded-xl p-4 text-center">
+              <div className="text-3xl mb-2">📊</div>
+              <h4 className="font-semibold text-gray-900">Clean Pipeline</h4>
+              <p className="text-sm mt-1">Create Leads or Contacts based on your workflow.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Setup Steps */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Setup Guide</h3>
+          
+          <div className="space-y-6">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">1</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Open CRMSYNC Settings</h4>
+                <p className="mt-1">Click the CRMSYNC icon, then go to the Settings tab.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">2</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Click "Connect Salesforce"</h4>
+                <p className="mt-1">In the CRM Integrations section, click the blue "Connect Salesforce" button.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">3</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Log in to Salesforce</h4>
+                <p className="mt-1">Enter your Salesforce credentials and authorize CRMSYNC.</p>
+                <div className="mt-2 bg-blue-50 border-l-4 border-blue-500 p-3 rounded-r-lg text-sm">
+                  <p className="text-blue-800">Works with Salesforce Sales Cloud, Service Cloud, and Platform editions.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">4</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Choose Record Type</h4>
+                <p className="mt-1">Select whether to create Contacts or Leads when syncing.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold">5</div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Start Syncing!</h4>
+                <p className="mt-1">You're connected! Click the Salesforce icon on any contact to sync.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Contact vs Lead */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Contacts vs Leads</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-900">Create as Contact</h4>
+              <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
+                <li>Best for known, qualified contacts</li>
+                <li>Links to existing Account records</li>
+                <li>Immediate access to contact record features</li>
+              </ul>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-gray-900">Create as Lead</h4>
+              <ul className="list-disc ml-5 mt-2 text-sm space-y-1">
+                <li>Best for new prospects</li>
+                <li>Goes through your lead qualification process</li>
+                <li>Convert to Contact/Account when qualified</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Field Mapping */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Field Mapping</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-blue-50">
+                <tr>
+                  <th className="text-left p-3">CRMSYNC</th>
+                  <th className="text-left p-3">Salesforce Contact</th>
+                  <th className="text-left p-3">Salesforce Lead</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                <tr><td className="p-3">First Name</td><td className="p-3">FirstName</td><td className="p-3">FirstName</td></tr>
+                <tr><td className="p-3">Last Name</td><td className="p-3">LastName</td><td className="p-3">LastName</td></tr>
+                <tr><td className="p-3">Email</td><td className="p-3">Email</td><td className="p-3">Email</td></tr>
+                <tr><td className="p-3">Phone</td><td className="p-3">Phone</td><td className="p-3">Phone</td></tr>
+                <tr><td className="p-3">Company</td><td className="p-3">Account.Name</td><td className="p-3">Company</td></tr>
+                <tr><td className="p-3">Title</td><td className="p-3">Title</td><td className="p-3">Title</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 text-center">
+          <h3 className="text-lg font-bold text-gray-900">Ready to Connect?</h3>
+          <p className="mt-2 text-gray-600">Start syncing your Gmail contacts to Salesforce today.</p>
+          <a href="#/pricing" className="inline-block mt-4 bg-blue-500 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-600 transition">
+            Get Started
+          </a>
+        </div>
+      </div>
+    )
+  },
+  // Support Page
+  support: {
+    title: "Support",
+    subtitle: "We're here to help you succeed",
+    content: (
+      <div className="space-y-8 text-gray-600">
+        {/* Quick Help */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a href="#/docs" className="block border border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-md transition text-center">
+            <div className="text-3xl mb-3">📖</div>
+            <h3 className="font-semibold text-gray-900">Documentation</h3>
+            <p className="text-sm mt-2">Step-by-step guides and tutorials</p>
+          </a>
+          <a href="#/docs#faq" className="block border border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-md transition text-center">
+            <div className="text-3xl mb-3">❓</div>
+            <h3 className="font-semibold text-gray-900">FAQ</h3>
+            <p className="text-sm mt-2">Answers to common questions</p>
+          </a>
+          <a href="#/docs#troubleshooting" className="block border border-gray-200 rounded-xl p-6 hover:border-blue-500 hover:shadow-md transition text-center">
+            <div className="text-3xl mb-3">🔧</div>
+            <h3 className="font-semibold text-gray-900">Troubleshooting</h3>
+            <p className="text-sm mt-2">Fix common issues quickly</p>
+          </a>
+        </div>
+
+        {/* Contact Options */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Contact Us</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span>📧</span> Email Support
+              </h4>
+              <p className="mt-2 text-sm">For general questions and help with your account.</p>
+              <a href="mailto:support@crm-sync.net" className="inline-block mt-4 text-blue-600 font-medium hover:underline">
+                support@crm-sync.net
+              </a>
+              <p className="text-xs text-gray-500 mt-2">Response time: Within 24 hours</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span>🔒</span> Security Issues
+              </h4>
+              <p className="mt-2 text-sm">Report security vulnerabilities responsibly.</p>
+              <a href="mailto:security@crm-sync.net" className="inline-block mt-4 text-blue-600 font-medium hover:underline">
+                security@crm-sync.net
+              </a>
+              <p className="text-xs text-gray-500 mt-2">Response time: Within 24 hours</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span>💼</span> Sales & Enterprise
+              </h4>
+              <p className="mt-2 text-sm">Team plans, custom integrations, and volume pricing.</p>
+              <a href="mailto:sales@crm-sync.net" className="inline-block mt-4 text-blue-600 font-medium hover:underline">
+                sales@crm-sync.net
+              </a>
+              <p className="text-xs text-gray-500 mt-2">Response time: Within 48 hours</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span>💳</span> Billing
+              </h4>
+              <p className="mt-2 text-sm">Questions about invoices, refunds, or subscriptions.</p>
+              <a href="mailto:billing@crm-sync.net" className="inline-block mt-4 text-blue-600 font-medium hover:underline">
+                billing@crm-sync.net
+              </a>
+              <p className="text-xs text-gray-500 mt-2">Response time: Within 24 hours</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Priority Support */}
+        <section>
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl p-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-bold">Priority Support</h3>
+                <p className="mt-1 text-purple-100">Pro and Business subscribers get faster response times and dedicated support.</p>
+              </div>
+              <a href="#/pricing" className="inline-block bg-white text-purple-600 font-semibold px-6 py-2 rounded-lg hover:bg-purple-50 transition text-center">
+                Upgrade Now
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Common Issues */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">Common Issues</h3>
+          <div className="space-y-3">
+            <details className="border border-gray-200 rounded-lg">
+              <summary className="p-4 cursor-pointer font-medium text-gray-900 hover:bg-gray-50">
+                How do I reset my password?
+              </summary>
+              <div className="p-4 pt-0 text-sm">
+                Click "Forgot Password" on the login page, enter your email, and follow the instructions in the reset email.
+              </div>
+            </details>
+            <details className="border border-gray-200 rounded-lg">
+              <summary className="p-4 cursor-pointer font-medium text-gray-900 hover:bg-gray-50">
+                How do I cancel my subscription?
+              </summary>
+              <div className="p-4 pt-0 text-sm">
+                Go to Account Settings → Subscription → Cancel Plan. Your access continues until the end of the billing period.
+              </div>
+            </details>
+            <details className="border border-gray-200 rounded-lg">
+              <summary className="p-4 cursor-pointer font-medium text-gray-900 hover:bg-gray-50">
+                How do I export my contacts?
+              </summary>
+              <div className="p-4 pt-0 text-sm">
+                Open the CRMSYNC popup, go to the Contacts tab, and click the Export button (or press Ctrl/Cmd + E).
+              </div>
+            </details>
+            <details className="border border-gray-200 rounded-lg">
+              <summary className="p-4 cursor-pointer font-medium text-gray-900 hover:bg-gray-50">
+                How do I delete my account?
+              </summary>
+              <div className="p-4 pt-0 text-sm">
+                Email support@crm-sync.net with your request. We'll verify your identity and process the deletion within 48 hours.
+              </div>
+            </details>
+          </div>
+        </section>
+
+        {/* Status */}
+        <section>
+          <h3 className="text-xl font-bold text-gray-900 mb-4">System Status</h3>
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="font-medium text-green-800">All systems operational</span>
+          </div>
+        </section>
       </div>
     )
   }

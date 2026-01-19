@@ -87,6 +87,7 @@ const App: React.FC = () => {
       case 'privacy':
       case 'terms':
       case 'security':
+      case 'support':
         return <StaticPage pageKey={page} />;
       case 'home':
       default:
